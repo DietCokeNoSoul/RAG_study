@@ -1,0 +1,37 @@
+# 模型文件
+Models/
+models/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Python 缓存文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 虚拟环境
+venv/
+env/
+.env
+
+# IDE 文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Hugging Face 缓存
+.cache/
+
+# API Keys（如果有配置文件）
+.env.local
+config.ini
