@@ -1,0 +1,328 @@
+Graph Bayesian Optimization for Multiplex Influence Maximization
+Zirui Yuan1, Minglai Shao1*, Zhiqian Chen2
+1School of New Media and Communication, Tianjin University, China 2Department of Computer Science and Engineering, Mississippi State University, USA yzr@tju.edu.cn, shaoml@tju.edu.cn, zchen@cse.msstate.edu
+Abstract
+Influence maximization (IM) is the problem of identifying a limited number of initial influential users within a social network to maximize the number of influenced users. However, previous research has mostly focused on individual information propagation, neglecting the simultaneous and interactive dissemination of multiple information items. In reality, when users encounter a piece of information, such as a smartphone product, they often associate it with related products in their minds, such as earphones or computers from the same brand. Additionally, information platforms frequently recommend related content to users, amplifying this cascading effect and leading to multiplex influence diffusion.
+This paper first formulates the Multiplex Influence Maximization (Multi-IM) problem using multiplex diffusion models with an information association mechanism. In this problem, the seed set is a combination of influential users and information. To effectively manage the combinatorial complexity, we propose Graph Bayesian Optimization for MultiIM (GBIM). The multiplex diffusion process is thoroughly investigated using a highly effective global kernelized attention message-passing module. This module, in conjunction with Bayesian linear regression (BLR), produces a scalable surrogate model. A data acquisition module incorporating the exploration-exploitation trade-off is developed to optimize the seed set further. Extensive experiments on synthetic and real-world datasets have proven our proposed framework effective. The code is available at https://github.com/ziruiyuan/GBIM.
+Introduction
+The rapid growth of online social networks has sparked substantial interest among researchers in understanding the dynamics of information dissemination within these networks. This interest has led to the study of influence maximization (IM), an optimization problem that aims to maximize the influence spread within a specific diffusion model by selecting a limited number of seeds (Kempe, Kleinberg, and Tardos 2003). IM has garnered considerable attention from both industry and academia due to its relevance in various realworld applications, including viral marketing, epidemic con
+*Corresponding author Copyright © 2024, Association for the Advancement of Artificial Intelligence (www.aaai.org). All rights reserved.
+write
+follow like
+forward
+reply
+(a). Canonical IM (b). Heterogeneous IM (c). Multi-layer IM
+(d). Multiplex IM
+Information Association
+1st Step
+1st Step
+2nd Step
+2nd Step ...
+...
+Figure 1: The comparison of related IM problems, and u1 is the initial seed user. (a) Canonical IM in the homogeneous network. (b) Heterogeneous IM on networks with multiple node and edge types. (c) Multi-layer IM with users in two social network platforms. (d) Multiplex IM with three information items {v1, v2, v3}, and (u1, v1) is the seed.
+trol, and rumor blocking (Li et al. 2018; Zhang et al. 2022; Li et al. 2022a). Most IM literature focuses on the canonical setting, which only considers an individual information item spread over a homogeneous social network based on an information diffusion model. Researchers have made great progress in devising various efficient and effective methods to address the canonical IM problem, utilizing techniques such as simulation, proxy, and sketch (Goyal, Lu, and Lakshmanan 2011; Borgs et al. 2014; Tang, Shi, and Xiao 2015). In recent years, IM research has witnessed a growing interest in exploring more realistic scenarios beyond the canonical setting, including Heterogeneous IM and Multi-Layer IM. Heterogeneous IM (Figure 1b) addresses the IM problem in heterogeneous networks with diverse node and edge types. Researchers commonly employ techniques involving network schema and meta-paths to construct propagation pathways. Building on this, both traditional and learning-based methods can be designed to optimize the seed set (Zhan et al. 2015; Deng et al. 2019; Li et al. 2022b). Multi-Layer IM (Figure 1c) discusses the cross-layer nature of information dissemination across different social network platforms. These studies consider the sharing of nodes between networks as a mechanism enabling information to propagate
+arXiv:2403.18866v1 [cs.SI] 25 Mar 2024
+
+
+across layers. Some approaches for tackling this problem involve integrating networks into one unified large network and applying existing IM algorithms (Kuhnle et al. 2018; Keikha et al. 2020; Katukuri, Jagarapu et al. 2022). While these efforts have succeeded, they still concentrate on scenarios where individual information spreads in isolation. However, real-world online social networks typically involve the simultaneous dissemination of multiple information items, with heterogeneous diffusion patterns over these items. Additionally, interconnected information items often result in multiplex influence, further complicating the dynamics of information spread. This study introduces the Multiplex Influence Maximization (Multi-IM) problem, which aims to maximize the multiplex influence within the constraints of a fixed seed budget. As depicted in Figure 1d, three interconnected information items represented by {v1, v2, v3} (e.g., three complementary products) propagate concurrently in a social network. This can be modeled as a multiplex network consisting of three propagation layers, each representing the dissemination of one information item, denoted by the colors red, purple, and green, respectively. When information item v1 influences user u1, it creates multiplex influence due to the associations among the three information items. Consequently, user u1 also adopts the information from v2 and v3, activating u1 on the propagation layers of v2 and v3 in this multiplex network. Moreover, the preference biases of users towards items lead to different propagation results. The new mode of propagation presents the following difficulties for seed set selection. First, the presence of multiple information items increases combinatorial complexity. To maximize multiplex influence, we must not only select users to disseminate information but also determine the most pertinent information items for those users. Second, this novel modeling of propagation results in a heterogeneous, multidimensional structure that introduces a new type of geometric complexity. Furthermore, compared to Canonical IM, this propagation modeling generates larger dimensions and data volume, resulting in catastrophic data processing issues. Numerous layers representing item-specific propagation environments would considerably increase computational costs in Multi-IM, making it challenging for conventional techniques to complete tasks in a timely manner. We propose GBIM, a Graph Bayesian Optimization framework for Multi-IM, to tackle these challenges. By effectively navigating the complex search space, GBIM identifies the most influential users and the optimal information items to maximize multiplex influence. To address the heterogeneous and multi-layered geometric structure generated by the new propagation modeling, a highly effective global kernelized attention message-passing module based on Positive Random Features (PRF) (Choromanski et al. 2020) is employed. This module acquires a comprehensive understanding of the multiplex diffusion process, yielding a reliable influence estimation. GBIM combines this module with Bayesian linear regression to create a scalable surrogate model that facilitates efficient data processing. In addition, the data acquisition module incorporates the explorationexploitation trade-off, enabling effective exploration of the
+vast search space for optimizing the seed set with the highest observed performance. Our contributions are as follows:
+• First formulate the Multi-IM problem, which models the scenario that multiple information items propagate and interact in a multiplex network.
+• Devise a highly effective global kernelized attention message-passing module to learn the complex multiplex diffusion process.
+• Present GBIM to optimize the seed set with the highest observed performance efficiently.
+• Conduct extensive experiments to demonstrate the performance of the proposed method.
+Related Work
+Influence Maximization. The influence maximization (IM) problem was introduced in seminal work by (Kempe, Kleinberg, and Tardos 2003), relying on diffusion models like Linear Threshold and Independent Cascade (Li et al. 2018, 2022a). Much research has developed traditional simulation, proxy, and sketch-based methods (Goyal, Lu, and Lakshmanan 2011; Borgs et al. 2014; Tang, Shi, and Xiao 2015), as well as recent learning-based techniques (Ling et al. 2023). However, these canonical IM studies focus on single information spread in homogeneous networks. Recent interest has emerged in more realistic settings like Heterogeneous IM and Multi-Layer IM. Heterogeneous IM handles diverse nodes and edges using techniques involving meta-paths (Zhan et al. 2015; Deng et al. 2019; Li et al. 2022b). Multi-Layer IM examines cross-platform information spread via node sharing (Kuhnle et al. 2018; Keikha et al. 2020; Katukuri, Jagarapu et al. 2022). While incorporating complex networks, these works still consider individual information. Multi-information settings are first discussed in Competitive IM, which handles a purely competitive scenario (Bharathi, Kempe, and Salek 2007). The complement relation between information items is only investigated in (Lu, Chen, and Lakshmanan 2015) but is limited to the IC model. Recently, some studies have examined multiinformation scenarios but did not account for interconnections between information items (Ni et al. 2020; Wu et al. 2021; Fang, Ho, and Dai 2022). In summary, modeling complex interactions among multiple information items remains a key limitation. Our work introduces a multiplex network perspective to model multi-information dissemination.
+Bayesian Optimization. Bayesian optimization (BO) (Mockus 1998) is a method to optimize complex black-box functions relying on Bayesian statistical models paired with optimization algorithms. It requires a surrogate model representing the target function, typically based on Gaussian processes (GPs) (Brochu, Brochu, and De Freitas 2010; Snoek, Larochelle, and Adams 2012). However, GPs scale cubically with increasing observations, challenging massively parallel optimization requiring many evaluations. Neural networks can serve as a practical surrogate model, leveraging flexible representation power to model complex functions and enhance scalability (Snoek et al. 2015; Springenberg et al. 2016; Perrone et al. 2018; Ma, Cui, and Yang 2019). In
+
+
+this work, we develop a highly effective global kernelized attention message-passing module to learn the multiplex diffusion process and serve as non-linear basis functions for Bayesian linear regression to yield a scalable surrogate model, leveraging both the nonlinear fitting capabilities of neural networks and the effective statistical properties of Bayesian.
+Problem and Model Definition
+In this work, we examine a context where m distinct pieces of information are concurrently disseminated across a weighted, directed social network, represented as G = (U , EU ). Here, U = {u1, u2, ..., un} signifies the user set, while EU denotes the edge set, with each ei,j ∈ EU carrying a specific weight wi,j. We introduce the information association network as I = (V, EV ), where V = {v1, v2, ..., vm} represents the set of information items and Ev encompasses the edges linking these items. Furthermore, we consider a preference matrix, P ∈ Rn×m, in which the element pi,j reflects the inclination of user ui towards item vj. The multiplex diffusion model M is expressed as y = M(x; G, I, P). In this representation, the input x = {..., (u, v), ...} indicates a seed set containing multiple user-item pairs, while each pair (u, v) ∈ x implies that user u is initially influenced by the information item v during the execution of M. The output y ∈ N+ signifies the multiplex influence exerted by all items. Grounded on the formalization above, the MultiIM problem is defined as follows:
+Definition 1 (Multiplex Influence Maximization). The objective of the Multi-IM problem is to strategically choose a maximum of k user-item pair from U and V, each user and item can only be selected once, so as to maximize the overall multiplex influence.
+x∗ = arg max
+|x|≤k
+M(x; G, I, P), (1)
+s.t. ui ̸= uj, vi ̸= vj, ∀(ui, vi), (uj, vj) ∈ x,
+where x∗ represents the optimal seed node set capable of generating the maximum multiplex influence in M.
+In reality, the propagation dynamics of each information item are different since users are inclined to spread information aligning with their interests while overlooking content that does not appeal to their preferences. Besides, when users are influenced, they may associate other interconnected information in their minds, resulting in multiplex influence. To model this realistic scenario, we introduce the multiplex influence diffusion model M along with the association mechanism in a multiplex network perspective. A multiplex network is a graph with multiple layers, where each layer contains a network on the same set of nodes. The multiplex network in M(x; G, I, P) contains m layers, where each layer models the propagation environment for one information item and shares the same structure as G. The commonly used information diffusion models like Linear Threshold (LT) and Independent Cascade (IC) can simulate propagation on each layer but need adaption to incorporate inherent heterogeneity stemming from preference
+matrix P. Specifically, within the propagation layer of information item vk, the threshold for user ui is adjusted to 1 − pi,k when using the LT model. For the IC model, the influence probability of edge ei,j is modified to wi,j · pj,k. We propose an association mechanism to model the inter-layer propagation across information items:
+Definition 2 (Association Mechanism). The Association Mechanism in the multiplex influence diffusion model refers to the process by which activated users spread across the interconnected information item propagation layers.
+Specifically, when user ui gets activated by information vj, they have a probability β ∗ pi,k of associating to other adjacent information vk ∈ NI (vj) and self-activating in vk’s propagation layer. Here, NI (vj) denotes the neighbor information items of vj in I, and β is a base ratio scaling the inter-layer association strength. This process resembles diffused thinking along I, terminating when user ui makes no more associations. Building on the multiplex network structure and association mechanism, we formally define the multiplex influence model as follows:
+Definition 3 (Multiplex Diffusion Model). The multiplex diffusion model M(x; G, I, P) is a model characterizing the dynamical diffusion process of multiple information items in a multiplex network. Each layer has a heterogeneous diffusion pattern depending on the preference matrix P, and the association mechanism allows influenced users to propagate across layers based on I. The output is the expected activated number at the multiplex network.
+Let σi(x) denote the number of the users influenced by item vi, we define the multiplex influence output by M as:
+M(x; G, I, P) =
+m
+X
+i=1
+σi(x). (2)
+The multiplex diffusion model M(x) operates in discrete time steps. At step 0, the starting state is configured based on the input seed set x. In each following step, the association mechanism is executed for every newly activated user. Heterogeneous information diffusion then takes place on propagation layers with active users. The model repeats this process until no further activations occur and outputs the final multiplex influence.
+GBIM: Graph Bayesian Optimization Framework for Multi-IM Framework Overview
+The process of our suggested GBIM framework is illustrated in Figure 2. This framework encompasses two primary modules: the surrogate model and data acquisition. Initially, seeds are generated at random and assessed using the objective multiplex diffusion model M(x), forming the preliminary training dataset D = {(x1, y1), ..., (xN , yN )}. Subsequently, we iteratively: (1) train a surrogate diffusion model, denoted as M∗(x), to fit the present dataset D and employ the output from the final layer of M∗(x) as a set of basis functions φ(x), integrate it with a Bayesian linear
+
+
+Top
+2): Train . 3): Data Acquisition. 4): Evaluate .
+Surrogate Model Data Acquisition
+81
+2
+3
+4
+5
+6
+7
+Global Kernelized Passing
+BLR
+MLP
+3
+8
+{(8,1),(3,2)}
+Explore Exploit
+ACQ
+1): Sample from .
+Seed Embedding
+1
+1
+8
+8
+3
+3
+2
+2
+Figure 2: The overview of the proposed GBIM framework. This framework includes two modules: surrogate model and data acquisition. Initially, random seeds are evaluated by the true model M(x) to form dataset D. We then iteratively: (1) train surrogate model M∗(x) on D; (2) sampling and evaluate the candidates X via M∗(x), selecting top K seed sets to be X ∗; (3) assess X ∗ via M(x) to expand D. Finally, the optimal x∗ from D with maximal influence is selected.
+regressor (BLR) to capture uncertainty; (2) sample an unobserved candidate set X with the explore-exploit tradeoff, select the top K seed sets with elevated acquisition values into X ∗; (3) appraise X ∗ using M(x) to curate a new dataset, subsequently expanding the training data D. Upon the conclusion of the optimization cycle, the optimal x∗ from the final observed dataset D, showcasing the maximum spread number, is chosen as the definitive seed set.
+Surrogate Model
+Message-passing graph neural networks (GNNs) are widely recognized for modeling geometric structures. By iteratively updating node representations through aggregating information from adjacent nodes, they bear resemblances to the influence diffusion model. However, prevalent GNNs encounter challenges in addressing long-range dependencies, which are pivotal in the influence diffusion model. In our study, we introduce an optimized global message-passing graph neural network to learn the multiplex influence diffusion and leverage a BLR head to capture uncertainty.
+Global Kernelized Attention Message Passing. The input seed set x = {..., (ui, vj), ...} can be represented by
+a matrix S ∈ Rn×m where Si,j = 1 if (ui, vj) ∈ x and Si,j = 0 otherwise. We first encode S into a lowdimensional status matrix X ∈ Rn×d. The non-zero rows of X represent the status information of the seed users, while zero rows represent non-seed users. Let H ∈ Rn×d be the node feature matrix and Z ∈ Rn×d the output status matrix. We can define a global attention message passing as follows:
+Z = softmax( HWQ(HWK )⊤
+√d )XWV , (3)
+where WQ, WK and WV are learnable projection matrices. However, this incurs O(n2) complexity, hindering scalability to large graphs. To accelerate computation, we further derive a kernel view of Equation 3. Denoting the i-th
+row of X, H and Z as xi, hi, zi respectively, the kernelized formulation is:
+zi =
+n
+X
+j=1
+κ(hiWQ, hj WK )
+Pn
+k=1 κ(hiWQ, hkWK ) (xj WV ), (4)
+where κ(·, ·) : Rd × Rd → R+ is a positive-definite kernel measuring the pairwise similarity. We further randomly choose finite set of t basis functions to approximate the kernel function:
+κ(x, x′) ≈ φ(x)⊤φ(x′), (5)
+φ(x) = exp( −||x||2
+2)
+√t [exp(w⊤
+1 x), · · ·, exp(w⊤
+t x)], (6)
+where φ(·) : Rd → Rt is positive random feature map function and wk is independently sampled from N (0, Id). It enables us to rewrite Equation 4 as follows:
+zi =
+n
+X
+j=1
+φ(hiWQ)φ(hj WK )⊤
+Pn
+k=1 φ(hiWQ)φ(hkWK )⊤ (xj WV ). (7)
+The dot-then-exponentiate in Equation 3 then converts into inner-product, which enables two summations to be shared by each user:
+zi = φ(hiWQ) Pn
+j=1 φ(hj WK )⊤(xj WV )
+φ(hiWQ) Pn
+k=1 φ(hkWK )⊤ . (8)
+Finally, we obtain the matrix form of the Global Kernelized Attention Message Passing (GKAMP) module with O(n) complexity:
+Z = φ(HWQ)(φ(HWK )⊤(XWV ))
+diag(φ(HWQ)(φ(HWK )⊤1n×1)) . (9)
+
+
+Basis Functions Learning. Firstly, we use the GKAMP module defined above to learn the complex multiplex diffusion process of the objective multiplex influence model:
+Zout = X + GKAMP(X), (10)
+where Zout ∈ Rn×d represents the final status matrix after multiplex information diffusion. Then we use multi-layer perception (MLP) to regress this matrix to the prediction of multiplex influence:
+yˆ = MLP(Zout), (11)
+and use the Mean Absolute Error (MAE) as the loss function:
+L=
+N
+X
+i=1
+|yi − yˆi|. (12)
+After training, we extract φ(x) ∈ RD, the output of the last hidden layer of the MLP, as the basis functions for the Bayesian linear regression.
+Adaptive Basis Regression. In this work, we construct the surrogate model by adaptively combining the basis functions φ(x) via Bayesian linear regression (BLR). Let Φ = [φ(x1), ..., φ(xN )] denote the design matrix arising from
+the training data D, and y ∈ RN denote the stack target vector. Consider a linear regression model y = w⊤φ(x) + b, where w ∼ N (0, σ2wI) and b ∼ N (0, σ2
+b I). For a new in
+put x, the predictive mean μ(x; D) and variance σ2(x; D) of the BLR are then given by:
+μ(x; D) = m⊤φ(x),
+σ2(x; D) = φ(x)⊤A−1φ(x) + σ2
+b,
+where
+m = σ−2
+b A−1Φ⊤y,
+A = σ−2
+b Φ⊤Φ + Iσ−2
+w.
+Theorem 1. The surrogate model constructed by combining neural network basis functions φ(x) with Bayesian linear regression is a special case of Gaussian process regression with a linear kernel.
+Proof. Given a dataset D, Bayesian linear regression over input features φ(x) has the following posterior predictive distribution:
+p(y|x, D) = N (y|σ−2
+b A−1Φ⊤y, φ(x)⊤A−1φ(x)).
+It can be rewritten as follows:
+p(y|x, D) = N (y|k′⊤(K+σ2
+b I)−1y, k′′−k′⊤(K+σ2
+b I)−1k′),
+where K = ΦΣwΦ⊤, k′ = ΦΣwφ(x) and k′′ =
+φ(x)⊤Σwφ(x). This is equivalent to a Gaussian process
+with prior mean is zero and covariance function: κ(x, x′) = φ(x)⊤Σwφ(x′), where Σw = Iσ2w. This establishes that the surrogate model using neural networks and Bayesian linear regression is a special case of Gaussian process regression with the nonlinear mapping of φ(x).
+Data Acquisition
+Data acquisition is a critical component in Bayesian Optimization. In this component, we need to trade off exploration and exploitation and quantify the promise of unobserved inputs using an acquisition function.
+Acquisition Function. In this work, we adopt the expected improvement (EI) as the acquisition function. The EI is defined as the expectation of the improvement function I(x) = max{0, (μ(x; D) − max(y))} at candidate point x. It can be formulated as:
+aEI (x; D) = σ(x; D)[γ(x)C(γ(x)) + N (γ(x); 0, 1)],
+where
+γ(x) = μ(x; D) − max(y)
+σ(x; D) .
+Here C(·) and N (·; 0, 1) denote the cumulative distribution function and probability density function of the standard normal distribution, respectively.
+Explore-Exploit Tradeoff. At each optimization round, we sample candidate sets X and compute their acquisition values. As users and items frequently present in influential seed sets are more likely to appear in the optimal set, X is sampled as follows: α from top 5% high influence entries, the rest uniform randomly, where α is the exploit ratio. Candidates with top 1% acquisition values are chosen as X ∗ to evaluate via the objective multiplex diffusion model, obtaining new observations D∗ to expand the current dataset D.
+Experiments
+In the following experiments, we evaluate the effectiveness of our proposed GBIM framework on four real-world networks and one synthetic network for maximizing multiplex influence across a range of seed set sizes.
+Experiment Setup
+We evaluate the expected multiplex influence defined in Equation 2 under Multi-LT and Multi-IC, two multiplex diffusion models extended by LT and IC. We enable each multiplex diffusion model to simulate until the diffusion process stops and report the average multiplex influence over 100 simulations.
+Datasets. We evaluate GBIM against other methods on four real-world social networking datasets: Ciao, Epinions1, Delicious and LastFM2. These datasets containing genuine user-item interactions (i.e., ratings or frequencies) are instrumental in constructing a pragmatic preference matrix for the multiplex diffusion model. We also use a synthetic ErdosRenyi (Erdo ̋s, Re ́nyi et al. 1960) random graph with 30,000 nodes. For each real dataset, we sample some items and construct the item-item association network I by calculating cosine similarity over user interaction records (item pairs with similarity above 0.5 are connected). We use item-based collaborative filtering to generate the user preference matrix
+1https://www.cse.msu.edu/∼tangjili/datasetcode/truststudy.htm 2https://grouplens.org/datasets/hetrec-2011/
+
+
+10 20 30 40 50
+0
+2
+1e3 Ciao
+10 20 30 40 50
+0
+1
+1e4 Epinions
+10 20 30 40 50
+0
+2 1e2 Delicious
+10 20 30 40 50
+0
+2
+1e2 LastFM
+10 20 30 40 50
+0
+1
+1e2 Synthetic
+10 20 30 40 50
+0.0
+2.5
+1e4
+10 20 30 40 50
+0
+5
+1e5
+10 20 30 40 50
+0
+5
+1e2
+10 20 30 40 50
+0
+5 1e2
+10 20 30 40 50
+0
+2
+1e3
+Multi-LT
+Multi-IC
+IMM CELF++ DeepIM BO MaxDegree GBIM
+Multiplex Influence
+Seed Set Size Seed Set Size Seed Set Size Seed Set Size Seed Set Size
+Figure 3: Performance comparison on Multi-LT (first row) and Multi-IC (second row) with the seed set size growth. The traditional approaches IMM and CELF++ exceeded time and memory limits under Multi-LT on the Synthetic dataset, and Multi-IC on Ciao, Epinions and Synthetic datasets.
+#Users #UserEdges #Items #ItemEdges Ciao 7317 170410 404 1018 Epinions 18069 574064 411 1408 Delicious 1861 15328 536 750 LastFM 1892 25434 501 906 Synthetic 30000 200000 1000 3000
+Table 1: The statistics of the datasets.
+P from user-item interactions. For the synthetic dataset, we randomly construct the item network I and preference matrix P. The statistics of all datasets are provided in Table 1.
+Baseline Methods. We compare the proposed GBIM framework with the following methods.
+• IMM (Tang, Shi, and Xiao 2015): A sampling-based traditional IM algorithm that employs martingale analysis and bootstrap estimation.
+• CELF++ (Goyal, Lu, and Lakshmanan 2011): An efficient greedy algorithm for canonical IM, which avoids unnecessary Monte Carlo simulations.
+• DeepIM (Ling et al. 2023): A recent learning-based IM framework, based on autoencoder and GAT, optimizing the seed set via projected gradient descent.
+• BO: The Bayesian Optimization with Gaussian processes as the surrogate model for Multi-IM.
+• MaxDegree: The ranking of the product of the degree of users and the degree of items.
+Implementation Details In multiplex influence models, the inter-layer association strength β is set as 0.3, and the weights of edges are set as the reciprocal of in-degree. In GBIM, the hidden dimension d in GKAMP is set as 64, and we adopt a 4-layer MLP with hidden sizes 512, 1024, 1024, and 1024. The exploit rate α is set as 0.75. We sample 1000 instances at first and leverage the Adam optimizer (Kingma and Ba 2014) with a learning rate of 0.001 for
+parameters learning. The experiments are implemented in a machine with the following configuration: RTX 2080 Ti GPU with 12GB VRAM, i7-9700 CPU@3.00GHz, 16GB RAM Ubuntu OS, and PyTorch 2.0.1 (Paszke et al. 2019).
+Experimental Results
+As depicted in Figure 3, GBIM consistently outperforms other methods across all experimental configurations and datasets. This substantial improvement is attributed to GBIM’s Bayesian optimization strategy effectively navigating the immense search space, as well as its accurate surrogate model, which aptly captures the complex heterogeneous influence diffusion patterns and inter-layer associations. In contrast, traditional methods like IMM and CELF++ encounter scalability bottlenecks, exceeding memory limits and runtime budgets within the Multi-LT Synthetic and Multi-IC Ciao/Epinions/Synthetic experiments. This highlights their computational constraints when applied to large-scale Multi-IM problems. Meanwhile, the learningbased DeepIM falls short across all datasets. This can be attributed to the limitations of the GAT module they employ, which struggles to capture long-range dependencies across multiple layers. Additionally, standard Gaussian processes fail to effectively learn the intricate multiplex influence diffusion patterns, causing mediocre performance of BO methods. Compared to these approaches, GBIM consistently achieves superior performance under seed sets of all sizes, demonstrating its robustness. For example, on the LastFM network, GBIM attained over 40% higher multiplex influence spread than the best baseline method.
+Parameter Analysis
+In this subsection, we conduct experiments aimed at discussing the impact of the exploitation rate α within our data acquisition module on GBIM’s optimization performance. Specifically, we assess five distinct values of α: 0, 0.25, 0.5, 0.75, and 1. These evaluations are carried out on the Multi
+
+
+5000 10000 15000 20000 25000 30000
+0
+2
+4
+Seconds
+1e4
+CELF++ GBIM
+Number of Users
+(a) Vary n (m = 100 and k = 5)
+200 400 600 800 1000
+0
+1
+2
+3
+Seconds
+1e4
+CELF++ GBIM
+Number of Items
+(b) Vary m (n = 5000 and k = 5)
+0 3000
+1000 2000
+0.0
+0.5
+1.0
+1.5
+1e4
+BO GBIM
+Number of Observations
+Seconds per Iteration
+(c) Vary |D| (n = 5000, m = 100 and k = 5)
+Figure 4: Scalability of GBIM on the Multi-IC model of synthetic data. (a) Near-linear runtime scaling with the number of users. (b) Stable runtime as the number of items increases. (c) Linear runtime as the |D| increases.
+0 5 10 15 20 25 Iteration
+4
+6
+8
+1e2
+=0 =0.25 =0.5
+=0.75 =1
+Multiplex Influence
+Figure 5: Performance of GBIM over iterations on the MultiLT model of Ciao dataset, with different exploit rates α. An appropriate value of α balances exploitation versus exploration, allowing GBIM to optimize efficiently.
+LT model using the Ciao dataset, employing a seed set size of k=5. Other parameters remain set to their optimal configurations. As illustrated in Figure 5, the manipulation of exploit rates, such as α=0.75, fosters swift initial convergence to the optimal solution. In contrast, lower values like α=0.25 and 0.5 necessitate more iterations for the optimization process to culminate. This pattern emerges due to the higher α values that encourage the acquisition function to lean toward seeds akin to those previously deemed optimal, expediting the optimization. However, the scenario where α=1 signifies complete exploitation devoid of exploration, thereby resulting in the entrapment of local optima. On the other hand, α=0 indicates no exploitation at all, making the optimization significantly harder as the search space is not narrowed effectively. In conclusion, an appropriate intermediate value of α balances exploitation and exploration, achieving efficient optimization. Empirically, α around 0.5 to 0.75 works well for GBIM across datasets.
+Scalability Analysis
+In this subsection, we evaluate the scalability of GBIM on the Multi-IC model using synthetic datasets. We start with a base network of 5000 users and 100 items, then progressively increase the number of users and items. As exhibited in Figure 4(a), the running time of GBIM scales nearly
+linearly as the number of users n expands, also remaining consistently lower than CELF++. This favorable scalability is attributed to GBIM’s efficient surrogate model based on global kernelized attention message passing, which embeds influence patterns into compact vector representations and performs efficient computations on the social network of size n, achieving significantly better scalability as m grows large. In contrast, traditional IM methods perform costly simulations on the complete multiplex network of size n × m, resulting in drastically higher complexity. As seen in Figure 4(b), CELF++’s runtime increases rapidly and exceeds time limits as the number of items grows, while GBIM is relatively stable. Additionally, our surrogate model based on neural networks and Bayesian regression demonstrates linear runtime growth with the training dataset size |D| in Figure 4(c). Whereas the standard Gaussian process BO method suffers from cubic scaling, becoming infeasible for large data.
+Conclusion
+In this work, we studied the intricate dynamics of concurrent multi-information propagation on directed social networks. Our core focus was solving the novel Multi-IM problem which aims to select the user-item pair into the seed set with a fixed budget to maximize multiplex influence. We first incorporated heterogeneous propagation patterns and the association mechanism into a multiplex diffusion model, where multiple information items disseminate in a multiplex network. To address Multi-IM, we propose GBIM, a Graph Bayesian Optimization framework. We design a highly efficient global kernelized attention message-passing module to learn the complex multiplex diffusion patterns and integrate Bayesian linear regression to obtain a scalable surrogate model. Furthermore, we develop a data acquisition module with explore-exploit trade-off sampling strategy to optimize the seed set. Extensive experiments on synthetic and real-world datasets demonstrate the scalability and effectiveness of GBIM. In the future, we will investigate how to learn complementary relations and competitive relations from data and incorporate them into a heterogeneous itemitem network for a more realistic diffusion model.
+
+
+Acknowledgements
+This work is supported by NSFC program (No. 62272338) and NSF IIS award #2153369.
+References
+Bharathi, S.; Kempe, D.; and Salek, M. 2007. Competitive influence maximization in social networks. In Internet and Network Economics: Third International Workshop, WINE 2007, San Diego, CA, USA, December 12-14, 2007. Proceedings 3, 306–311. Springer.
+Borgs, C.; Brautbar, M.; Chayes, J.; and Lucier, B. 2014. Maximizing social influence in nearly optimal time. In Proceedings of the twenty-fifth annual ACM-SIAM symposium on Discrete algorithms, 946–957. SIAM.
+Brochu, E.; Brochu, T.; and De Freitas, N. 2010. A Bayesian interactive optimization approach to procedural animation design. In Proceedings of the 2010 ACM SIGGRAPH/Eurographics Symposium on Computer Animation, 103–112.
+Choromanski, K. M.; Likhosherstov, V.; Dohan, D.; Song, X.; Gane, A.; Sarlos, T.; Hawkins, P.; Davis, J. Q.; Mohiuddin, A.; Kaiser, L.; et al. 2020. Rethinking Attention with Performers. In International Conference on Learning Representations.
+Deng, X.; Long, F.; Li, B.; Cao, D.; and Pan, Y. 2019. An influence model based on heterogeneous online social network for influence maximization. IEEE Transactions on Network Science and Engineering, 7(2): 737–749.
+Erdo ̋s, P.; Re ́nyi, A.; et al. 1960. On the evolution of random graphs. Publ. math. inst. hung. acad. sci, 5(1): 17–60.
+Fang, C.-C.; Ho, C.-C.; and Dai, B.-R. 2022. A Greedy Algorithm for Budgeted Multiple-Product Profit Maximization in Social Network. In 2022 23rd IEEE International Conference on Mobile Data Management (MDM), 440–445. IEEE.
+Goyal, A.; Lu, W.; and Lakshmanan, L. V. 2011. Celf++ optimizing the greedy algorithm for influence maximization in social networks. In Proceedings of the 20th international conference companion on World wide web, 47–48.
+Katukuri, M.; Jagarapu, M.; et al. 2022. CIM: cliquebased heuristic for finding influential nodes in multilayer networks. Applied Intelligence, 52(5): 5173–5184.
+Keikha, M. M.; Rahgozar, M.; Asadpour, M.; and Abdollahi, M. F. 2020. Influence maximization across heterogeneous interconnected networks based on deep learning. Expert Systems with Applications, 140: 112905.
+Kempe, D.; Kleinberg, J.; and Tardos,  ́E. 2003. Maximizing the spread of influence through a social network. In Proceedings of the ninth ACM SIGKDD international conference on Knowledge discovery and data mining, 137–146.
+Kingma, D. P.; and Ba, J. 2014. Adam: A method for stochastic optimization. arXiv preprint arXiv:1412.6980.
+Kuhnle, A.; Alim, M. A.; Li, X.; Zhang, H.; and Thai, M. T. 2018. Multiplex influence maximization in online social networks with heterogeneous diffusion models. IEEE Transactions on Computational Social Systems, 5(2): 418–429.
+Li, Y.; Fan, J.; Wang, Y.; and Tan, K.-L. 2018. Influence maximization on social graphs: A survey. IEEE Transactions on Knowledge and Data Engineering, 30(10): 18521872.
+Li, Y.; Gao, H.; Gao, Y.; Guo, J.; and Wu, W. 2022a. A Survey on Influence Maximization: From an ML-Based Combinatorial Optimization. arXiv preprint arXiv:2211.03074.
+Li, Y.; Li, L.; Liu, Y.; and Li, Q. 2022b. Mahe-im: multiple aggregation of heterogeneous relation embedding for influence maximization on heterogeneous information network. Expert Systems with Applications, 202: 117289.
+Ling, C.; Jiang, J.; Wang, J.; Thai, M. T.; Xue, R.; Song, J.; Qiu, M.; and Zhao, L. 2023. Deep Graph Representation Learning and Optimization for Influence Maximization. In International Conference on Machine Learning, 2135021361. PMLR.
+Lu, W.; Chen, W.; and Lakshmanan, L. V. 2015. From competition to complementarity: comparative influence diffusion and maximization. arXiv preprint arXiv:1507.00317.
+Ma, L.; Cui, J.; and Yang, B. 2019. Deep neural architecture search with deep graph bayesian optimization. In IEEE/WIC/ACM International Conference on Web Intelligence, 500–507.
+Mockus, J. 1998. The application of Bayesian methods for seeking the extremum. Towards global optimization, 2: 117.
+Ni, Q.; Guo, J.; Huang, C.; and Wu, W. 2020. Information coverage maximization for multiple products in social networks. Theoretical Computer Science, 828: 32–41.
+Paszke, A.; Gross, S.; Massa, F.; Lerer, A.; Bradbury, J.; Chanan, G.; Killeen, T.; Lin, Z.; Gimelshein, N.; Antiga, L.; et al. 2019. Pytorch: An imperative style, high-performance deep learning library. Advances in neural information processing systems, 32.
+Perrone, V.; Jenatton, R.; Seeger, M. W.; and Archambeau, C. 2018. Scalable hyperparameter transfer learning. Advances in neural information processing systems, 31.
+Snoek, J.; Larochelle, H.; and Adams, R. P. 2012. Practical bayesian optimization of machine learning algorithms. Advances in neural information processing systems, 25.
+Snoek, J.; Rippel, O.; Swersky, K.; Kiros, R.; Satish, N.; Sundaram, N.; Patwary, M.; Prabhat, M.; and Adams, R. 2015. Scalable bayesian optimization using deep neural networks. In International conference on machine learning, 2171–2180. PMLR.
+Springenberg, J. T.; Klein, A.; Falkner, S.; and Hutter, F. 2016. Bayesian optimization with robust Bayesian neural networks. Advances in neural information processing systems, 29.
+Tang, Y.; Shi, Y.; and Xiao, X. 2015. Influence maximization in near-linear time: A martingale approach. In Proceedings of the 2015 ACM SIGMOD international conference on management of data, 1539–1554.
+Wu, G.; Gao, X.; Yan, G.; and Chen, G. 2021. Parallel greedy algorithm to multiple influence maximization in social network. ACM Transactions on Knowledge Discovery from Data (TKDD), 15(3): 1–21.
+
+
+Zhan, Q.; Zhang, J.; Wang, S.; Yu, P. S.; and Xie, J. 2015. Influence maximization across partially aligned heterogenous social networks. In Pacific-Asia conference on knowledge discovery and data mining, 58–69. Springer.
+Zhang, Z.; Biswas, S.; Chen, F.; Fu, K.; Ji, T.; Lu, C.-T.; Ramakrishnan, N.; and Chen, Z. 2022. Blocking Influence at Collective Level with Hard Constraints (Student Abstract). In Proceedings of the AAAI Conference on Artificial Intelligence, volume 36, 13115–13116.

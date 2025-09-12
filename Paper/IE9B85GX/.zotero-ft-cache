@@ -1,0 +1,1094 @@
+Multi-Aspect Heterogeneous Graph Augmentation
+Yuchen Zhou Yanan Cao∗ Yongchao Liu∗
+School of Cyber Security, University Institute of Information Engineering, Ant Group, China
+of Chinese Academy of Sciences Chinese Academy of Sciences, China; yongchao.ly@antgroup.com
+China; Institute of Information School of Cyber Security, University
+Engineering, Chinese Academy of of Chinese Academy of Sciences
+Sciences, China China
+zhouyuchen@iie.ac.cn caoyanan@iie.ac.cn
+Yanmin Shang Peng Zhang Zheng Lin
+Institute of Information Engineering, Cyberspace Institute of Advanced Institute of Information Engineering,
+Chinese Academy of Sciences, China; Technology, Guangzhou University Chinese Academy of Sciences, China;
+School of Cyber Security, University China School of Cyber Security, University
+of Chinese Academy of Sciences p.zhang@gzhu.edu.cn of Chinese Academy of Sciences
+China China
+shangyanmin@iie.ac.cn linzheng@iie.ac.cn
+Yun Yue, Baokun Wang,
+Xing Fu and Weiqiang Wang
+Ant Group, China
+yueyun.yy@antgroup.com;yike.wbk@antgroup.com
+zicai.fx@antgroup.com;weiqiang.wwq@antgroup.com
+ABSTRACT
+Data augmentation has been widely studied as it can be used to
+improve the generalizability of graph representation learning mod
+els. However, existing works focus only on the data augmentation
+on homogeneous graphs. Data augmentation for heterogeneous
+graphs remains under-explored. Considering that heterogeneous
+graphs contain diferent types of nodes and links, ignoring the type
+information and directly applying the data augmentation meth
+ods of homogeneous graphs to heterogeneous graphs will lead to
+suboptimal results. In this paper, we propose a novel Multi-Aspect
+Heterogeneous Graph Augmentation framework named MAHGA.
+Specifcally, MAHGA consists of two core augmentation strategies:
+structure-level augmentation and metapath-level augmentation.
+Structure-level augmentation pays attention to network schema
+aspect and designs a relation-aware conditional variational auto
+encoder that can generate synthetic features of neighbors to aug
+ment the nodes and the node types with scarce links. Metapath-level
+augmentation concentrates on metapath aspect, which constructs
+metapath reachable graphs for diferent metapaths and estimates
+the graphons of them. By sampling and mixing up based on the
+∗Corresponding author.
+This work is licensed under a Creative Commons Attribution International 4.0 License.
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+© 2023 Copyright held by the owner/author(s). ACM ISBN 978-1-4503-9416-1/23/04. https://doi.org/10.1145/3543507.3583208
+graphons, MAHGA yields intra-metapath and inter-metapath aug
+mentation. Finally, we conduct extensive experiments on multiple
+benchmarks to validate the efectiveness of MAHGA. Experimental
+results demonstrate that our method improves the performances
+across a set of heterogeneous graph learning models and datasets.
+CCS CONCEPTS
+• Computing methodologies → Semi-supervised learning settings; • Regularization; • Neural networks;
+KEYWORDS
+Data Augmentation, Heterogeneous Graph Neural Networks, Het
+erogeneous Information Network, Graph Mining
+ACM Reference Format:
+Yuchen Zhou, Yanan Cao, Yongchao Liu, Yanmin Shang, Peng Zhang, Zheng
+Lin, and Yun Yue, Baokun Wang,
+Xing Fu and Weiqiang Wang. 2023. Multi-Aspect Heterogeneous Graph
+Augmentation. In Proceedings of the ACM Web Conference 2023 (WWW ’23), April 30–May 04, 2023, Austin, TX, USA. ACM, New York, NY, USA, 10 pages.
+https://doi.org/10.1145/3543507.3583208
+1 INTRODUCTION
+Data augmentation as an efective strategy to improve the general
+ization capability and performance of model has got widespread
+adoption in various felds such as computer vision (CV) [6, 12, 34]
+and natural language processing (NLP) [3, 15, 16]. The core idea
+of data augmentation is to design various augmentation strategies
+to generate new plausible data based on existing data without ad
+ditional ground-truth labels so as to enhance the quantity and/or
+the quality of existing data. Since graph learning usually faces with
+many dilemmas such as feature data incompleteness, structural
+39
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhou et al.
+(a) (b)
+Figure 1: The distribution of node degree on yelp dataset. (a) depicts the degree distribution of diferent business nodes. (b) depicts the average degree distribution of diferent types of nodes.
+data sparsity brought by power-law distributions, costly data an
+notations and so on, data augmentation naturally provides a good
+solution to help graph learning models deal with above problems.
+However, due to the irregular and non-Euclidean nature of graph
+data, the structured data augmentation operations used frequently
+in CV and NLP cannot be applied to graph learning models. More
+over, diferent information modalities and graph properties yield a
+broader design space for graph data augmentation. Therefore, more
+and more researchers are starting to pay their attention to the data
+augmentation for graph data.
+Recently, there has been a growing number of works on graph
+data augmentation [27, 30, 32, 35]. Despite their successes, all the
+current augmentation methods are developed for homogeneous
+graph and there has never been a work exploring the data augmen
+tation on heterogeneous graphs. Heterogeneous graphs which come
+with multi-types of nodes and links are ubiquitous in real-world
+scenarios, ranging from bibliographic networks, social networks to
+recommendation systems. They usually contain more comprehen
+sive information and richer semantics than homogeneous graphs.
+Directly adapting homogeneous graph augmentation methods to
+heterogeneous graph results in the loss of type information and
+semantics. Moreover, it even introduces unexpected noise which
+hurts the performance of graph learning models. Consequently, it
+is important to develop a special data augmentation framework for
+heterogeneous graphs.
+In order to efectively augment heterogeneous graphs, we frst
+analyse the common challenges faced by heterogeneous graph
+learning models. On the one hand, besides the data skew caused
+by the power-law distribution of the graph, there are extremely
+imbalanced regarding diferent node types because the degree dis
+tribution of diferent types of nodes varies dramatically. To verify
+above phenomena, we depict the degree distribution of diferent
+nodes of the same type and the average degree distribution of dif
+ferent types of nodes in Figure 1. From the fgure, it is clear that
+there are signifcant diferences in the degrees of diferent types
+of nodes. Even for nodes of the same type, the degree distribution
+is not uniform. Therefore, we argue that the link imbalances be
+tween diferent nodes and between diferent types of nodes restrict
+the performance of heterogeneous graph learning models. Espe
+cially, the nodes and the node types with a limited number of links
+cannot provide sufcient information and become an information
+bottleneck.
+On the other hand, metapath, which describes a composite re
+lation between the node types involved, has been widely used to
+describe the diverse semantics of a heterogeneous graph. Taking a
+bibliographic graph as an example, a metapath Paper-Author-Paper
+(PAP) represents that two papers are written by the same author,
+while Paper-Subject-Paper (PSP) represents that two papers belong
+to the same subject. Even though metapath is successful at improv
+ing performance by giving a clear guide to heterogeneous graph
+learning models, existing models get metapath-based node relations
+from observed heterogeneous graphs. However, the raw observed
+graphs are usually extracted from complex real-world interaction
+systems by some predefned rules. They are often noisy or even
+incomplete due to the inevitably error-prone data measurement
+or collection. Therefore, obtaining metapath based node relations
+directly from the observed graph leads to inaccurate results and
+afects the performance of heterogeneous graph learning models.
+Furthermore, existing models explicitly ofer the sequences of node
+types to defne the metapaths which needs sufcient domain knowl
+edge and is difcult to extend. In summary, defning a good set of
+metapaths and obtaining accurate metapath based node relations
+are challenging for heterogeneous graph learning models.
+In order to tackle the challenges addressed above, we develop
+a novel Multi-Aspect Heterogeneous Graph Augmentation frame
+work (MAHGA) that contains two aspects of augmentation strategy:
+structure-level augmentation and metapath-level augmentation.
+Structure-level augmentation focuses on the local structures of
+nodes and aims to augment the neighbor information. Specifcally,
+it designs a relation-aware conditional variational auto-encoder
+to learn the conditional distribution of neighbor nodes’ features
+given the center node’s features and the type of neighbor nodes.
+By sampling from the learned distribution, we can generate syn
+thetic neighborhood features to augment the nodes and the node
+types with scarce links. Metapath-level augmentation follows with
+interest metapath information and employs graphon as a genera
+tor to conduct intra-metapath and inter-metapath augmentation.
+Graphon, a function that determines the matrix of edge probabili
+ties, refects the underlying topology structure of graph so that it
+is well suited to deal with the challenges in metapath aspect. We
+frst construct metapath reachable graphs for pre-defned metap
+aths and estimate the graphons of these graphs. In intra-metapath
+augmentation, we repeatedly sample from the graphon to generate
+several new metapath reachable graphs for each metapath. By train
+ing heterogeneous graph learning models based on generated and
+original metapath reachable graphs, MAHGA improves the gener
+alization of heterogeneous graph learning model and alleviates the
+inaccuracy of metapath caused by the mistakes and incompleteness
+of observed graph. In inter-metapath augmentation, we draw on
+the idea of mixup augmentation method which has been widely
+used in CV feld [28, 36, 37]. By mixing the graphons of metapath
+reachable graphs of diferent pre-defned metapaths, we can gener
+ate many new graphons which imply the new metapaths. What’s
+more, the new metapaths determined by augmented graphons are
+implicit, meaning that we do not require extra domain knowledge
+to explicitly defne the node type sequences of them.
+In summary, the overall contributions of this paper can be sum
+marized as follow:
+• We analyse the common challenges faced by heterogeneous graph
+learning models and use them as the guide to design efective
+data augmentation strategies for heterogeneous graph.
+40
+
+
+Multi-Aspect Heterogeneous Graph Augmentation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+• We propose MAHGA, which is the frst work to explore data
+augmentation on heterogeneous graphs. MAHGA constructs a
+relation-aware conditional variational auto-encoder and utilizes
+graphons of metapath reachable graphs to achieve structure-level
+and metapath-level augmentation.
+• We conduct extensive experiments on three diferent datasets
+to show the efectiveness of our augmentation framework for
+improving mainstream heterogeneous graph learning models.
+The experimental results demonstrate that the state-of-the-art
+homogeneous graph augmentation methods cannot adapt to het
+erogeneous graph well. In contrast, our augmentation framework
+yields signifcant gains for heterogeneous graph learning models.
+2 RELATED WORK
+2.1 Graph Data Augmentation
+Graph data augmentation aims to create new graph data via slightly
+modifed copies of the original graph, or generate synthetic data
+based on the original graph to improve the generalization ability of
+graph learning models. According to the diferent augmentation ob
+jects, the existing graph augmentation methods can be divided into
+three categories: node-centralized augmentation, edge-centralized
+augmentation and graph-centralized augmentation.
+Node-centralized augmentation methods take nodes as basic
+objects to design augmentation operations. NodeAug[31] designs
+three augmentation strategies including attribute replacing, edge
+removing and edge adding for nodes. NASA[2] randomly replaces
+the immediate neighbors of nodes with their remote neighbors to
+generate synthetic graph. LA[17] learns the distribution of the node
+representations of the neighbors conditioned on the central node’s
+representation and generate new neighbor features to augment the
+central nodes.
+Edge-centralized augmentation methods mainly conduct aug
+mentation operations on edges. DropEdge[22] randomly removes
+a certain number of edges from the original graph at each training
+epoch. GAUG[40] designs a neural edge predictor to strategically
+choose ideal edges to add or remove. CFLP[39] employs causal
+model to create counterfactual edges to improve the model perfor
+mance.
+Graph-centralized augmentation methods directly generate syn
+thetic graphs. MH-Aug[21] defnes an explicit target distribution
+and draws augmented graphs from the distribution. Suresh et al.[24]
+employ information bottleneck principle to guide the generation
+of augmented graphs. MEGA[9] designs a learnable graph aug
+menter and trains a graph learning model based on a meta-learning
+paradigm. G-Mixup[11] employs graphon to augment graphs and
+improve graph classifcation task.
+Although above augmentation methods promote the perfor
+mance of graph learning model, they are only designed for ho
+mogeneous graph and ignore the type information and the rich
+semantics of heterogeneous graph, which are important to hetero
+geneous graph learning models.
+2.2 Heterogeneous Graph Representation Learning
+Heterogeneous graph representation learning aims to model rich
+semantics of heterogeneous graph to learn low-dimensional node
+embedding. CompGCN[25] leverages a variety of entity-relation
+composition operations from knowledge graph embedding tech
+niques to embed both nodes and relations in a heterogeneous graph.
+Inspired by the architecture design of Transformer[26], HGT[13]
+proposes a heterogeneous mutual attention mechanism and uses it
+to achieve heterogeneous message passing and aggregation. Simple
+HGN[19] combines three well-known techniques: learnable edge
+type embedding, residual connections and normalization to design
+a heterogeneous neighborhood aggregation mechanism.
+Except for modeling the local structure, there are many works
+that adopt metapath to capture meaningful semantics. HAN[29]
+designs node-level attention and semantic-level attention to hier
+archically aggregate features from metapath based neighbors and
+obtain node embedding. MAGNN[8] considers the semantics of
+intermediate nodes of metapath and designs intra-metapath and
+inter-metapath aggregation mechanism to acquire node embedding.
+HPN[14] designs the semantic propagation mechanism and the se
+mantic fusion mechanism to build a more powerful heterogeneous
+graph learning architecture.
+3 PRELIMINARY
+In this section, we frst give formal defnitions of some important
+terminologies related to heterogeneous graph. Then, we present
+the heterogeneous graph augmentation problem.
+Definition 1. Heterogeneous Graph: A heterogeneous graph is defned as a graph G = (V, E) associated with a node type mapping function A : V → A and an edge type mapping function A : E → R. A and R denote the predefned sets of node types and edge types respectively, with |A| + |R| > 2.
+Definition 2. Metapath: A metapath Φ is defned as a path in
+A1 A2 AA −1
+the form of A1 −→ A2 −→ · · · −→ AA (abbreviated as A1A2 · · · AA ), which describes a composite relation A = A1 ◦ A2 ◦ · · · ◦ AA −1 between objects A1 and AA , where ◦ denotes the composition operation on relations.
+Definition 3. Metapath based Neighbors: Given a node A and a metapath Φ in a heterogeneous graph G, the metapath Φ based neighbors N Φ of node A are defned as the set of nodes which connect
+A
+with node A via metapath Φ.
+Definition 4. Metapath Reachable Graph: Given a metapath Φ in a heterogeneous graph G, the metapath reachable graph GΦ is constructed by all the metapath Φ based neighbor pairs in graph G. Note that GΦ is homogeneous if Φ is symmetric.
+Definition 5. Heterogeneous Graph Augmentation: Given a heterogeneous graph G = (V, E), heterogeneous graph augmentation aims to fnd a mapping function AA : G → G such that the augmented graph G = (V, E) can be used to improve the generalization ability of a heterogeneous graph learning model.
+4 MULTI-ASPECT HETEROGENEOUS GRAPH AUGMENTATION
+In this section, we introduce the MAHGA whose overall structure
+is shown in Figure 2. MAHGA contains structure-level augmenta
+tion and metapath-level augmentation, which are designed for the
+41
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhou et al.
+Figure 2: The overall framework of the proposed MAHGA
+augmentation of complex structure and meaningful metapath re
+spectively. In structure-level augmentation, we construct a relation
+aware conditional variational auto-encoder (RCVAE) which con
+siders the type information in graph data augmentation. Given the
+central node and the neighbor type planned to augment, RCVAE
+can generate synthetic features of neighbors to augment the local
+structure of the central node. In metapath-level augmentation, we
+frst construct a metapath reachable graph for each pre-defned
+metapath. Then, we estimate the graphons of these metapath reach
+able graphs and conduct intra-metapath and inter-metapath aug
+mentation. For intra-metapath augmentation, we use graphon to
+defne the Bernoulli distribution and resample several synthetic
+metapath reachable graphs to augment the semantic information
+of current metapath. For inter-metapath augmentation, we mixup
+the graphons of metapath reachable graphs of diferent metapaths
+to generate new graphons which can be regarded as new metap
+aths. Then, we generate synthetic metapath reachable graphs by
+sampling from above new graphons to augment the semantic infor
+mation between metapaths.
+4.1 Structure-level Augmentation
+Structure-level augmentation aims to provide more data to augment
+the nodes and the node types with scarce links so as to alleviate the
+sparsity and imbalance issues of heterogeneous graph data. The
+intuitive solution is to strategically select some nodes as the new
+neighbors of the central node to augment the local structure of the
+central node. However, this method has two main drawbacks. 1)
+The good node selection strategy is difcult to defne. Once the
+inappropriate nodes are selected as the new neighbors, the addi
+tional unexpected noise will be introduced to the heterogeneous
+graph learning model and afect the model performance. 2) This
+method can only select nodes that already exist in the heteroge
+neous graph as new neighbors to conduct augmentation. However,
+for the central node, it is possible that there is no appropriate node
+that can be selected in the heterogeneous graph. Therefore, in order
+to overcome above limitations, we design a generative model to
+learn the features’ distribution of neighbors and directly sample
+new neighbors from the distribution rather than select existing
+nodes as new neighbors. Next, we will elaborate the generative
+model and the data augmentation process.
+4.1.1 Relation-aware Conditional Variational Auto-encoder. In a
+heterogeneous graph, the features of diferent types of nodes are
+in diferent feature spaces. Therefore, to accurately model the fea
+tures’ distribution of neighbors, it is necessary to consider both the
+features of the central node and the types of neighbors. Based on
+the above motivation, we draw on the idea of the conditional varia
+tional autoencoder (CVAE) [17, 23] to construct the relation-aware
+conditional variational auto-encoder (RCVAE) as the generative
+model. Formally, given the features XA of the central node A and
+the relation type embedding rAA, we have
+∫ AA (XA, z|XA, rAA)
+AAAAA (XA |XA, rAA) = AA (z|XA, XA, rAA)AAA AA
+AA (z|XA, XA, rAA)
++AA(AA (z|XA, XA, rAA)||AA (z|XA, XA, rAA))
+∫ AA (XA, z|XA, rAA)
+≥ AA (z|XA, XA, rAA)AAA AA
+AA (z|XA, XA, rAA)
+(1)
+where XA is the features of neighbor of the central node A. A and A
+are the variational parameters and generative parameters respec
+tively. z is the latent variable which is generated from the prior
+distribution AA (z|XA, rAA). As relation type implies the types of two
+ends, we employ learnable relation type embedding as the condi
+tion in this paper. Then, the evidence lower bound (ELBO) can be
+written as:
+A(XA, XA, rAA; A, A) = −AA(AA (z|XA, XA, rAA)||AA (z|XA, rAA))
+AA
+∑ (2)
+1A
++ AAAAA (XA |z , XA, rAA)
+AA
+A=1
+where A A is the number of neighbors of the central node A. zA ∼
+N (AAA, AAA
+2 ) is generated by reparameterization trick. The mean
+A
+AA and variance AAA
+2 of the distribution are generated by the en
+coder AAAA (XA, XA, rAA) of RCVAE. Finally, we sample a latent vari
+A
+able z ∼ N (0, I) as input for the decoder AAAA (z, XA, rAA) of RCVAE
+A
+to obtain the synthetic neighbor features XA.
+4.1.2 Pre-training and Augmentation. In general, for a specifc
+downstream task, We can use Maximum Likelihood Estimation
+42
+
+
+Multi-Aspect Heterogeneous Graph Augmentation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+(MLE) to estimate the parameter of a heterogeneous graph learn
+ing model. It optimizes the following likelihood function:
+Ö
+AAA A (YA |G) (3)
+A
+where Y is the class labels of downstream task. A represents the A-th
+data point in the training dataset. As our augmentation framework
+uses the original heterogeneous graph data to train RCVAE and em
+ploys RCVAE to generate synthetic neighbor features X to conduct
+augmentation, The likelihood function in Eq.(3) can be rewritten
+as follows:
+∫ Ö
+AAA A (YA, X|G) (4)
+X
+A
+According to the Bayes Rule, we can further decompose A in
+Eq.(4) as a product of two posterior probabilities:
+A ,A (YA, X|G) = A (YA |X, G)AΨ (X|G) (5)
+where A (YA |X, G) and AΨ (X|G) are the probabilistic distributions
+approximated by heterogeneous graph learning model and RCVAE
+respectively. By the decomposition, we decouple the training pro
+cesses of RCVAE and heterogeneous graph learning model. There
+fore, we can pre-train RCVAE frst and then apply it to conduct
+augmentation. Specifcally, in pre-training stage, we extract neigh
+boring triple (XA, XA, rAA) from the original heterogeneous graph
+to train RCVAE by maximizing the ELBO (Eq. (2)). In augmentation
+stage, we employ RCVAE to generate the synthetic neighbor fea
+tures and combine them with the original features of the central
+node as the augmented features of the central node. Finally, we
+use the augmented features to train various heterogeneous graph
+learning models so as to improve the performances of these models.
+4.2 Metapath-level Augmentation
+Metapath-level augmentation aims to alleviate the incompleteness
+and mistake issues in the metapath based sampling (intra-metapath
+augmentation), while generating new synthetic metapath without
+extra domain knowledge (inter-metapath augmentation). However,
+metapath is more complex than the adjacency relation as diferent
+metapaths contain diferent node types and the length of them
+varies. It is difcult to design a strategy to directly augment meta
+path. Consequently, we use metapath based neighbors to trans
+form metapaths into metapath reachable graphs and estimate the
+graphons of these graphs. Then, we design augmentation strategies
+operated on graphon to indirectly augment metapath as graphon
+can maintain the semantics of metapath by modeling the latent
+structure of metapath reachable graph. Next, we will elaborate more
+details about metapath-level augmentation.
+4.2.1 Graphon Estimation. Graphon is a nonparametric graph model
+which characterizes the observed graph and refects its latent graph
+structure. Mathematically, a graphon is a two-dimensional sym
+metric Lebesgue measurable function, denoted as W : A2 ↦→ [0, 1],
+where A is a measure space, e.g.,A = [0, 1]. As graphon does
+not have a closed-form expression, how to robustly learn graphon
+from observed graph becomes a thorny problem. Existing methods
+mainly depend on the weak regularity lemma of graphon[7] to
+solve the aforementioned problem, they learn a two-dimensional
+step function to approximate graphon. The step function WA :
+[0, 1]2 ↦→ [0, 1] is defned as WA (A, A) = ÍA (A, A),
+A,A′ AA,A′ 1AA ×AA′
+where A = (A1, ..., AA ) partitions the interval [0, 1] into A adja
+cent intervals with a length of 1/A. Each AA,A′ ∈ [0, 1] and the
+indicator function 1AA ×AA′ is 1 if (A, A) ∈ AA × AA′ , otherwise
+it is 0. There are many step function learning methods, e.g., the
+sorting-and-smoothing method (SAS)[4], the stochastic block ap
+proximation (SBA)[1], the universal singular value thresholding
+algorithm (USVT)[5] and so on. In this paper, we employ structured
+Gromov-Wasserstein barycenters method (SGWB)[33] because it is
+a computationally-efcient algorithm with solid theoretical guar
+antee.
+More specifcally, we frst defne the squared 2-order Gromov
+Wasserstein distance as follows:
+A2 = AAAT∈Π (A1,A2 ) ⟨D − 2W1TW⊤
+2 , T⟩ (6)
+AA,2 (W1, W2)
+where W1 = [A1,A A ] ∈ [0, 1]A ×A and W2 = [A2,A′ A′ ] ∈ [0, 1] A ×A are
+the step functions of two graphs. Vectors A1 and A2 represent the
+marginal probability measures in partitions. T = [AAA′ ] ∈ RA ×A is
+a doubly-stochastic matrix in the set Π(A1, A2) = {T ≥ 0|TA2 =
+∫
+A
+1, T⊤A1 = A2}, whose element AAA′ = ′ AA (A, A′). The ma
+AA ×AA
+trix T defnes a transport or coupling between A1 and A2. ⟨·, ·⟩ is the
+inner product of two matrices. D = (W1 ⊙ W1)A11⊤ + 1A A2
+⊤ (W2 ⊙
+A
+W
+2). 1A and 1A are the A -dimensional and A -dimensional all-one
+vectors. ⊙ represents the Hadamard product. Then, we learn the
+optimal step function by minimizing the Gromov-Wasserstein dis
+tance between the observed graph and step function of the target
+graphon:
+1∑
+A
+AAAW∈ [0,1]A ×A A2 (7)
+AA,2 (AA, W)
+A
+A=1
+where A is the number of observed graphs and AA is the adjacency
+matrix of A-th observed graph. Given the transports {TA }A
+A
+=1, the
+above problem has a closed-form solution as follows:
+1∑
+A
+A
+A = AAAAAA1AA (AAAA (AA)) (8) A
+A=1
+∑
+1
+A
+W = TA
+⊤ AATA (9)
+A
+A A⊤
+A A=1
+where AA = 1 AA1AA
+. AA is the node number of A-th
+| |AA 1AA | |1
+graph. AAAA (·) sorts the elements of the input vector in descending
+order and AAAAAA1AA (·) samples A values from the input vector via
+linear interpolation. After obtaining graphon W, we can conduct
+the intra-metapath and inter-metapath augmentation.
+4.2.2 Intra-metapath Augmentation. Intra-metapath augmentation
+uses estimated graphon to augment a single metapath. Specifcally,
+for each metapath, it directly samples new synthetic metapath
+reachable graphs from graphon. All the generated synthetic graphs
+refect the semantic information of current metapath. By training
+heterogeneous graph learning models on the synthetic graphs, intra
+metapath augmentation can efectively improve the generalization
+ability of models and alleviate the infuences of data incomplete
+ness and mistake. Formally, for metapath A, the sampling process
+of synthetic metapath reachable graph GA can be formulated as
+follow:
+AAA
+A1, A2, ..., AA ∼ A AA A AAA(0, 1)
+(10) A AAA
+G ∼ AAAAAAAAA (WA (AA, A A )) ∀A, A ∈ [1, A ]
+A,A
+43
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhou et al.
+Table 1: Statistics of datasets.
+Datasets Nodes Edges Edge Types Features Target Labels
+IMDB 11616 17106 2 3066 Movie 3
+ACM 11246 17426 2 1902 Paper 3
+Yelp 3913 36066 3 82 Business 3
+where A is the node number and GA is the augmented metapath
+reachable graph.
+4.2.3 Inter-metapath Augmentation. The core idea of inter-metapath
+augmentation is to create new synthetic metapaths based on pre
+defned metapaths. As graphon models the metapath reachable
+graph, it can represent the corresponding metapath. Therefore,
+we directly generate the graphons of new synthetic metapaths to
+avoid explicitly defning the node types sequence. Concretely, we
+employ mixup technology to interpolate the graphons of metap
+ath reachable graphs of pre-defned metapaths to generate new
+graphons. Each augmented graphon represents an implicit syn
+thetic metapath. Then, we sample metapath reachable graphs from
+the augmented graphons to train heterogeneous graph learning
+models. The augmentation process can be denoted as follow:
+G
+AA −→ WAA , GAA −→ WAA
+W∗ = AWAA + (1 − A)WAA (11)
+G∗ AA∼A AAAAAAAAA (W∗)
+where A ∼ A AA A AAA(0, 1) is the trade-of coefcient to control
+the contributions from diferent metapaths. W∗ and G∗ are the
+augmented graphon and metapath reachable graph respectively.
+4.2.4 Augmentation. Both of intra-metapath and inter-metapath
+augmentation generate new synthetic metapath reachable graphs
+as augmented data. For the heterogeneous graph learning mod
+els which require the metapath reachable graph, we directly train
+models on the synthetic graph. Otherwise, we regard the edges
+in the synthetic graph as the new types of edges and add them
+into the original heterogeneous graph, then we train models on the
+augmented heterogeneous graph.
+5 EXPERIMENTS
+5.1 Experimental Setup
+5.1.1 Datasets. We conduct experiments over three widely used
+heterogeneous graph datasets. Statistics of them are summarized
+in Table 1.
+• IMDB: IMDB is an online database about movies and television
+programs. We use a subset of IMDB extracted by [8]. It contains
+5257 Actors(A), 2081 Directors(D) and 4278 Movies(M). We em
+ploy {MAM, MDM} as the pre-defned metapath set.
+• ACM: ACM is a bibliography website. We adopt an ACM graph
+provided by [38], containing 7176 Authors(A), 4019 Papers(P) and
+60 Subjects. We employ {PSP, PAP} as the pre-defned metapath
+set.
+• Yelp: Yelp is a social network which contains a large amount
+of user comment data. Here, we adopt the subset of Yelp con
+structed by [18]. It comprises 2614 businesses(B), 1286 users(U), 4
+services(S) and 9 rating levels(L). We employ {BUB, BSB, BUBLB,
+BUBSB} as the pre-defned metapath set.
+5.1.2 Baselines. As there is no graph augmentation method for
+heterogeneous graphs, we select six state-of-the-art homogeneous
+graph augmentation methods as baselines and adapt them to het
+erogeneous graphs. The details of baselines are as follows:
+• Node-centralized Augmentation: We select NodeAug[31],
+NASA[2] and LA[17] as baselines. NodeAug proposes three node
+augmentation strategies and we only apply these strategies to
+target nodes which the downstream task pays attention to. NASA
+replaces the immediate neighbors of nodes with their remote
+neighbors and we independently conduct above operation on
+diferent types of neighbors to achieve augmentation. LA learns
+the features’ distribution of neighbors to generate augmented
+data and we also use it to augment target nodes.
+• Edge-centralized Augmentation: We select DropEdge[22]
+and GAUG[40] as baselines. DropEdge randomly removes edges
+to augment the graph and we apply it to all types of edges. For
+GAUG, we construct multiple edge predictors to independently
+add or remove diferent types of edges.
+• Graph-centralized Augmentation: We select MH-Aug[21]
+as baseline. As MH-Aug directly samples synthetic graphs from
+the target distribution, we construct diferent distribution for
+diferent types of edges to generate the augmented data.
+5.1.3 Backbone models. In order to verify the efectiveness of our
+augmentation framework in improving the performance of het
+erogeneous graph learning models, we select six mainstream het
+erogeneous graph learning models as backbone models: HAN[29],
+CompGCN[25], MAGNN[8], HGT[13], Simple-HGN[19], HPN[14].
+HAN, MAGNN, HGT and HPN explicitly use metapath information
+while other models do not.
+5.1.4 Implementation. For all baselines, we tune the hyperparam
+eters based on the validation set performance. For MAHGA, we
+employ two-layer-MLPs as the encoder AAAA and decoder AAAA of AA
+RCVAE, other model parameters such as the dimensions of relation
+type embedding r and latent variable z, the pre-training setting of
+RCVAE, the number of samples in structure-level and metapath
+level augmentation and the number of mixups in inter-metapath
+augmentation are tuned by grid search. What’s more, we utilize the
+open-source toolkit OpenHGNN[10] to implement the backbone
+models and the models parameters keep their reported optimal
+values.
+5.2 Performance Comparison
+We employ node classifcation as a downstream task to evaluate
+the impact of diferent graph augmentation methods on the perfor
+mance of backbone models. The results are shown in Table 2. From
+the table, we make the following observations.
+Firstly, although some homogeneous graph augmentation base
+lines can improve the performance of special backbone models on
+special heterogeneous datasets, there is no one baseline that can
+be applied to all backbone models to have a positive impact on all
+datasets. Especially on ACM dataset, all augmentation methods
+fail to promote MAGNN but even degrade its performance. The
+results indicate that homogeneous graph augmentation methods
+cannot generate the satisfed augmented data to efectively improve
+the generalization and modeling ability of heterogeneous graph
+44
+
+
+Multi-Aspect Heterogeneous Graph Augmentation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+Table 2: Results of node classifcation with diferent backbone models and graph augmentation methods on Yelp, ACM and IMDB datasets. The best results are Bold and the second results are Underline. ↑ represents the performance improvement and ↓ represents the performance deterioration comparing with the original backbone model.
+Backbone Model Augmentation
+Yelp
+Micro-F1 Macro-F1
+ACM
+Micro-F1 Macro-F1
+IMDB
+Micro-F1 Macro-F1
+HAN
+
+NodeAug
+LA
+NASA
+DropEdge
+GAUG
+MH-AUG
+0.8833(-) 0.8843(-)
+0.8908(↑) 0.8975(↑)
+0.8766(↓) 0.8771(↓)
+0.8913(↑) 0.8973(↑)
+0.8937(↑) 0.9004(↑)
+0.8843(↑) 0.8869(↑)
+0.8893(↑) 0.8962(↑)
+0.8900(-) 0.8905(-)
+0.8840(↓) 0.8843(↓)
+0.8790(↓) 0.8776(↓)
+0.8960(↑) 0.8976(↑)
+0.8920(↑) 0.8924(↑)
+0.9000(↑) 0.9007(↑)
+0.8980(↑) 0.8952(↑)
+0.5736(-) 0.5633(-)
+0.5684(↓) 0.5546(↓)
+0.5650(↓) 0.5626(↓)
+0.5791(↑) 0.5733(↑)
+0.5811(↑) 0.5745(↑)
+0.5837(↑) 0.5794(↑)
+0.5784(↑) 0.5717(↑)
+MAHGA 0.8957(↑) 0.9061(↑) 0.9180(↑) 0.9196(↑) 0.5946(↑) 0.5934(↑)
+CompGCN
+
+NodeAug
+LA
+NASA
+DropEdge
+GAUG
+MH-AUG
+0.8997(-) 0.9083(-)
+0.8644(↓) 0.8745(↓)
+0.8885(↓) 0.8951(↓)
+0.8838(↓) 0.8853(↓)
+0.8823(↓) 0.8940(↓)
+0.9062(↑) 0.9134(↑)
+0.9084(↑) 0.9162(↑)
+0.7630(-) 0.7227(-)
+0.7580(↓) 0.7071(↓)
+0.7470(↓) 0.7182(↓)
+0.7780(↑) 0.7493(↑)
+0.7570(↓) 0.7156(↓)
+0.7680(↑) 0.7239(↑)
+0.7680(↑) 0.7251(↑)
+0.5725(-) 0.5687(-)
+0.5725(-) 0.5718(↑)
+0.5564(↓) 0.5493(↓)
+0.5687(↓) 0.5655(↓)
+0.5653(↓) 0.5565(↓)
+0.5692(↓) 0.5699(↑)
+0.5704(↓) 0.5671(↓)
+MAHGA 0.9171(↑) 0.9249(↑) 0.7910(↑) 0.7671(↑) 0.5825(↑) 0.5810(↑)
+MAGNN
+
+NodeAug
+LA
+NASA
+DropEdge
+GAUG
+MH-AUG
+0.8977(-) 0.8904(-)
+0.8924(↓) 0.8897(↓)
+0.8817(↓) 0.8781(↓)
+0.8947(↓) 0.8897(↓)
+0.8906(↓) 0.8864(↓)
+0.8931(↓) 0.8998(↑)
+0.8911(↓) 0.8889(↓)
+0.8980(-) 0.8967(-)
+0.8740(↓) 0.8713(↓)
+0.8870(↓) 0.8823(↓)
+0.8870(↓) 0.8851(↓)
+0.8890(↓) 0.8852(↓)
+0.8920(↓) 0.8941(↓)
+0.8890(↓) 0.8857(↓)
+0.5742(-) 0.5662(-)
+0.5703(↓) 0.5617(↓)
+0.5653(↓) 0.5522(↓)
+0.5713(↓) 0.5602(↓)
+0.5748(↑) 0.5675(↑)
+0.5785(↑) 0.5709(↑)
+0.5766(↑) 0.5681(↑)
+MAHGA 0.9091(↑) 0.9029(↑) 0.9090(↑) 0.9093(↑) 0.5854(↑) 0.5756(↑)
+HGT
+
+NodeAug
+LA
+NASA
+DropEdge
+GAUG
+MH-AUG
+0.9111(-) 0.9136(-)
+0.9017(↓) 0.9050(↓)
+0.9032(↓) 0.9045(↓)
+0.8987(↓) 0.9015(↓)
+0.8967(↓) 0.9015(↓)
+0.9146(↑) 0.9201(↑)
+0.9056(↓) 0.9081(↓)
+0.8810(-) 0.8801(-)
+0.8720(↓) 0.8730(↓)
+0.8690(↓) 0.8617(↓)
+0.8610(↓) 0.8581(↓)
+0.8450(↓) 0.8478(↓)
+0.8920(↑) 0.8921(↑)
+0.8770(↓) 0.8795(↓)
+0.5779(-) 0.5757(-)
+0.5476(↓) 0.5483(↓)
+0.5548(↓) 0.5466(↓)
+0.5710(↓) 0.5669(↓)
+0.5420(↓) 0.5370(↓)
+0.5851(↑) 0.5832(↑)
+0.5715(↓) 0.5681(↓)
+MAHGA 0.9201(↑) 0.9272(↑) 0.8950(↑) 0.8952(↑) 0.5903(↑) 0.5875(↑)
+Simple-HGN
+
+NodeAug
+LA
+NASA
+DropEdge
+GAUG
+MH-AUG
+0.8813(-) 0.8729(-)
+0.8208(↓) 0.7831(↓)
+0.8726(↓) 0.8695(↓)
+0.8595(↓) 0.8339(↓)
+0.8923(↑) 0.8928(↑)
+0.8858(↑) 0.8788(↑)
+0.8781(↓) 0.8712(↓)
+0.8810(-) 0.8795(-)
+0.8770(↓) 0.8753(↓)
+0.8610(↓) 0.8569(↓)
+0.8650(↓) 0.8679(↓)
+0.8920(↑) 0.8905(↑)
+0.8770(↓) 0.8757(↓)
+0.8770(↓) 0.8739(↓)
+0.5819(-) 0.5771(-)
+0.5822(↑) 0.5694(↓)
+0.5736(↓) 0.5658(↓)
+0.5874(↑) 0.5852(↑)
+0.5779(↓) 0.5715(↓)
+0.5842(↑) 0.5787(↑)
+0.5796(↓) 0.5691(↓)
+MAHGA 0.9201(↑) 0.9269(↑) 0.8920(↑) 0.8911(↑) 0.5923(↑) 0.5905(↑)
+HPN
+
+NodeAug
+LA
+NASA
+DropEdge
+GAUG
+MH-AUG
+0.9069(-) 0.8983(-)
+0.9052(↓) 0.8966(↓)
+0.8952(↓) 0.8839(↓)
+0.9115(↑) 0.9068(↑)
+0.9136(↑) 0.9056(↑)
+0.9111(↑) 0.9043(↑)
+0.9098(↑) 0.9034(↑)
+0.8890(-) 0.8887(-)
+0.9030(↑) 0.9026(↑)
+0.8770(↓) 0.8752(↓)
+0.9040(↑) 0.9055(↑)
+0.8980(↑) 0.8984(↑)
+0.8970(↑) 0.8962(↑)
+0.8970(↑) 0.8976(↑)
+0.5940(-) 0.5870(-)
+0.5854(↓) 0.5807(↓)
+0.5765(↓) 0.5721(↓)
+0.5897(↓) 0.5845(↓)
+0.5909(↓) 0.5882(↑)
+0.5937(↓) 0.5881(↑)
+0.5914(↓) 0.5836(↓)
+MAHGA 0.9178(↑) 0.9122(↑) 0.9120(↑) 0.9127(↑) 0.5998(↑) 0.5957(↑)
+learning models. So, directly adapting homogeneous graph aug
+mentation method to heterogeneous graph is not a good solution
+and it is necessary to design a specialized augmentation framework
+for heterogeneous graphs.
+Secondly, in most instances, node-centralized augmentation meth
+ods perform worse than edge-centralized augmentation methods
+and graph-centralized augmentation method. Some typical node
+centralized augmentation methods such as LA even severely harm
+the performances of backbone models. We attribute the results to
+that node-centralized augmentation methods are more fne-grained
+and they pay more attention to the local information of graphs.
+However, in heterogeneous graphs, the local information is more
+abundant than that in homogeneous graphs as diferent types of
+nodes have diferent feature spaces and the local structures of them
+are also various. Node-centralized homogeneous graph augmenta
+tion methods do not fully consider above characteristics of hetero
+45
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhou et al.
+Table 3: Ablation study on ACM dataset. The best results are Bold. (·) represents the improvement of performance comparing with the original backbone model.
+Backbone
+Model
+Augmentation
+ACM
+Micro-F1 Macro-F1
+HAN
+
++Structure-level
++Intra-Metapath
++Inter-Metapath
+0.8900 0.8905
+0.9110(+0.021) 0.9126(+0.0221)
+0.9090(+0.019) 0.9114(+0.0209)
+0.9150(+0.025) 0.9166(+0.0261)
+MAHGA 0.9180(+0.028) 0.9196(+0.0291)
+CompGCN
+
++Structure-level
++Intra-Metapath
++Inter-Metapath
+0.7630 0.7227
+0.7850(+0.022) 0.7587(+0.0360)
+0.7690(+0.006) 0.7293(+0.0066)
+0.7710(+0.008) 0.7323(+0.0096)
+MAHGA 0.7910(+0.028) 0.7671(+0.0444)
+MAGNN
+
++Structure-level
++Intra-Metapath
++Inter-Metapath
+0.8980 0.8967
+0.9070(+0.009) 0.9061(+0.0094)
+0.9000(+0.002) 0.8980(+0.0013)
+0.9000(+0.002) 0.8975(+0.0008)
+MAHGA 0.9090(+0.011) 0.9093(+0.0126)
+HGT
+
++Structure-level
++Intra-Metapath
++Inter-Metapath
+0.8810 0.8801
+0.8930(+0.012) 0.8927(+0.0126)
+0.8840(+0.003) 0.8848(+0.0047)
+0.8830(+0.002) 0.8821(+0.0020)
+MAHGA 0.8950(+0.014) 0.8952(+0.0151)
+Simple-HGN
+
++Structure-level
++Intra-Metapath
++Inter-Metapath
+0.8810 0.8795
+0.8890(+0.008) 0.8893(+0.0098)
+0.8870(+0.006) 0.8881(+0.0086)
+0.8910(+0.010) 0.8901(+0.0106)
+MAHGA 0.8930(+0.012) 0.9005(+0.021)
+HPN
+
++Structure-level
++Intra-Metapath
++Inter-Metapath
+0.8890 0.8887
+0.9040(+0.015) 0.9054(+0.0167)
+0.9090(+0.020) 0.9103(+0.0216)
+0.9120(+0.023) 0.9127(+0.0240)
+MAHGA 0.9170(+0.028) 0.9187(+0.0300)
+geneous graphs in the augmentation process so that they cannot
+perform as well as they do on homogeneous graphs.
+Finally, our augmentation framework MAHGA signifcantly and
+consistently outperforms all baselines on all backbone models and
+datasets. In general, MAHGA achieves relative performance gains
+over original backbone models by 0.58–3.88% in terms of Micro-F1
+and 0.87–5.4% in terms of Macro-F1, which proves the efectiveness
+and superiority of MAHGA. By designing sophisticated augmenta
+tion strategies from network schema aspect and metapath aspect,
+MAHGA introduces the heterogeneity and semantics of heteroge
+neous graphs into augmentation process, which help to generate
+better augmented data to improve the performances of heteroge
+neous graph learning models.
+5.3 Ablation Study
+In order to verify the efectiveness of diferent augmentation strate
+gies of MAHGA, we design three variants of MAHGA to conduct
+the ablation experiments. Only one augmentation strategy is avail
+able for each variant. For example, "+Structure-level" means that
+this variant of MAHGA only employs the structure-level augmenta
+tion strategy in Section 4.1. The experimental results are shown in
+Table 3. Due to the limitation of space, we only display the results
+on ACM dataset. Other results are similar so we omit them.
+As we can observe, all augmentation strategies of MAHGA have
+a positive impact and they improve the performances of backbone
+(a) Yelp_ori (b) ACM_ori (c) IMDB_ori
+(d) Yelp_aug (e) ACM_aug (f) IMDB_aug
+Figure 3: 2D visualization of node representation of HAN on three datasets using t-SNE. The diferent colors represent diferent classes.
+models. However, for diferent backbone models and datasets, the
+efects of diferent augmentation strategies vary. For example, the
+performance improvements of MAGNN and HGT by metapath
+level augmentation are not as signifcant as that by structure-level
+augmentation, while metapath-level augmentation performs better
+than structure-level augmentation on HAN and HPN. It is because
+MAGNN and HGT require complete path information including
+the intermediate nodes along the metapath, but HAN and HPN
+explicitly utilize the metapath based neighbors. Despite all this,
+MAHGA still outperforms all variants which indicates that difer
+ent augmentation strategies augment heterogeneous graph from
+diferent aspects and combining them together can further improve
+the augmentation efect.
+5.4 Visualization
+For a more intuitive comparison and to further show the efective
+ness of our proposed augmentation framework, we select HAN
+as backbone model and conduct the task of visualization on three
+datasets. Here, we utilize t-SNE[20] to project the node representa
+tion learned by HAN into a 2-dimensional space. The experimental
+results are depicted in Figure 3. "Yelp_ori" means that we directly
+train HAN on Yelp dataset, while "Yelp_aug" means that we employ
+MAHGA in the training of HAN. From the visualization, we can see
+that the learned node representations have the higher intra-class
+similarity and the clearer distinct boundary among diferent classes
+when we adopt MAHGA to train HAN. It is a solid evidence to
+prove that MAHGA can enhance the backbone models well.
+6 CONCLUSION
+In this paper, we study the data augmentation on heterogeneous
+graphs, where node types and link types are diverse. Unfortunately,
+existing graph augmentation methods are only designed for homo
+geneous graphs and they cannot perform well on heterogeneous
+graphs because they ignore the type information and rich semantics
+in the latter. Therefore, we propose MAHGA, a novel heteroge
+neous graph augmentation framework to address the above issues.
+MAHGA designs augmentation strategies from network schema
+and metapath aspects to fully consider the heterogeneity and se
+mantics. Extensive experiments on three common heterogeneous
+datasets and six popular heterogeneous graph learning models
+demonstrate the rationality and efectiveness of MAHGA.
+46
+
+
+Multi-Aspect Heterogeneous Graph Augmentation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+ACKNOWLEDGMENTS
+This work was supported by the National Key Research and Devel
+opment Program of China (NO.2022YFB3102200) and the Joint Re
+search Fund of Guangzhou University (202201020218, 202201020380),
+and Ant Group through Ant Research Intern Program.
+REFERENCES
+[1] Edoardo M. Airoldi, Thiago B. Costa, and Stanley H. Chan. 2013. Stochastic blockmodel approximation of a graphon: Theory and consistent estimation. In
+27th Annual Conference on Neural Information Processing Systems 2013. 692–700.
+[2] Deyu Bo, Binbin Hu, Xiao Wang, Zhiqiang Zhang, Chuan Shi, and Jun Zhou. 2022. Regularizing Graph Neural Networks via Consistency-Diversity Graph
+Augmentations. In Thirty-Sixth AAAI Conference on Artifcial Intelligence. 3913
+3921. [3] Mihaela A. Bornea, Lin Pan, Sara Rosenthal, Radu Florian, and Avirup Sil. 2021. Multilingual Transfer Learning for QA using Translation as Data Augmentation.
+In Thirty-Fifth AAAI Conference on Artifcial Intelligence. 12583–12591.
+[4] Stanley H. Chan and Edoardo M. Airoldi. 2014. A Consistent Histogram Estimator for Exchangeable Graph Models. In Proceedings of the 31th International
+Conference on Machine Learning. 208–216.
+[5] Sourav Chatterjee. 2015. Matrix Estimation by Universal Singular Value Thresh
+olding. The Annals of Statistics 43, 1, 177–214.
+[6] Ali Dabouei, Sobhan Soleymani, Fariborz Taherkhani, and Nasser M. Nasrabadi. 2021. SuperMix: Supervising the Mixing Data Augmentation. In IEEE Conference
+on Computer Vision and Pattern Recognition. 13794–13803.
+[7] Alan M. Frieze and Ravi Kannan. 1999. Quick Approximation to Matrices and Applications. Comb. 19, 2 (1999), 175–220. [8] Xinyu Fu, Jiani Zhang, Ziqiao Meng, and Irwin King. 2020. MAGNN: Metapath Aggregated Graph Neural Network for Heterogeneous Graph Embedding. In The
+World Wide Web Conference. 2331–2341.
+[9] Hang Gao, Jiangmeng Li, Wenwen Qiang, Lingyu Si, Fuchun Sun, and Changwen Zheng. 2022. Bootstrapping Informative Graph Augmentation via A Meta Learn
+ing Approach. In Proceedings of the Thirty-First International Joint Conference on Artifcial Intelligence. 3001–3007.
+[10] Hui Han, Tianyu Zhao, Cheng Yang, Hongyi Zhang, Yaoqi Liu, Xiao Wang, and Chuan Shi. 2022. OpenHGNN: An Open Source Toolkit for Heterogeneous Graph
+Neural Network. In Proceedings of the 31th ACM International Conference on Information and Knowledge Management.
+[11] Xiaotian Han, Zhimeng Jiang, Ninghao Liu, and Xia Hu. 2022. G-Mixup: Graph Data Augmentation for Graph Classifcation. In International Conference on Ma
+chine Learning (Proceedings of Machine Learning Research, Vol. 162). 8230–8248.
+[12] Nicklas Hansen, Hao Su, and Xiaolong Wang. 2021. Stabilizing Deep Q-Learning with ConvNets and Vision Transformers under Data Augmentation. In Advances
+in Neural Information Processing Systems 34: Annual Conference on Neural Information Processing Systems 2021. 3680–3693.
+[13] Ziniu Hu, Yuxiao Dong, Kuansan Wang, and Yizhou Sun. 2020. Heterogeneous Graph Transformer. In The World Wide Web Conference. 2704–2710. [14] Houye Ji, Xiao Wang, Chuan Shi, Bai Wang, and Philip S. Yu. 2021. Heteroge
+neous Graph Propagation Network. IEEE Transactions on Knowledge and Data Engineering (2021).
+[15] Hazel H. Kim, Daecheol Woo, Seong Joon Oh, Jeong-Won Cha, and Yo-Sub Han. 2022. ALP: Data Augmentation Using Lexicalized PCFGs for Few-Shot Text
+Classifcation. In Thirty-Sixth AAAI Conference on Artifcial Intelligence. 10894
+10902. [16] Jian Liu, Yufeng Chen, and Jinan Xu. 2022. Low-Resource NER by Data Aug
+mentation With Prompting. In Proceedings of the Thirty-First International Joint Conference on Artifcial Intelligence. 4252–4258.
+[17] Songtao Liu, Rex Ying, Hanze Dong, Lanqing Li, Tingyang Xu, Yu Rong, Peilin Zhao, Junzhou Huang, and Dinghao Wu. 2022. Local Augmentation for Graph
+Neural Networks. In International Conference on Machine Learning. 14054–14072.
+[18] Yuanfu Lu, Chuan Shi, Linmei Hu, and Zhiyuan Liu. 2019. Relation StructureAware Heterogeneous Information Network Embedding. In The Thirty-Third
+AAAI Conference on Artifcial Intelligence. 4456–4463.
+[19] Qingsong Lv, Ming Ding, Qiang Liu, Yuxiang Chen, Wenzheng Feng, Siming He, Chang Zhou, Jianguo Jiang, Yuxiao Dong, and Jie Tang. 2021. Are we really making much progress?: Revisiting, benchmarking and refning heterogeneous
+graph neural networks. In The 27th ACM SIGKDD Conference on Knowledge Discovery and Data Mining. 1150–1160.
+[20] Laurens van der Maaten and Geofrey Hinton. 2008. Visualizing data using t-SNE.
+Journal of machine learning research 9, Nov (2008), 2579–2605.
+[21] Hyeon-Jin Park, Seunghun Lee, Sihyeon Kim, Jinyoung Park, Jisu Jeong, KyungMin Kim, Jung-Woo Ha, and Hyunwoo J. Kim. 2021. Metropolis-Hastings Data Augmentation for Graph Neural Networks. In Annual Conference on Neural
+Information Processing Systems 2021. 19010–19020.
+[22] Yu Rong, Wenbing Huang, Tingyang Xu, and Junzhou Huang. 2020. DropEdge: Towards Deep Graph Convolutional Networks on Node Classifcation. In 8th
+International Conference on Learning Representations.
+[23] Kihyuk Sohn, Honglak Lee, and Xinchen Yan. 2015. Learning Structured Output Representation using Deep Conditional Generative Models. In Annual Conference
+on Neural Information Processing Systems 2015. 3483–3491.
+[24] Susheel Suresh, Pan Li, Cong Hao, and Jennifer Neville. 2021. Adversarial Graph Augmentation to Improve Graph Contrastive Learning. In Annual Conference on
+Neural Information Processing Systems 2021. 15920–15933.
+[25] Shikhar Vashishth, Soumya Sanyal, Vikram Nitin, and Partha P. Talukdar. 2020. Composition-based Multi-Relational Graph Convolutional Networks. In 8th In
+ternational Conference on Learning Representations.
+[26] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. 2017. Attention is All
+you Need. In Annual Conference on Neural Information Processing Systems 2017.
+5998–6008. [27] Petar Velickovic, William Fedus, William L. Hamilton, Pietro Liò, Yoshua Bengio, and R. Devon Hjelm. 2019. Deep Graph Infomax. In 7th International Conference
+on Learning Representations.
+[28] Vikas Verma, Alex Lamb, Christopher Beckham, Amir Najaf, Ioannis Mitliagkas, David Lopez-Paz, and Yoshua Bengio. 2019. Manifold Mixup: Better Representations by Interpolating Hidden States. In Proceedings of the 36th International
+Conference on Machine Learning. 6438–6447.
+[29] Xiao Wang, Houye Ji, Chuan Shi, Bai Wang, Yanfang Ye, Peng Cui, and Philip S. Yu. 2019. Heterogeneous Graph Attention Network. In The World Wide Web Conference. 2022–2032.
+[30] Yiwei Wang, Yujun Cai, Yuxuan Liang, Henghui Ding, Changhu Wang, Siddharth Bhatia, and Bryan Hooi. 2021. Adaptive Data Augmentation on Temporal Graphs.
+In Annual Conference on Neural Information Processing Systems 2021. 1440–1452.
+[31] Yiwei Wang, Wei Wang, Yuxuan Liang, Yujun Cai, Juncheng Liu, and Bryan Hooi. 2021. NodeAug: Semi-Supervised Node Classifcation with Data Augmentation.
+In The 26th ACM SIGKDD Conference on Knowledge Discovery and Data Mining.
+207–217. [32] Zongqian Wu, Peng Zhou, Guoqiu Wen, Yingying Wan, Junbo Ma, Debo Cheng, and Xiaofeng Zhu. 2022. Information Augmentation for Few-shot Node Classif
+cation. In Proceedings of the Thirty-First International Joint Conference on Artifcial Intelligence. 3601–3607.
+[33] Hongteng Xu, Dixin Luo, Lawrence Carin, and Hongyuan Zha. 2021. Learning Graphons via Structured Gromov-Wasserstein Barycenters. In Thirty-Fifth AAAI
+Conference on Artifcial Intelligence. 10505–10513.
+[34] Denis Yarats, Ilya Kostrikov, and Rob Fergus. 2021. Image Augmentation Is All You Need: Regularizing Deep Reinforcement Learning from Pixels. In 9th
+International Conference on Learning Representations.
+[35] Jaemin Yoo, Sooyeon Shim, and U Kang. 2022. Model-Agnostic Augmentation for Accurate Graph Classifcation. In The ACM Web Conference 2022. 1281–1291. [36] Hongyi Zhang, Moustapha Cissé, Yann N. Dauphin, and David Lopez-Paz. 2018. mixup: Beyond Empirical Risk Minimization. In 6th International Conference on
+Learning Representations.
+[37] Linjun Zhang, Zhun Deng, Kenji Kawaguchi, Amirata Ghorbani, and James Zou. 2021. How Does Mixup Help With Robustness and Generalization?. In 9th
+International Conference on Learning Representations.
+[38] Jianan Zhao, Xiao Wang, Chuan Shi, Zekuan Liu, and Yanfang Ye. 2020. Network Schema Preserving Heterogeneous Information Network Embedding. In Proceed
+ings of the Twenty-Ninth International Joint Conference on Artifcial Intelligence.
+1366–1372. [39] Tong Zhao, Gang Liu, Daheng Wang, Wenhao Yu, and Meng Jiang. 2022. Learning from Counterfactual Links for Link Prediction. In International Conference on
+Machine Learning. 26911–26926.
+[40] Tong Zhao, Yozen Liu, Leonardo Neves, Oliver J. Woodford, Meng Jiang, and Neil Shah. 2021. Data Augmentation for Graph Neural Networks. In Thirty-Fifth
+AAAI Conference on Artifcial Intelligence. 11015–11023.
+47
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhou et al.
+A APPENDIX
+We give the detailed derivation of Equation (1) and Equation (2).
+A.1 Proof of Equation (1)
+∫
+AAAAA (XA |XA, rAA) = AA (z|XA, XA, rAA)AAAAA (XA |XA, rAA)Az
+∫ AA (XA, XA, rAA)
+= AA (z|XA, XA, rAA)AAA Az
+AA (XA, rAA)
+∫ AA (XA, XA, rAA) · AA (XA, XA, rAA, z)
+= AA (z|XA, XA, rAA)AAA Az
+AA (XA, rAA) · AA (XA, XA, rAA, z)
+∫ AA (XA, z|XA, rAA)
+= AA (z|XA, XA, rAA)AAA Az
+AA (z|XA, XA, rAA)
+∫ AA (XA, z|XA, rAA) · AA (z|XA, XA, rAA)
+= AA (z|XA, XA, rAA)AAA Az
+AA (z|XA, XA, rAA) · AA (z|XA, XA, rAA)
+∫ AA (XA, z|XA, rAA) AA (z|XA, XA, rAA)
+= AA (z|XA, XA, rAA) (AAA + AAA ) Az
+AA (z|XA, XA, rAA) AA (z|XA, XA, rAA)
+∫ AA (XA, z|XA, rAA)
+= AA (z|XA, XA, rAA)AAA Az + AA(AA (z|XA, XA, rAA)||AA (z|XA, XA, rAA))
+AA (z|XA, XA, rAA)
+∫ AA (XA, z|XA, rAA)
+≥ AA (z|XA, XA, rAA)AAA Az
+AA (z|XA, XA, rAA)
+A.2 Proof of Equation (2)
+∫ AA (XA, z|XA, rAA)
+AAAAA (XA, XA, rAA; A, A) = AA (z|XA, XA, rAA)AAA Az
+AA (z|XA, XA, rAA)
+∫ AA (XA, z, XA, rAA)
+= AA (z|XA, XA, rAA)AAA Az
+AA (z|XA, XA, rAA) · AA (XA, rAA)
+∫ AA (XA |z, XA, rAA) · AA (z, XA, rAA)
+= AA (z|XA, XA, rAA)AAA Az
+AA (z|XA, XA, rAA) · AA (XA, rAA)
+∫ AA (XA |z, XA, rAA) · AA (z|XA, rAA)
+= AA (z|XA, XA, rAA)AAA Az
+AA (z|XA, XA, rAA)
+∫∫
+AA (z|XA, rAA)
+= AA (z|XA, XA, rAA)AAA Az + AA (z|XA, XA, rAA)AAAAA (XA |z, XA, rAA)Az
+AA (z|XA, XA, rAA)
+∫
+= −AA(AA (z|XA, XA, rAA)||AA (z|XA, rAA)) + AA (z|XA, XA, rAA)AAAAA (XA |z, XA, rAA)Az
+AA
+∑
+1A
+= −AA(AA (z|XA, XA, rAA)||AA (z|XA, rAA)) + AAAAA (XA |z , XA, rAA)
+AA
+A=1
+48

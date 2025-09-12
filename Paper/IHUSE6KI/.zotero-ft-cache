@@ -1,0 +1,543 @@
+Predicting the Silent Majority on Graphs: Knowledge Transferable Graph Neural Network
+Wendong Bi Institute of Computing Technology, University of Chinese Academy of Sciences Beijing, China biwendong20g@ict.ac.cn
+Bingbing Xu∗ Institute of Computing Technology, Chinese Academy of Sciences Beijing, China xubingbing@ict.ac.cn
+Xiaoqian Sun∗ Institute of Computing Technology, Chinese Academy of Sciences Beijing, China sunxiaoqian@ict.ac.cn
+Li Xu Institute of Computing Technology, Chinese Academy of Sciences Beijing, China lixu@ict.ac.cn
+Huawei Shen∗ Institute of Computing Technology, Chinese Academy of Sciences Beijing, China shenhuawei@ict.ac.cn
+Xueqi Cheng∗ Institute of Computing Technology, Chinese Academy of Sciences Beijing, China cxq@ict.ac.cn
+ABSTRACT
+Graphs consisting of vocal nodes ("the vocal minority") and silent nodes ("the silent majority"), namely VS-Graph, are ubiquitous in the real world. The vocal nodes tend to have abundant features and labels. In contrast, silent nodes only have incomplete features and rare labels, e.g., the description and political tendency of politicians (vocal) are abundant while not for ordinary people (silent) on the twitter’s social network. Predicting the silent majority remains a crucial yet challenging problem. However, most existing message-passing based GNNs assume that all nodes belong to the same domain, without considering the missing features and distribution-shift between domains, leading to poor ability to deal with VS-Graph. To combat the above challenges, we propose Knowledge Transferable Graph Neural Network (KT-GNN), which models distribution shifts during message passing and representation learning by transferring knowledge from vocal nodes to silent nodes. Specifically, we design the domain-adapted "feature completion and message passing mechanism" for node representation learning while preserving domain difference. And a knowledge transferable classifier based on KL-divergence is followed. Comprehensive experiments on real-world scenarios (i.e., company financial risk assessment and political elections) demonstrate the superior performance of our method. Our source code has been open sourced1.
+CCS CONCEPTS
+• Computing methodologies → Neural networks; • Information systems → Social networks.
+∗Corresponding authors 1The source code will be available at the published version
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for components of this work owned by others than ACM must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specific permission and/or a fee. Request permissions from permissions@acm.org.
+Conference acronym ’XX, June 03–05, 2018, Woodstock, NY © 2018 Association for Computing Machinery. ACM ISBN 978-1-4503-XXXX-X/18/06. . . $15.00 https://doi.org/XXXXXXX.XXXXXXX
+KEYWORDS
+graph, graph neural network, the silent majority, domain adaption
+ACM Reference Format:
+Wendong Bi, Bingbing Xu, Xiaoqian Sun, Li Xu, Huawei Shen, and Xueqi Cheng. 2018. Predicting the Silent Majority on Graphs: Knowledge Transferable Graph Neural Network. In Proceedings of Make sure to enter the correct conference title from your rights confirmation emai (Conference acronym ’XX). ACM, New York, NY, USA, 12 pages. https://doi.org/XXXXXXX.XXXXXXX
+1 INTRODUCTION
+Graph structured data is prevalent in the real world e.g., social networks [4, 47], financial networks [11, 61, 64], and citation networks [27, 39, 59]. For many practical scenarios, the collected graph usually contains incomplete node features and unavailable labels due to reasons such as limitation of observation capacity, incompleteness of knowledge and distribution shift, which is referred to as data-hungry problem for graphs. Compared with traditional used ideal graph(Fig. 1 a)), the nodes on such graphs (Fig. 1 b)) can be divided into two categories according to the degree of data-hungry: vocal nodes and silent nodes. We call such graph as the VS-Graph. VS-Graph is ubiquitous and numerous graphs in the physical world. Taking two famous scenarios “political election” [1, 48, 54] and “company financial risk assessment” [3, 5, 10, 18, 36] as examples. As Fig. 1 (c) illustrated, the politicians (i.e., political celebrities) in the minority and the civilians in the majority form a politiciancivilian graph by social connections (e.g., following on twitter). We can obtain the detailed descriptions (attributes) and clear political tendencies (labels) for politicians (vocal nodes) while such information is unavailable for civilians (silent nodes). Meanwhile, predicting political tendency of the majority is critical for political election. Similar problem also exists in company financial risk assessment in Fig. 1 (d), where the investment relations between listed companies in the minority and unlisted companies in the majority form the graph. Only listed companies publish their financial statements and the financial risk status of listed companies is clear. While the non-listed companies are not obligated to disclose financial statements, and it is difficult to infer their risk profile
+1
+arXiv:2302.00873v1 [cs.LG] 2 Feb 2023
+
+
+Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Wendong Bi et al.
+based on extremely limited business information. However, financial risk assessment of unlisted company in the majority is of great significance for financial security [7, 15, 23, 34]. Overall, the vocal nodes ("the vocal minority") have abundant features and labels. While the silent nodes ("the silent majority") have rare labels and incomplete features. VS-Graph is also common in other real-world scenarios, such as celebrities and ordinary netizens in social networks. Meanwhile, predicting the silent majority on VS-Graph is important yet challenging.
+Complete attributes
+Vocal Node ∈ V!"#$%
+Silent Node ∈ V&'%()*
+Incomplete attributes
+Republican is the best party I believe!
+Wish for the support of democrats!
+I agree...
+I chose to keep silent
+(c) Political Social Network
+Listed Company A Listed Company B
+Unlisted Company D
+Unlisted Company E
+Unlisted Company C
+Attributes: Homepage
+Attributes: Financial Statement
+(d) Company Investment Network
+(a) Idea Graph (b) VS Graph
+No Financial Statement !
+No HomePage !
+Follow Invest
+??
+?
+?
+Figure 1: Examples of silent node classification, where (a) and (b) show the difference of silent node classification vs. traditional node classification. (c) and (d) show two realworld VS-Graphs.
+Recently, Graph neural networks (GNNs) have achieved stateof-the-art performance on graph related tasks. Generally, GNNs follow the message-passing mechanism, which aggregates neighboring nodes’representations iteratively to update the central node representation. However, the following three problems lead to the failure of GNNs to predict the silent majority: 1) the data distribution shift problem exists between vocal nodes and silent nodes, e.g., listed companies have more assets and cash flows and therefore shows the different distribution from unlisted companies in terms of attributes, which is rarely considered by the previous GNNs; 2) the feature missing problem exists and can not be solved by traditional heuristic feature completion strategies due to the above data distribution shift; 3) the lack of labels for silent majority hinders an ideal model, and directly training on both vocal nodes and silent nodes leads to poor performance for the silent majority due to the distribution shift. To solve the aforementioned challenges, we propose Knowledge Transferable Graph Neural Network (KT-GNN), which targets at learning representations for silent majority on the graph via transferring knowledge adaptively from vocal nodes. KT-GNN takes domain transfer into consideration for the whole learning process, including feature completion, message passing and the final classifier. Specifically, Domain-Adapted Feature Complementor (DAFC)
+and Domain-Adapted Message Passing (DAMP) are designed to complement features for silent nodes and conduct message passing between vocal nodes and silent nodes while modeling and preserving the distribution-shift. With the learned node representations from different domains, we propose the Domain Transferable Classifier (DTC) based on KL-divergence minimization to predict the labels of silent nodes. Different from existing transfer learning methods that aim to learn domain-invariant representations, we propose to transfer the parameters of classifiers from vocal node to silent domain rather than forcing a single classifier to capture domain-invariant representations. Comprehensive experiments on two real-world scenarios (i.e., company financial risk assessment and political elections) show that our method gain significant improvements on silent node prediction over SOTA GNNs. The contributions of this paper are summarized as follows:
+• We define a practical and widespread VS-Graph, and solve the new problem of predicting silent majority, one important and realistic AI application. • To predict silent majority, we design a novel Knowledge Transferable Graph Neural Network (KTGNN) model, which is enhanced by the Domain-Adapted Feature Complementor and Messaging Passing modules that preserving domaindifference as well as the KL-divergence minimization based Domain Transferable Classifier. • Comprehensive experiments on two real-world scenarios (i.e., company financial risk assessment and political elections) show the superior of our method, e.g., AUC achieves an improvement of nearly 6% on company financial risk assessment compared to the current SOTA OOD generalization GNN ([44]).
+2 PRELIMINARY
+In this section, we give the definitions of important terminologies and concepts appearing in this paper.
+2.1 Graph Neural Network
+Graph Neural Networks (GNNs) aim at learning representations for nodes on the graph. Given a graph G(V , E, X, Y ) as input, where V = {vi |vi ∈ V } denotes the node set and E = {ei j = (vi, v j )|vi and v j is connected}. N = |V | is the number of nodes, X ∈ RN ×Din is the feature matrix and Y ∈ RN ×1 is the labels of all nodes. Then GNNs update node representations by stacking multiple graph convolution layers and current mainstream GNNs follows the messaging passing mechanism, each layer of GNNs updates node representations with the following function:
+h (l)
+i = U h (l−1)
+i
+, M {h (l−1)
+i
+, h (l−1)
+j |v j ∈ N (vi )}
+where h (l)
+i is the node representation vector at l-th layer of GNN, M denotes the message function of aggregating neighbor’s features and U denotes the update functions with the neighborhood messages and central node feature as inputs. By stacking multiple layers, GNNs can aggregate information from higher-order neighbors.
+2
+
+
+Predicting the Silent Majority on Graphs: Knowledge Transferable Graph Neural Network Conference acronym ’XX, June 03–05, 2018, Woodstock, NY
+2.2 Problem Definition: Silent Node Classification on the VS-Graph
+In this paper, we propose the problem of silent node prediction on VS-Graph and we we mainly focus on the node classification problem. First, we give the definition of VS-Graph:
+Definition 2.1 (VS-Graph). Given a VS-Graph Gvs (V , E, X, Y , Ψ), where V = V vocal ∪V silent is the node set, including all vocal nodes and silent nodes. E = {ei j = (vi, v j )|vi, v j ∈ V vocal ∪ V silent } is the edge set. X = [X vocal ; Xsilent ] is the attribute matrix for all nodes and Y = [Y vocal ; Y silent ] is the class label of all nodes (yi = −1 denotes the label of vi is unavailable). Ψ : V → {vocal, silent } is the population indicator that maps a node to its node population (i.e., vocal nodes, silent nodes).
+Ψ(vi ) = 1 if vi is a silent node
+0 if vi is a vocal node (1)
+For a VS-Graph, the attributes and labels of vocal nodes (i.e., X vocal , Y vocal ) are complete. However, Y silent is rare and Xsilent is incomplete. Specifically, for vocal node vi ∈ V vocal , its attribute vector xi = [xo
+i ||xu
+i ], where xo
+i ∈ RDo is the part of attributes observable for all nodes and xu
+i ∈ RDu is the part of attributes unobservable for silent nodes while observable for vocal nodes. For silent node vi ∈ V silent , its attribute vector xi = [xo
+i ||0], where xo
+i∈
+R
+Do is the observable part and 0 ∈ RDu means the unobservable part which are complemented by 0 per-dimension initially. Then the problem of Silent Node Classification on VS-Graph is defined as follows:
+Definition 2.2 (Silent Node Classification on the VS-Graph). Given a VS-Graph Gvs (V , E, X, Y , Ψ), where |V vocal | << |V silent | and the attributes of nodes from the two populations (i.e., X vocal and Xsilent ) belong to different domains with distinct distributions P
+vocal ≠ Psilent . Under these settings, the target is to predict the labels (Y silent ) of silent nodes (V silent ) with the support of a small set of vocal nodes (V vocal ) with complete but out-of-distribution information.
+3 EXPLORATORY ANALYSIS
+To demonstrate the distribution-shift problem between vocal nodes and silent nodes, we choose two representative real-world scenarios (i.e., political social network, company equity network) as examples and conduct exploratory analysis on the two real-world VS-Graphs. And the observations from real-world scenarios show that there exist significant distribution-shift between vocal nodes and silent nodes on their shared feature dimensions. The detailed information of the datasets is summarized in Sec. 5.1.
+3.1 Framework of distribution-shift Analysis
+We analyze the distribution-shift problem between vocal nodes and silent nodes on the VS-Graph by analyzing the conditional joint distribution P (X, Y | O) of the dataset, where O denotes possible population of nodes (i.e., vocal nodes or silent nodes), X denotes the node features and Y denotes the nodes labels. Specifically, we consider the binary classification task where Y = {0, 1} on the VS-Graph Gvs (V , E, X, Y , Ψ):
+(1) Given class label y ∈ Y and node population o ∈ O, we can obtain P (X |Y = y, O = o) on the observed samples; (2) Then we further calculate P (X, Y = y | O = o) = P (X |Y = y, O = o) · P (Y = y|O = o) for each class y ∈ Y , where P (Y = y|O = o) can be approximated by the empirical distribution on the observed samples.
+In practice, we sample the same number of nodes from each class every time, and thus we have P (Y = 0|O) = P (Y = 1|O) = 0.5. By repeating sampling several times, we calculate the averged empirical conditional probability P (X |Y, O) based on the sampled data directly rather than calculating P (X, Y |O).
+Listed company Unlisted company Company type
+3
+4
+5
+6
+7
+8
+Register capital / log(million CNY)
+Company label risky normal
+(a) Register capital
+Listed company Unlisted company Company type
+2
+3
+4
+5
+6
+7
+Actual capital / log(million CNY)
+Company label risky normal
+(b) Actual capital
+Listed company Unlisted company Company type
+3
+4
+5
+6
+7
+8
+9
+Staff number / log(persons)
+Company label risky normal
+(c) Staff number
+Figure 2: Box-plot of single-variable distribution for company equity graph dataset. Each box-plot actually represents the conditional distribution P (X |Y, O), where the Yaxis is the log probability denoted as log P (X |Y, O) .
+3.2 "The Silent Majority" in Real-world Graphs
+3.2.1 Single-Variable Analysis. We analyze the distribution of singlevariable on the real-world Company VS-Graph, including the listedcompany nodes and unlisted-company nodes (more details in Sec. 5.1. All node attributes of this dataset are from real-world companies and have practical physical meanings (e.g., register capital, actual capital, staff number), which are appropriate for statistical analysis of single dimension (the GloVe [38] features in Twitter dataset used in this paper do not have practical meanings). Instead of directly calculating the empirical probability, we visualize the probability with box-plot through a more intuitive manner. We select tree important attributes (i.e., register capital, actual capital, staff number) and present the box plot of all nodes distinguished by their labels (i.e., risky company or normal company) and populations (i.e., listed-company or unlisted-company) at the Fig. 2. We observe that there exist significant distribution-shift between listed-company (vocal nodes) and unlisted-company (silent nodes), which confirm our motivations. Considering that there are hundreds of attributes, we only present three typical attributes correlated to the company assets here due the the limitation of space.
+3.2.2 Multi-Variable Visualization. The above single-variable analysis demonstrate that there exists significant domain difference on certain dimension of attributes between vocal nodes and silent
+3
+
+
+Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Wendong Bi et al.
+nodes. To further demonstrate the domain difference of all attributes, we also visualize all attributes with t-SNE. Specifically, we first project the Din-dimensional attributes to 2-dimensional vectors and then present their scatter plot on the 2D plane.
+Figure 3: T-SNE visualization of the raw node features distinguished by their populations (vocal→orange, silent→cyan) or labels (binary classes: positive→red, negative→blue). Note that we only visualize the observable attributes Xo (dimensions shared by vocal and silent nodes).
+As shown in the Fig. 3, we respectively visualize the two VSGraph Datasets: Twitter (a political social network) and Company (a company equity network). Specifically, Fig. 3 (a) shows the nodes of different populations in Twitter dataset (two colors denote vocal nodes and silent nodes); Fig. 3 (b) shows the the vocal nodes (politicians) of different classes (i.e., political parties, including democrat and republican) and Fig. 3 (c) shows the the silent nodes (people/citizens) of different classes. For the company dataset, Fig. 3 (d) shows the nodes of different populations (two colors denote vocal nodes and silent nodes); Fig. 3 (e) shows the the vocal nodes (listed-companies) of different classes (i.e., risky/normal company) and Fig. 3 (c) shows the the silent nodes (unlisted-companies) of different classes. Fig. 3 (a) and (d) demonstrate that nodes from different populations have distinct distributions, which are reflected as different clusters with distinct shapes and positions. From Fig. 3 (b) and (e), we observe that the vocal nodes of different classes have similar distributions, which are reflected as indistinguishable clusters mixed together, and the silent nodes of different classes Fig. 3 (c) and (f) have similar phenomena as vocal nodes. All these findings demonstrate that there exist significant distribution-shift between vocal nodes and silent nodes on these real-world VS-Graphs.
+4 METHODOLOGY
+We propose the Knowledge Transferable Graph Neural Network (KT-GNN) to learn effective representations for silent nodes on VS-Graphs.
+4.1 Model Overview
+We first present an overview of our KT-GNN model in Fig . 4. KT-GNN can be trained through an end-to-end manner on the VSGraph and is composed of three main components: (1) Domain
+Adapted Feature Complementor; (2) Domain Adapted Message Passing module; (3) Domain Transferable Classifier.
+4.2 Domain Adapted Feature Complementor (DAFC)
+Considering that part of attributes are unobservable for silent nodes, we first complement the unobservable features for silent nodes with the cross-domain knowledge of vocal nodes. An intuitive idea is to complete the unobservable features of silent nodes by their vocal neighboring nodes which have complete features. However, not all silent nodes on the VS-Graph have vocal neighbors. To complete the features of all silent nodes, we propose a Domain Adapted Feature Complementor (DAFC) module which can complement features of silent nodes by adaptively transferring knowledge from vocal nodes with several iterations. Before completing features, we first partition the nodes on the VSGraph into two sets: V+ and V−, where nodes in V+ have complete features while nodes in V− have incomplete features. Initially, V+ = V vocal and V− = V silent . Then the DAMP module complete the features of nodes in V− by transferring the knowledge of nodes in V+ to V− iteratively. After each iteration, we add the nodes in V− whose features are completed to V+ and remove these nodes from V−. And we set a hyper-parameter K as the max-iteration of feature completion. By setting different K, the set of nodes with complete feature can cover all nodes on the Graph, and we have V vocal ⊂ V+ ⊂ V . Fig. 4-(a) present the illustration of our DAFC module. At the first iteration, features of vocal nodes are used to complete features of incomplete silent nodes that directly connect to the vocal nodes. Given incomplete silent node vi ∈ {V silent ∩ V−}, its complemented unobservable feature xcu
+i can be calculated:
+xcu
+i=
+∑︁
+vj ∈ {N (vi )∩V vocal }
+xfu
+j · f (xo
+i W s, xo
+j W v) (2)
+where xfu
+j is the calibrated variable for xu
+j by eliminating the effects of domain differences:
+(
+xfu
+j = xu
+j − ΔXeu · σ ( [xu
+j ||ΔXeu ] · W g)
+Δ
+Xeu = [X ̄ v
+o − X ̄s
+o ] · W o→u (3)
+where W o→u ∈ RDo ×Du and W g ∈ R2Du ×Du are learnable parametric matrix, and σ is a T anh activation function; ΔXeu is the transformed domain difference; X ̄ v
+o = Evi ∼V vocal (xo
+i ) and X ̄s
+o=
+E
+vi ∼V silent (xo
+i ) are respectively the expectation of the observable features for vocal nodes and silent nodes, and X ̄ v
+o − X ̄s
+o represents the domain difference between vocal and silent nodes according to their observable attributes. In this part, we aim at learning the unobservable domain difference based on the observable domain difference X ̄ v
+o − X ̄s
+o . Then for other incomplete silent nodes that do not directly connect to any vocal nodes, they will be complemented from the second iteration until the algorithm converges (reaching the max-iteration K or all silent nodes have been complemented). After iteration 1, DAFC uses complete silent nodes to further complement features for the remaining incomplete silent nodes at each iteration. During this process, the set of complete nodes V+ expand
+4
+
+
+Predicting the Silent Majority on Graphs: Knowledge Transferable Graph Neural Network Conference acronym ’XX, June 03–05, 2018, Woodstock, NY
+Iteration 1: vocal nodes → silent nodes
+Iteration 2: Complete silent nodes → Incomplete silent nodes
+Repeat until convergence
+V!"#$% V&'%()*
+12
+3
+4 Directions Domain-shift V!"#$% → V!"#$% Within-domain V&'%()* → V&'%()* Within-domain V!"#$% → V&'%()* Cross-domain V&'%()* → V!"#$% Cross-domain
+CLFS(')= WS
+CLFt(')= Wt
+Source domain (vocal nodes): {his |vi ∈ Vvocal}
+Transs→t(CLFS('))
+P1jt Target domain (silent nodes): {hjs |vj ∈ Vsilent}
+softmax
+softmax
+softmax
+P1is
+P3jt
+KL(P1jt, P3jt)
+Cross Entropy Loss
+(a) Domain Adapted Feature Complementor (DAFC)
+(b) Domain Adapted Message Passing (DAMP) (c) Domain Transferable Classifier(DTC)
+Complete attributes
+Vocal Node ∈ V!"#$%
+Silent Node ∈ V&'%()*
+Incomplete attributes
+Attributes completed DAFC
+CL 6Ft
+CLFt CLFs
+Positive sample Negative sample
+Target
+Source
+KL(1Pis, P1jt) CL 6Ft
+?
+?
+??
+?
+?
+?
+?
+Figure 4: Architecture overview of KT-GNN, which includes three main components: Domain Adapted Feature Complementor (DAFC), Domain Adapted Message Passing (DAMP), and Domain Transferable Classifier (DTC).
+layer-by-layer like breadth-first search (BFS), as shown in Eq.4:
+xcu
+i=
+∑︁
+vj ∈ {N (vi )∩V+ }
+xu
+j · f (xo
+jW v, xo
+i W s ) (4)
+where f (·) is the neighbor importance factor:
+f (xo
+jW v, xo
+i W s ) = σ [xo
+j W v ||xo
+i W s ] · avs (5)
+where σ is a LeakyReLU activation function. Note that the node set {N (vi ) ∩ V+} ∈ V silent , because all silent nodes that have vocal neighbors have been complemented and merged into V+ after iteration 1 (see Eq. 2), therefore the unobservable features
+xu
+j in Eq. 4 do not need to be calibrated by the domain difference factor. Finally, we get the complemented features for silent nodes xbi = [xo
+i ||xcu
+i ].
+To guarantee that the learned unobservable domain difference (i.e., ΔXeu in Eq. 3) is actually applied on the process of the domainadapted feature completion, we add a Distribution-Consistency Loss Ldist when optimizing the DAFC module:
+L
+dist = ΔXeu − Evi ∼V vocal (xu
+i ) − Evi ∼V silent (xcu
+i) 2
+(6)
+4.3 Domain Adapted Message Passing (DAMP)
+According to the directions of edges based on the population types from source nodes to target nodes, we divide the message passing on a VS-Graph into four parts: (1) Messages from vocal nodes to silent nodes; (2) Messages from silent nodes to vocal nodes; (3) Messages from vocal nodes to vocal nodes; (4) Messages from silent nodes to silent nodes. Among the four directions of message passing, directions (1) and (2) are cross-domain (out-of-distribution) message passing, while directions (3) and (4) are within-domain (indistribution) message passing. However, out-of-distribution messages from cross-domain neighbors should not be passed to central nodes directly, otherwise the domain difference will become noises
+that degrade the model performance. To solve the aforementioned problem, we design a Domain Adapted Message Passing (DAMP) module. For messages from cross-domain neighbors, we first calculate the domain-difference scaling factor and then project the OOD features of source nodes into the domain of target nodes. e.g., for edges from vocal nodes to silent nodes, we project the features of vocal nodes to the domain of silent nodes, and then pass the projected features to the target silent nodes. Specifically, the DAMP module considers two factors: the bidirectional domain difference and the neighbor importance. Given an edge ei,j = (vi, v j ), the message function is given as follows:
+M
+vi →vj = hei · f Ψ(vj ) (hei, h j ) (7)
+where hei is the source node feature calibrated by the domain difference factor and f Ψ(vj ) (·) is the neighbor importance function:
+f Ψ(vj ) (hei, h j ) = σ ( [hei · W Ψ(vj ) ||h j · W Ψ(vj ) ]) · aΨ(vj ) (8)
+hei = PΨ(vi )→Ψ(vj ) (hi ) = hi + Δi,j (9)
+where σ is LeakyReLU and Δi,j is the distribution-shift variable:
+Δ
+i,j =
+( 0 i f Ψ(vi ) == Ψ(v j )
+(−1)Ψ(vj ) · σ ( [hi ||X ̄ v − X ̄s ] · aΨ(vi ) ) · (X ̄ v − X ̄s ) else
+(10) where σ is T anh; Ψ(vi ) is the population indicator (see Eq. 1); X ̄ v = Evi ∼V vocal (xi ) and X ̄s = Evi ∼V silent (xbi ) are respectively the expectation of the observable features for vocal nodes and silent nodes, and X ̄ v − X ̄s represents the domain difference between vocal and silent nodes according to their complete attributes (the attributes of silent nodes have been complemented with DAFC). With the DAMP module, we calibrate the source nodes to the domain of target nodes while message passing, which eliminate the noises caused by the OOD features. It should be noticed that
+5
+
+
+Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Wendong Bi et al.
+the distribution-shift variable Δi,j only works for cross-domain message passing (V vocal → V silent or V silent → V vocal ), and
+Δ
+i,j = 1 for within-domain message passing (V vocal → V vocal or V silent → V silent ). With DAMP, we finally obtain the representations of silent nodes and vocal nodes while preserving their domain difference. Different from mainstream domain adaption methods that project the samples from source and target domains into the common space and only preserve the domain-invariance features, our DAMP method conducts message passing while preserving domain difference. By preserving the domain difference, DAMP retains the particular characteristics of silent nodes and vocal nodes, rather than ignoring the domain difference which causes information loss.
+4.4 Domain Transferable Classifier (DTC)
+With DAFC and DAMP, we solve the feature incompleteness problem and obtain the representations of silent nodes and vocal nodes that preserve the domain difference. Considering that the node representations come from two distinct distributions and silent nodes only have rare labels as discussed in Sec. 3 and Sec. 2.2, we cannot directly train a good classifiers for silent nodes. To solve the cross-domain problem and label scarcity problem of silent nodes, we design a novel Domain Transferable Classifier (DTC) for the silent node classification by transferring knowledge from vocal nodes. Traditional domain adaption methods usually transfer crossdomain knowledge by constraining the learned representations to retain domain-invariance information only. Such methods assume that the data distribution of two domains is similar, which may be not satisfiedin VS-Graph. Rather than constraining learned representations, DTC targets at transferring model parameters so that the knowledge of the optimized source domain classifier can be transferred to target domain. The solid rectangular box in Fig. 4-(c) shows our motivation to design DTC. Specifically, the classifier trained on source domain only perform under-fitting in target domain due to domain shift (blue dotted line). Meanwhile, the classifier trained on target domain tends to overfit due to label scarcity (yellow dotted line). An ideal classifier is between these two classifiers (green line). Based on this motivation (verified via experimental results in Fig.5), we transfer knowledge from both source classifier and target classifier to introduce an ideal classifier via minimizing the KL divergence between them. Specifically, as shown in the Fig. 4-(c), DTC has three components, including the source domain classifier CLFs , the target domain classifier CLFt and the cross-domain transformation module T ranss→t .
+To predict silent majority, the source domain classifier is trained with the vocal nodes and the target domain classifier is trained with the silent nodes. the cross-domain transformation module is used to transfer the original source domain classifier to a new generated target domain classifier (CLFt = T ranss→t (CLFs (·))), which takes the parameters of source domain classifier as input and then generate the parameters of a new target domain classifier. Specifically, both CLFs = σ (W sH ) and CLFt = σ (W t H ) are implemented by one fully-connected layer with Sigmoid activation. And T ranss→t (W s ) = MLP (W s ) is implemented by a multi-layer perception with nonlinear transformation to give it the aibility to
+change the shape of discriminant boundary of the classifier. The loss function to optimize DTC and the whole model can be divided into two parts: the KL loss Lkl and the classification loss Lcl f . The KL loss function Lkl is proposed to realize the knowledge transfer between the source domain and the target domain by constraining the discriminative bound of the generated classifier CLFt to locate between that of CLFs and CLFt :
+L
+kl = KL(Ps, Pcs ) + KL(Pt , Pct ) (11)
+where Ps ∈ R|V vocal |×| C | is the output probability of CLFs , Pt ∈ R|V silent |×| C | is the output probability of CLF t , Pcs ∈ R|V vocal |×| C |
+and Pct ∈ R|V silent |×| C | are the output probability of CLFt , |C| is the number of classes and |C| = 2 for binary classification tasks. The classification loss Lcl f is defined as:
+L
+cl f = BCE (Y vocal , Ybvocal
+CLFs ) + BCE (Y silent , Ybsilent
+CLFt )
++ BCE (Y silent , Ybsilent
+CLFt ) (12)
+where BCE is the binary cross-entropy loss function:
+BCE (Y, Yb, N ) = 1 N
+N ∑︁
+i =1
+Yi · log Ybi + (1 − Yi ) · log(1 − Ybi ) (13)
+Combined with the Distribution-Consistency Loss Ldict , our final loss function L is:
+L = Lcl f + λ · Lkl + γ · Ldist (14)
+where λ is a hyper-parameter to control the weight of Lkl , and we use γ = 1 in all our experiments.
+5 EXPERIMENTS
+In this section, we compare KT-GNN with other state-of-the-art methods on two real-world datasets in different scenarios.
+5.1 Datasets
+Table 1: Basic information of the dataset used in this paper.
+Dataset |V vocal | |V silent | |E | |Y vocal | |Y silent |
+Company 3987 6654 116785 3987 1923 Twitter 581 20230 915,438 581 625
+Basic information of the real-world VS-Graphs are shown in Table 1. More details about the datasets are shown in Appendix A. Company: Company dataset is a VS-Graph based on 10641 real-world companies in China (provided by TianYanCha), and the target is to classify each company into binary classes (risky/normal). On this VS-Graph, vocal nodes denote listed-companies and silent nodes denote unlisted-companies. The business information and equity graphs of all companies are available, while only the financial statements of listed-companies can be obtained (missing for unlisted-companies). Edges of this dataset indicate investment relations between companies. Twitter: Following the dataset proposed by Xiao et al. [54], we construct the Twitter VS-Graph based on data crawled from twitter, and the target is to predict the political tendency (binary
+6
+
+
+Predicting the Silent Majority on Graphs: Knowledge Transferable Graph Neural Network Conference acronym ’XX, June 03–05, 2018, Woodstock, NY
+classes: democrat or republican) of people. On this VS-Graph, vocal nodes denote famous politicians and silent nodes denote ordinal people/citizens. The tweets information are available for all twitter users, while the personal descriptions from homepage are available only for politicians (missing for people). Edges of this datasets represent follow relations between twitter users.
+5.2 Baselines and Experimental Settings
+We implement nine representative baseline models, including MLP
+as well as Spectral−based, Spatial−based and Deeper GNN models,
+which are GCN [27], GAT [49], GraphSAGE [22], JKNet [60], APPNP [29], GATv2 [6], DAGNN [33], GCNII [9]. Besides, we choose a recent state-of-the-art GNN model (OODGAT [44]) designed for OOD node classification task. We implement all baseline models and our KT-GNN models in Pytorch and Torch − Geometric. For each dataset, we prepare three dataset partitions with the same training ratio for each dataset (Company and Twitter). Each dataset partition randomly divides the annotated silent nodes into train/val/test set with the fixed ratio of 60%/20%/20%, and we add all annotated vocal nodes into training set because our target is to classify the silent nodes. For each experiment result, we run 10 times with for each model on each dataset with different random seeds, and then calculate the mean and standard variance of results. The detailed hyper-parameter settings of KTGNN and other baselines are presented in the Appendix C.
+Table 2: Results of silent node classification. All base models except KT-GNN are combined with one optimal heuristic feature completion strategy.
+Dataset Twitter Company
+Evaluation Metric F1 AUC F1 AUC
+MLP 70.85±1.31 80.12±1.38 57.01±0.42 56.35±0.55 GCN 80.19±0.87 86.88±1.23 57.60±0.49 57.83±0.93 GAT 82.31±1.56 87.88±1.21 57.98±0.43 58.40±0.43 GraphSAGE 85.40±1.03 92.08±1.61 58.93±0.67 60.63±0.57 JKNet 83.86±1.03 91.17±1.21 58.38±0.58 61.06±0.53 APPNP 80.60±1.60 87.01±1.08 57.35±0.63 57.99±0.80 GATv2 82.63±1.09 89.83±1.27 57.78±0.52 58.93±0.93 DAGNN 84.37±0.93 91.98±1.05 59.62±0.43 59.07±0.39 GCNII 83.85±1.17 90.67±1.32 58.21±0.88 60.06±0.63 OODGAT 85.95±2.01 92.67±1.60 60.05±0.89 61.37±0.92
+KTGNN 89.65±1.20 95.08±0.93 64.96±0.63 67.11±0.52
+5.3 Main Results
+We focus on silent node classification on the VS-Graph in this paper and conduct comprehensive experiments on two critical real-world scenarios (i.e., political election and company financial assessment). Results of Silent Node Classification We select two representative metrics (i.e., F1-Score and AUC) to evaluate the model performance on the silent node classification task. As shown in the Table 2, our KTGNN model gains significant improvement on the performance of silent node classification on both Twitter and
+Company datasets compared with other state-of-the-art GNN based methods. Specifically, considering that baseline models cannot directly handle graphs with partially-missing features (silent nodes in VS-Graphs), we combine these baseline GNNs with some heuristic feature completion strategies (e.g., completion by zero, completion by mean of neighbors) to keep fair comparison with our methods, and we finally choose the best completion strategy for each baseline GNN (results in Table 2). Under the above settings, our KG-GNN has 4% F1 improvement and 3% AUC improvement on Twitter dataset, and gains 5% F1 improvement and 6% AUC improvement on Company dataset, which demonstrate the superior performance of our KG-GNN method on the silent node classification task.
+Table 3: Results of models with different completion strategy on Company dataset. "None" means we only use the observable attributes (i.e., Xo ) for both vocal and silent nodes without completion; "0-Completion" means we complete the missing features of silent nodes by zero vector; "Mean-ofNeighbors" strategy use the mean vector of vocal neighbors to complete the missing dimensions for silent nodes.
+Dataset Completion Method Company
+Evaluation Metric \ F1 AUC
+MLP
+None 56.06±0.63 55.36±0.33 0-Completion 56.60±0.67 55.07±0.58 Mean-of-Neighbors 57.01±0.42 56.35±0.55
+GCN
+None 56.61±0.53 56.09±0.44 0-Completion 56.41±0.59 56.75±0.58 Mean-of-Neighbors 57.60±0.49 57.83±0.93
+GraphSAGE
+None 57.12±0.57 57.29±0.57 0-Completion 58.63±0.71 59.78±0.65 Mean-of-Neighbors 58.93±0.67 60.63±0.57
+JKNet
+None 57.26±0.49 58.44±0.67 0-Completion 57.81±0.65 60.95±0.63 Mean-of-Neighbors 58.38±0.58 61.06±0.53
+GCNII
+None 58.36±0.37 58.85±0.33 0-Completion 58.07±0.47 59.91±0.56 Mean-of-Neighbors 58.21±0.88 60.06±0.63
+OODGAT
+None 56.73±1.33 57.83±1.20 0-Completion 59.65±0.83 60.93±0.98 Mean-of-Neighbors 60.05±0.89 61.37±0.92
+KTGNN \ 64.96±0.63 67.11±0.52
+Effects of Feature Completion Strategy In this section, we aim at analyzing the effects of heuristic feature completion methods for base GNNs. We present the results of baseline GNNs with these feature completion methods as well as results without any feature completion methods on Company dataset at Table 5 (results of Twitter datasets are presented at Table 5 in Appendix). And the results in Table 3 indicate that the "Mean-of-Neighbors" strategy wins at most cases. However, all these heuristic completion strategies ignore the distribution-shift between the vocal domain and the silent domain, and thus are far less effective than our KT-GNN model with domain-adapted feature completion strategy.
+7
+
+
+Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Wendong Bi et al.
+Table 4: Ablation studies of KT-GNN compared with its variants by removing certain component.
+Dataset Twitter Company
+Evaluation Metric F1 AUC F1 AUC
+KTGNN\DAFC 85.57±1.38 92.12±0.87 60.21±0.39 61.95±0.45 KTGNN\DAMP 86.85±1.01 93.03±0.98 62.71±0.44 64.27±0.61 KTGNN\DTC 88.80±0.93 94.13±1.08 63.05±0.52 64.35±0.55 KTGNN\Ldist 87.80±0.83 93.85±1.38 63.56±0.68 65.38±0.65 KTGNN\Lkl 89.20±1.20 94.06±1.03 62.71±0.63 65.02±0.55
+KTGNN 89.65±1.20 95.08±0.93 64.96±0.63 67.11±0.52
+5.4 Ablation Study
+Effects of Each Module To validate the effects of each components of KT-GNN, we design some variants of KT-GNN by removing one of module (i.e., DAFC, DAMP, DTC, Ldist , Lkl ) and the results are shown in the Table 4. We observe that the performance of all KT-GNN variants deteriorate to some degree. And our full KT-GNN module gains best performance, which demonstrate the important effects of each components in KT-GNN. Effects of KL Loss We also validate the role of KL loss Lkl (see Eq. 11) in our method. As shown in the Fig. 5, we respectively visualize the scores and loss of the three sub-classifiers in DTC module (see Sec. 4.4), including the source classifier, target classifier and the generated target classifier (final classifier). And the final target classifier generated from source classifier gains the highest scores and lowest loss among them. And the result of KL Loss (components of L
+kl ) indicates that the discriminant bound of the generated target classifier is located between that of the source classifier and target classifier, which further confirms our motivations.
+0 100 200 300 400 500 600
+0.45
+0.50
+0.55
+0.60
+0.65
+F1 Score
+Classifiers source target target_generated
+(a) F1-score
+0 100 200 300 400 500 600 Epoch
+0.45
+0.50
+0.55
+0.60
+0.65
+BCE Loss
+Classifiers source target target_generated
+(b) BCE Loss
+0 100 200 300 400 500 600 Epoch
+0.000
+0.002
+0.004
+0.006
+0.008
+0.010
+0.012
+KL Loss
+KL Divergence KL_Merge KL_Source KL_Target
+(c) KL Loss
+Figure 5: F1 Score and Loss Curve of KT-GNN on Company dataset (results of Twitter dataset are shown in appendix).
+5.5 HyperParameter Sensitivity Analysis
+We validate the sensitivity of main hyper-parameters of KT-GNN: K (max-iteration of DAFC ) and λ (weight of Lkl ). As shown in the Fig. 6, we conduct experiments to validate the performance of KT-GNN on Company dataset with different K and λ. The results show that KT-GNN gain best performance when K = 2 , which is decided by the graph property that 2-hop neighbors of vocal nodes covers most silent nodes, and gain best performance when lambda = 1.0, which also indicates the effectiveness of the KL loss. The results of Twitter dataset are presented at Fig 9 in Appendix.
+0.0 0.5 1.0 1.5 2.0 2.5 3.0 K
+61
+62
+63
+64
+65
+66
+67
+Score
+Metric F1 AUC
+(a) Company-K
+0.0 0.2 0.4 0.6 0.8 1.0 Lambda
+63
+64
+65
+66
+67
+Score
+Metric F1 AUC
+(b) Company-λ
+Figure 6: Hyper-parameter analysis of K and λ on Company dataset. The results of this experiment on Twitter dataset is available at Fig. 9 in the Appendix.
+5.6 Representation Visualization
+We visualize the learned representations of KT-GNN on both scenarios in Fig. 7. Sub figure (a) and (d) show that our KT-GNN remains the domain difference between vocal nodes and silent nodes during message-passing. And sub figure (b) (c) and (d) (f) show that the representations learned by our KT-GNN have better distinguishability between difference classes for both vocal nodes and silent nodes, compared with the T-SNE visualization of raw features shown in Fig. 3 (The representation visualization of baseline GNNs are also shown in the appendix).
+Figure 7: T-SNE visualization of the node completed representations learned by KT-GNN, distinguished by their populations (vocal→orange, silent→cyan) or node labels (binary classes: positive→red, negative→blue).
+6 RELATED WORK
+Graph Neural Networks (GNNs), as powerful tools for modeling graph data, have been widely proposed and can be generally categorized into spectral-based methods [8, 12, 13, 25, 57] and spatial-based methods [45, 49, 55, 56]. Existing mainstream spatial-based GNNs [28, 42, 46, 58, 63] follow the message-passing framework, where node representations are updated based on features aggregated from neighbors. Recently, deeper GNNs [9, 31] with larger receptive fields, have been proposed and gain better performance. However, most of existing GNNs are built on the I.I.D. hypothesis, i.e., training and testing data are independent and identically distributed. And
+8
+
+
+Predicting the Silent Majority on Graphs: Knowledge Transferable Graph Neural Network Conference acronym ’XX, June 03–05, 2018, Woodstock, NY
+the I.I.D. hypothesis is hard to be satisfied in many real-world scenarios where the model performance degrades significantly when there exist distribution-shifts among the nodes on the graph. O.O.D nodes commonly exist in real-world graphs [16, 35, 37, 62], which bring obstacles to current message-passing based GNN models. Recently, GNNs for graph-level O.O.D prediction [21, 26, 32, 41, 51, 53] have been proposed. However, GNNs for semi-supervised node classification with O.O.D nodes has been rarely studied. Some existing studies [17, 24, 44, 50, 52] combine GNN with the O.O.D detection task as an auxiliary to enhance the performance of GNNs on graphs with O.O.D nodes. Such kind of methods usually view O.O.D nodes as noises, which aim at detecting potential O.O.D nodes first and then alleviating their effects. However, O.O.D nodes are not noises in all scenarios (e.g., VS-Graph introduced in this paper) and knowledge from other domains can be helpful to alleviate the data-hungry problem of target domain. Although O.O.D detection methods can improve the robustness of GNNs on O.O.D graphs, they ignore the useful information outside the target domain. Therefore, we propose to improve the model performance on target domain by injecting out-of-distribution knowledge in this paper.
+7 CONCLUSION
+In this paper, we propose a new while widespread problem: silent node classification on the VS-Graph ("predicting the silent majority on graphs"), where the majority silent nodes suffer from serious data-hungry problem (feature-missing and label scarcity). Correspondingly, we present two representative real-world scenarios (i.e., political social graph and company equity graph) for the proposed problem and conduct comprehensive data analysis. To solve the proposed problem, we design a novel KT-GNN model for silent node classification by transfer useful O.O.D knowledge from vocal nodes to silent nodes adaptively. Comprehensive experiments on the two representative real-world VS-Graphs demonstrate the superior performance of our methods. Finally, we leave the explorations of KT-GNN on the VS-Graphs of more other real-world scenarios as further work.
+A DATASET SUPPLEMENTARY INFORMATION
+A.1 Company Dataset
+The Company dataset is a real-world company equity graph based on companies in China2, and the target is to predict to financial risk status of companies. The nodes of this dataset are composed of listed companies (vocal nodes) and unlisted companies (silent nodes) and the edges represent investment relation between companies. And the node features come from two parts: business information and financial statement. We can only obtain the financial statement features of listed companies while cannot obtain that of unlisted companies, because only listed companies have disclosure obligation of financial statements in China. Therefore financial statements act as missing-features for silent nodes (unlisted companies) on this graph. Besides the feature-missing problem, there also exists distinct distribution-shift between listed-companies and unlisted-companies, which has been discussed in Sec. 3, and this
+2Company dataset is provided by TianYanCha:https://tianyancha.com
+leads to significant domain difference. We select 33 dimensions from business information and 78 dimensions from financial statement feature, and we further perform feature normalization on them. Specifically, for both business information and financial statement features, we remove the column whose missing rate is larger than 50%, and then we complete the missing attributes by zero. Besides, we use quantile method to truncate the outlier features with the 10% quantile and the 90% quantile for each column. And we process the categorical or discrete attributes into one-hot vectors, and then we use binning methods to divide continuous numerical attributes into 50 bins and use the index of bin as their feature. Then we conduct z-score normalization on each column of the attributes. Finally, we remain 111 dimensional features (33 dimensions as observable features and 78 dimensions as unobservable features).
+A.2 Twitter Dataset
+Twitter social networks [14, 30, 40] are widely used for the political election prediction problem [2, 19, 20, 43]. Following Xiao et al. [54], we construct the VS-Graph based on their proposed dataset 3. The twitter datasets is a political social network dataset crawled from twitter and the target is to predict the political tendency of people on this network. Specifically, we treat politicians as vocal nodes and treat ordinal people as silent nodes. For politicians (vocal nodes), we use both their tweets embedding and their account description/status fields as their attributes. For ordinary people (silent nodes), we only use their tweets embedding as their attributes without using their account description/status fields, because their account description/status fields are almost missing. And we connect politicians and people by their follow relation on the tweeter and construct the Twitter VS-Graph. All node features, including tweets and personal descriptions are text data, therefore these words are embedded with GloVe algorithm. Finally we have 1836 dimensional features (300 dimensions as observable features and 1536 dimensions as unobservable features).
+B OTHER EXPERIMENTS
+Due the space limitations, we only present the results of validation experiments on Company dataset in the main body of this paper. And we also conduct comprehensive experiments on Twitter dataset and present these results in the Appendix.
+B.1 Supplementary Experiments for Sec. 5.3
+The additional experiments to validate the effects of completion strategies on Twitter dataset are shown in the Table 5.
+B.2 Supplementary Experiments for Sec. 5.4
+The additional experiments to validate the effects of the KL loss term Lkl on Twitter dataset are shown in the Figure 8.
+B.3 Supplementary Experiments for Sec. 5.5
+The additional experiments to analyze the sensitivity of hyperparameters on Twitter dataset are shown in the Fig. 9.
+3The raw Twitter dataset is available at: https://github.com/PatriciaXiao/TIMME/tree/master/data
+9
+
+
+Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Wendong Bi et al.
+Table 5: Results of models with different completion strategy on Twitter dataset. "None" means we only use the observable attributes (i.e., Xo ) for both vocal and silent nodes without completion; "0-Completion" means we complete the missing features of silent nodes by zero vector; "Mean-ofNeighbors" strategy use the mean vector of vocal neighbors to complete the missing dimensions for silent nodes.
+Dataset Completion Method Twitter
+Evaluation Metric \ F1 AUC
+MLP
+None 70.62±1.01 78.11±0.96 0-Completion 63.23±0.85 69.7±0.93 Mean-of-Neighbors 70.85±1.31 80.12±1.38
+GCN
+None 79.03±1.16 84.48±0.57 0-Completion 78.03±0.98 85.11±1.81 Mean-of-Neighbors 80.19±0.87 86.88±1.23
+GraphSAGE
+None 83.99±0.76 92.19±0.76 0-Completion 85.40±1.03 92.08±1.61 Mean-of-Neighbors 84.71±0.92 92.13±1.53
+JKNet
+None 78.33±1.96 85.53±1.67 0-Completion 82.35±1.31 89.52±1.73 Mean-of-Neighbors 83.86±1.03 91.17±1.21
+GCNII
+None 77.65±0.89 86.05±1.13 0-Completion 80.23±1.38 86.93±1.51 Mean-of-Neighbors 83.85±1.17 90.67±1.32
+OODGAT
+None 75.65±1.21 85.23±2.21 0-Completion 80.58±1.68 88.19±1.52 Mean-of-Neighbors 85.95±2.01 92.67±1.60
+KTGNN \ 89.6±0.80 95.08±0.93
+0 50 100 150 200 250 300
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+F1 Score
+Classifiers source target target_generated
+(a) F1-score
+0 50 100 150 200 250 Epoch
+0.2
+0.3
+0.4
+0.5
+0.6
+BCE Loss
+Classifiers source target target_generated
+(b) BCE Loss
+0 50 100 150 200 250 300 Epoch
+0.005
+0.010
+0.015
+0.020
+0.025
+KL Loss
+KL Divergence KL_Merge KL_Source KL_Target
+(c) KL Loss
+Figure 8: F1 Score and Loss on Twitter dataset under the guidance of KL divergence minimization.
+B.4 Supplementary Experiments for Sec. 5.6
+In the main body, we conduct T-SNE visualization on both the raw features and the representations learned by KT-GNN. In the appendix, we also visualize the representations learned by vanilla GCN [27] (initial missing features complemented by "Mean-ofNeighbors" strategy.), and the results show that GCN learns mixed representations that have lower distinguishability on node of different classes, and lose the domain difference between vocal nodes and silent nodes, because GCN do not consider the distribution shift between vocal nodes and silent nodes during message passing.
+0.0 0.5 1.0 1.5 2.0 2.5 3.0 K
+86
+88
+90
+92
+94
+96
+Score
+Metric F1 AUC
+(a) Twitter-K
+0.0 0.2 0.4 0.6 0.8 1.0 Lambda
+88
+90
+92
+94
+96
+Score
+Metric F1 AUC
+(b) Twitter-λ
+Figure 9: Hyper-parameter analysis of K and λ on Twitter dataset.
+Figure 10: T-SNE visualization of the node completed representations learned by baseline GCN, distinguished by their populations (vocal→orange, silent→cyan) or node labels (binary classes: positive→red, negative→blue).
+C HYPER-PARAMETER SETTINGS
+We conduct experiments on the two real-world dataset with the following experimental configurations. For each dataset, we prepare three dataset partitions with the same training ratio for each dataset (Company and Twitter). Each partition randomly divide the annotated silent nodes into train/val/test set with the fixed ratio of 60%/20%/20%, and we add all annotated vocal nodes into training set because our target is to classify the silent nodes. For KT-GNN and each baseline model, we run 10 times with different random seeds for each dataset, totally 30 trails for each model on one dataset (three dataset partitions × ten random seeds), and we calculate the mean and variance of the 30 results. For fairness, we perform a hyper-parameter search for all models in the same searching space. The hidden dimension of all models are searched in {32, 64, 128, 256} and we choose the number of training epochs from {300, 600, 900}. We use the Adam optimizer for all experiments and the learning rate is searched in {1e-1, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4}, weight decay is searched in {1e-4, 1e-3, 5e-3}, and λ (the weight of Lkl ) is searched in {0.0, 0.1, 0.5, 1.0} for all experiments. For γ (the weight of distribution consistency loss Ldist is fixed to 1.0 for all our experiments, and fixed to 0.0 for the ablation study for KTGNN\Ldist which removes Ldist from KTGNN. The number of layers for GNN models, including KT-GNN and other baseline GNN models except for GCNII and DAGNN, are searched
+10
+
+
+Predicting the Silent Majority on Graphs: Knowledge Transferable Graph Neural Network Conference acronym ’XX, June 03–05, 2018, Woodstock, NY
+in {1, 2, 3, 4, 5, 6}. The number of layers for GCNII and DAGNN (two deeper GCN models), are searched in {2, 6, 10, 16, 20, 32, 64} according to their papers [9, 33]. For OODGAT, which is designed to detect out-distribution nodes and then alleviate their effects, we use the vocal nodes on the VS-Graph as its out-distribution nodes, and use the silent nodes as in-distribution nodes. And then OODGAT targets at detecting vocal nodes by model uncertainty and then truncate the connections between vocal nodes and silent nodes. For other hyper-parameters of OODGAT, we use the recommended settings used by Song and Wang [44]. All models used in this paper were trained on Nvidia Tesla V100 (32G) GPU.
+REFERENCES
+[1] Franklin Allen and Ana Babus. 2009. Networks in finance. The network challenge: strategy, profit, and risk in an interlinked world 367 (2009).
+[2] Adam Bermingham and Alan Smeaton. 2011. On using Twitter to monitor political sentiment and predict election results. In Proceedings of the Workshop on Sentiment Analysis where AI meets Psychology (SAAIP 2011). 2–10.
+[3] Wendong Bi, Bingbing Xu, Xiaoqian Sun, Zidong Wang, Huawei Shen, and Xueqi Cheng. 2022. Company-as-Tribe: Company Financial Risk Assessment on TribeStyle Graph with Hierarchical Graph Neural Networks. In Proceedings of the 28th ACM SIGKDD Conference on Knowledge Discovery and Data Mining. 2712–2720. [4] Phillip Bonacich. 1987. Power and centrality: A family of measures. American journal of sociology 92, 5 (1987), 1170–1182. [5] Spiros Bougheas and Alan Kirman. 2015. Complex financial networks and systemic risk: A review. Complexity and geographical economics (2015), 115–139. [6] Shaked Brody, Uri Alon, and Eran Yahav. 2021. How attentive are graph attention networks? arXiv preprint arXiv:2105.14491 (2021).
+[7] Arindam Chaudhuri and Kajal De. 2011. Fuzzy support vector machine for bankruptcy prediction. Applied Soft Computing 11, 2 (2011), 2472–2486. [8] Jianfei Chen, Jun Zhu, and Le Song. 2017. Stochastic training of graph convolutional networks with variance reduction. arXiv preprint arXiv:1710.10568 (2017). [9] Ming Chen, Zhewei Wei, Zengfeng Huang, Bolin Ding, and Yaliang Li. 2020. Simple and deep graph convolutional networks. In International Conference on Machine Learning. PMLR, 1725–1735.
+[10] Zhensong Chen, Wei Chen, and Yong Shi. 2020. Ensemble learning with label proportions for bankruptcy prediction. Expert Systems with Applications 146 (2020), 113155. [11] Dawei Cheng, Yi Tu, Zhen-Wei Ma, Zhibin Niu, and Liqing Zhang. 2019. Risk Assessment for Networked-guarantee Loans Using High-order Graph Attention Representation.. In IJCAI. 5822–5828. [12] Michaël Defferrard, Xavier Bresson, and Pierre Vandergheynst. 2016. Convolutional neural networks on graphs with fast localized spectral filtering. Advances in neural information processing systems 29 (2016), 3844–3852.
+[13] Michaël Defferrard, Xavier Bresson, and Pierre Vandergheynst. 2016. Convolutional neural networks on graphs with fast localized spectral filtering. Advances in neural information processing systems 29 (2016).
+[14] Georgios Drakopoulos, Eleanna Kafeza, Phivos Mylonas, and Spyros Sioutas. 2021. A graph neural network for fuzzy Twitter graphs.. In CIKM Workshops. [15] Birsen Eygi Erdogan. 2013. Prediction of bankruptcy using support vector machines: an application to bank bankruptcy. Journal of Statistical Computation and Simulation 83, 8 (2013), 1543–1555. [16] Shaohua Fan, Xiao Wang, Chuan Shi, Peng Cui, and Bai Wang. 2021. Generalizing Graph Neural Networks on Out-Of-Distribution Graphs. arXiv preprint arXiv:2111.10657 (2021).
+[17] Shaohua Fan, Xiao Wang, Chuan Shi, Kun Kuang, Nian Liu, and Bai Wang. 2022. Debiased graph neural networks with agnostic label selection bias. IEEE Transactions on Neural Networks and Learning Systems (2022).
+[18] Bojing Feng, Haonan Xu, Wenfang Xue, and Bindang Xue. 2020. Every Corporation Owns Its Structure: Corporate Credit Ratings via Graph Neural Networks. arXiv preprint arXiv:2012.01933 (2020).
+[19] Guido Di Fraia and Maria Carlotta Missaglia. 2014. The use of Twitter in 2013 Italian political election. In Social media in politics. Springer, 63–77. [20] Stefano Guarino, Noemi Trino, Alessandro Celestini, Alessandro Chessa, and Gianni Riotta. 2020. Characterizing networks of propaganda on twitter: a case study. Applied Network Science 5, 1 (2020), 1–22.
+[21] Shurui Gui, Xiner Li, Limei Wang, and Shuiwang Ji. 2022. GOOD: A Graph Out-of-Distribution Benchmark. arXiv preprint arXiv:2206.08452 (2022). [22] William L Hamilton, Rex Ying, and Jure Leskovec. 2017. Inductive representation learning on large graphs. In Proceedings of the 31st International Conference on Neural Information Processing Systems. 1025–1035.
+[23] Richard P Hauser and David Booth. 2011. Predicting bankruptcy with robust logistic regression. Journal of Data Science 9, 4 (2011), 565–584. [24] Tiancheng Huang, Donglin Wang, Yuan Fang, and Zhengyu Chen. 2022. Endto-End Open-Set Semi-Supervised Node Classification with Out-of-Distribution Detection. IJCAI (2022). [25] Wenbing Huang, Tong Zhang, Yu Rong, and Junzhou Huang. 2018. Adaptive sampling towards fast graph representation learning. arXiv preprint arXiv:1809.05343 (2018). [26] Ziling Huang, Zheng Wang, Wei Hu, Chia-Wen Lin, and Shin’ichi Satoh. 2019. DoT-GNN: Domain-transferred graph neural network for group re-identification. In Proceedings of the 27th ACM International Conference on Multimedia. 18881896. [27] Thomas N Kipf and Max Welling. 2016. Semi-supervised classification with graph convolutional networks. arXiv preprint arXiv:1609.02907 (2016).
+[28] Thomas N Kipf and Max Welling. 2016. Variational graph auto-encoders. arXiv preprint arXiv:1611.07308 (2016).
+[29] Johannes Klicpera, Aleksandar Bojchevski, and Stephan Günnemann. 2018. Predict then propagate: Graph neural networks meet personalized pagerank. arXiv preprint arXiv:1810.05997 (2018).
+[30] Anders Olof Larsson and Hallvard Moe. 2012. Studying political microblogging: Twitter users in the 2010 Swedish election campaign. New media & society 14, 5 (2012), 729–747. [31] Guohao Li, Matthias Müller, Bernard Ghanem, and Vladlen Koltun. 2021. Training Graph Neural Networks with 1000 Layers. arXiv preprint arXiv:2106.07476 (2021). [32] Haoyang Li, Xin Wang, Ziwei Zhang, and Wenwu Zhu. 2022. Ood-gnn: Out-ofdistribution generalized graph neural network. IEEE Transactions on Knowledge and Data Engineering (2022).
+[33] Meng Liu, Hongyang Gao, and Shuiwang Ji. 2020. Towards deeper graph neural networks. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining. 338–348.
+[34] Yang Liu, Xiang Ao, Zidi Qin, Jianfeng Chi, Jinghua Feng, Hao Yang, and Qing He. 2021. Pick and choose: a GNN-based imbalanced learning approach for fraud detection. In Proceedings of the Web Conference 2021. 3168–3177.
+[35] Jianxin Ma, Peng Cui, Kun Kuang, Xin Wang, and Wenwu Zhu. 2019. Disentangled graph convolutional networks. In International conference on machine learning. PMLR, 4212–4221. [36] Feng Mai, Shaonan Tian, Chihoon Lee, and Ling Ma. 2019. Deep learning models for bankruptcy prediction using textual disclosures. European journal of operational research 274, 2 (2019), 743–758.
+[37] Haitao Mao, Lun Du, Yujia Zheng, Qiang Fu, Zelin Li, Xu Chen, Han Shi, and Dongmei Zhang. 2021. Source Free Unsupervised Graph Domain Adaptation. arXiv preprint arXiv:2112.00955 (2021).
+[38] Jeffrey Pennington, Richard Socher, and Christopher D Manning. 2014. Glove: Global vectors for word representation. In Proceedings of the 2014 conference on empirical methods in natural language processing (EMNLP). 1532–1543.
+[39] Jiezhong Qiu, Qibin Chen, Yuxiao Dong, Jing Zhang, Hongxia Yang, Ming Ding, Kuansan Wang, and Jie Tang. 2020. Gcc: Graph contrastive coding for graph neural network pre-training. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining. 1150–1160.
+[40] Emanuele Rossi, Ben Chamberlain, Fabrizio Frasca, Davide Eynard, Federico Monti, and Michael Bronstein. 2020. Temporal graph networks for deep learning on dynamic graphs. arXiv preprint arXiv:2006.10637 (2020).
+[41] Alireza Sadeghi, Meng Ma, Bingcong Li, and Georgios B Giannakis. 2021. Distributionally Robust Semi-Supervised Learning Over Graphs. arXiv preprint arXiv:2110.10582 (2021).
+[42] Fa-Bin Shi, Xiao-Qian Sun, Hua-Wei Shen, and Xue-Qi Cheng. 2019. Detect colluded stock manipulation via clique in trading network. Physica A: Statistical Mechanics and its Applications 513 (2019), 565–571.
+[43] Jieun Shin, Lian Jian, Kevin Driscoll, and François Bar. 2017. Political rumoring on Twitter during the 2012 US presidential election: Rumor diffusion and correction. New media & society 19, 8 (2017), 1214–1235. [44] Yu Song and Donglin Wang. 2022. Learning on Graphs with Out-of-Distribution Nodes. In Proceedings of the 28th ACM SIGKDD Conference on Knowledge Discovery and Data Mining. 1635–1645.
+[45] Xiaoqian Sun, Xueqi Cheng, Huawei Shen, and Zhaoyang Wang. 2011. Distinguishing manipulated stocks via trading network analysis. Physica A 390 (2011), 3427–3434. [46] Xiao-Qian Sun, Hua-Wei Shen, Xue-Qi Cheng, and Yuqing Zhang. 2017. Detecting anomalous traders using multi-slice network analysis. Physica A: Statistical Mechanics and its Applications 473 (2017), 1–9.
+[47] Amanda L Traud, Peter J Mucha, and Mason A Porter. 2012. Social structure of Facebook networks. Physica A: Statistical Mechanics and its Applications 391, 16 (2012), 4165–4180. [48] Andranik Tumasjan, Timm O Sprenger, Philipp G Sandner, and Isabell M Welpe. 2011. Election forecasts with Twitter: How 140 characters reflect the political landscape. Social science computer review 29, 4 (2011), 402–418. [49] Petar Veličković, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Lio, and Yoshua Bengio. 2017. Graph attention networks. arXiv preprint
+11
+
+
+Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Wendong Bi et al.
+arXiv:1710.10903 (2017).
+[50] Xiao Wang, Hongrui Liu, Chuan Shi, and Cheng Yang. 2021. Be confident! towards trustworthy graph neural networks via confidence calibration. Advances in Neural Information Processing Systems 34 (2021), 23768–23779.
+[51] Xiang Wang, An Zhang, Xia Hu, Fuli Feng, Xiangnan He, Tat-Seng Chua, et al. 2022. Deconfounding to Explanation Evaluation in Graph Neural Networks. arXiv preprint arXiv:2201.08802 (2022).
+[52] Qitian Wu, Hengrui Zhang, Junchi Yan, and David Wipf. 2022. Towards distribution shift of node-level prediction on graphs: An invariance perspective. In International Conference on Learning Representations.
+[53] Ying-Xin Wu, Xiang Wang, An Zhang, Xiangnan He, and Tat-Seng Chua. 2022. Discovering invariant rationales for graph neural networks. arXiv preprint arXiv:2201.12872 (2022).
+[54] Zhiping Xiao, Weiping Song, Haoyan Xu, Zhicheng Ren, and Yizhou Sun. 2020. TIMME: Twitter ideology-detection via multi-task multi-relational embedding. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining. 2258–2268.
+[55] Bingbing Xu, Junjie Huang, Liang Hou, Huawei Shen, Jinhua Gao, and Xueqi Cheng. 2020. Label-consistency based graph neural networks for semi-supervised node classification. In Proceedings of the 43rd International ACM SIGIR conference on research and development in Information Retrieval. 1897–1900.
+[56] Bingbing Xu, Huawei Shen, Qi Cao, Keting Cen, and Xueqi Cheng. 2020. Graph convolutional networks using heat kernel for semi-supervised learning. arXiv preprint arXiv:2007.16002 (2020).
+[57] Bingbing Xu, Huawei Shen, Qi Cao, Yunqi Qiu, and Xueqi Cheng. 2019. Graph wavelet neural network. arXiv preprint arXiv:1904.07785 (2019).
+[58] Bingbing Xu, Huawei Shen, Bingjie Sun, Rong An, Qi Cao, and Xueqi Cheng. 2021. Towards consumer loan fraud detection: Graph neural networks with role-constrained conditional random field. [59] Keyulu Xu, Weihua Hu, Jure Leskovec, and Stefanie Jegelka. 2018. How powerful are graph neural networks? arXiv preprint arXiv:1810.00826 (2018). [60] Keyulu Xu, Chengtao Li, Yonglong Tian, Tomohiro Sonobe, Ken-ichi Kawarabayashi, and Stefanie Jegelka. 2018. Representation learning on graphs with jumping knowledge networks. In International Conference on Machine Learning. PMLR, 5453–5462. [61] Shuo Yang, Zhiqiang Zhang, Jun Zhou, Yang Wang, Wang Sun, Xingyu Zhong, Yanming Fang, Quan Yu, and Yuan Qi. 2020. Financial Risk Analysis for SMEs with Graph-based Supply Chain Mining.. In IJCAI. 4661–4667. [62] Yiding Yang, Zunlei Feng, Mingli Song, and Xinchao Wang. 2020. Factorizable graph convolutional networks. Advances in Neural Information Processing Systems 33 (2020), 20286–20296. [63] Muhan Zhang, Zhicheng Cui, Marion Neumann, and Yixin Chen. 2018. An endto-end deep learning architecture for graph classification. In Proceedings of the AAAI conference on artificial intelligence, Vol. 32.
+[64] Yizhen Zheng, Vincent Lee, Zonghan Wu, and Shirui Pan. 2021. Heterogeneous Graph Attention Network for Small and Medium-Sized Enterprises Bankruptcy Prediction. In Pacific-Asia Conference on Knowledge Discovery and Data Mining. Springer, 140–151.
+12

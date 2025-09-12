@@ -1,0 +1,543 @@
+ApeGNN: Node-Wise Adaptive Aggregation in GNNs for Recommendation
+Dan Zhang Yifan Zhu Yuxiao Dong Yuandong Wang Tsinghua University Tsinghua University Tsinghua University Tsinghua University zd21@mails.tsinghua.edu.cn zhuyifan@tsinghua.edu.cn yuxiaod@tsinghua.edu.cn wangyd21@tsinghua.edu.cn
+Wenzheng Feng Evgeny Kharlamov Jie Tang∗ Tsinghua University Bosch Center for Artifcial Tsinghua University wenzhengfeng96@gmail.com Intelligence jietang@tsinghua.edu.cn evgeny.kharlamov@de.bosch.com
+Abstract
+In recent years, graph neural networks (GNNs) have made great progress in recommendation. The core mechanism of GNNs-based recommender system is to iteratively aggregate neighboring information on the user-item interaction graph. However, existing GNNs treat users and items equally and cannot distinguish diverse local patterns of each node, which makes them suboptimal in the recommendation scenario. To resolve this challenge, we present a node-wise adaptive graph neural network framework ApeGNN. ApeGNN develops a node-wise adaptive difusion mechanism for information aggregation, in which each node is enabled to adaptively decide its difusion weights based on the local structure (e.g., degree). We perform experiments on six widely-used recommendation datasets. The experimental results show that the proposed ApeGNN is superior to the most advanced GNN-based recommender methods (up to 48.94%), demonstrating the efectiveness of node-wise adaptive aggregation.
+CCS Concepts
+• Information systems → Recommender systems.
+Keywords
+Recommender Systems; Graph Neural Networks; Node-wise Adaptive Aggregation
+ACM Reference Format:
+Dan Zhang, Yifan Zhu, Yuxiao Dong, Yuandong Wang, Wenzheng Feng, Evegeny Kharlamov, Jie Tang. 2023. ApeGNN: Node-Wise Adaptive Aggregation in GNNs for Recommendation. In Proceedings of the ACM Web Conference 2023 (WWW ’23), April 30–May 04, 2023, Austin, TX, USA. ACM, New York, NY, USA, 11 pages. https://doi.org/10.1145/3543507.3583530
+∗Jie Tang is the corresponding author.
+The code is available at https://github.com/zhangdan0602/ApeGNN.
+This work is licensed under a Creative Commons Attribution International 4.0 License.
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA © 2023 Copyright held by the owner/author(s). ACM ISBN 978-1-4503-9416-1/23/04. https://doi.org/10.1145/3543507.3583530
+1 Introduction
+Graph neural networks (GNNs) have produced remarkable performance on the task of recommendation [9, 13, 35, 42, 45]. Specifcally, GNNs perform the message passing process over graph structures to aggregate local neighborhood information and stack multiple representation layers in high-order propagation [8, 17, 34]. GNNsbased recommender systems apply the information propagation operation over the user-item bipartite graphs, such as NGCF [36], LightGCN [9], and MixGCF [13].
+Figure 1: Local structures of users are diverse and node-wise aggregation is important in GNNs-based recommendation scenario.
+However, there are remaining issues in GNNs-based models for recommendation. Firstly, node types are not distinguished in GNNs-based recommendation. User-item interaction network is a special type of graph in which edges can only be existed in the middle of users and items. In other words, there is no direct communication between two users or items. Up to now, the existing GNNs-based recommendation method is no diferent from the general GNNs that handles the other normal graphs, such as reference graphs [17], social networks etc. , that is, the same modeling strategies are adopted for all users and items. Generally, user aggregates information from (only) 1-hop item neighbors with 0-th layer embeddings, from 2-hop users with 1-th layer representations, and from 3-hop items again with 2-th layer embeddings, in a highorder neighborhood aggregation setting. By taking all layers the same, the aggregation step in GNNs-based recommender systems ignores the semantic diferences between users and items at each subgraph structure—and by extension their embeddings. Secondly, local structures of diferent users/items are diverse in recommendation. In Figure 1, we show a motivating example to fully understand motivation of this work, i.e., the node-wise necessity for GNNs-based recommendation. To be specifc, we perform 1-/2-/3-hop aggregation and propagation with LightGCN on Ali
+759
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhang et al.
+and AMiner datasets respectively, and show the relation between the Recall@20 result and user nodes with diferent degree intervals. We fnd that average result distribution of diferent degree nodes on each hop propagation is very unbalanced and the optimal propagation number for each node is uncertain, which means each user/item has its local structure. This demonstrates that different nodes with diferent structures in recommendation should be given diferent importance. Take these issues into account, we argue that node-wise adaptive aggregation in GNNs for recommendation is a necessary step to learn the node-level diference among layers. Therefore, we propose to study whether each node should be treated diferently in diferent layers during the aggregation process of GNNs-based recommendation methods.
+Table 1: Critical comparison between existing GNNs-based models for recommendation.
+Models Explicit Degree Info. Linear Propagation Node-wise
+GAT [33] % % ! LightGCN [9] ! ! % ADC [47] ! ! % ApeGNN ! ! !
+However, the aggregation step in previous GNNs-based recommender systems treats all nodes as the same and ignores their variant importance [38], which results in sub-optimal performance [24]. As Table 1 shows, we compare existing representative GNNs-based models for recommendation. Previous attention-based GNN models (e.g., GAT) attempt to model the diferent infuences among user and item nodes without considering the local diversity [1, 3, 10, 33, 41]. Moreover, for diferentiating the importance of interacted historical items, the degree-based GNNs process (e.g., LightGCN) can improve embedding learning and achieve better performance [9] in bipartite graph for recommendation [9, 13, 36], but still ignores the local diversity issue. In recent difusion-based GNNs studies (e.g., ADC), appropriate neighborhoods are selected fexibly to enhance GNNs’ expressiveness during the propagation [19, 47]. For instance, the graph difusion convolution [19] model incorporates the heat kernel and node centrality information into GNNs’ message passing process to reinforce structural smoothness. Nevertheless, GDC is based on the assumption of homophily and does not perform well on the link prediction task. An adaptive graph convolution work (ADC) [47] proposes to leverage the heat kernel theory [39] to learn the optimal neighborhood for enhancing the low-frequency flters. Though the heat kernel is originally used to enable neighborhood selection in GNNs, it also provides a natural solution to address the aforementioned issues for recommendation. In this work, we present a novel AdaPtivE model (ApeGNN), which conducts node-wise adaptive aggregation in GNNs for recommendation. Instead of treating each user and item equally at each layer during the high-order aggregation and propagation, we leverage the graph difusion process to adaptively assign a unique weight (inner-layer weight) to each hop of neighbors and distinguish the information from diferent GNNs layers, promoting the development of aggregation methods from fxed aggregation to node-wise aggregation. The idea of ApeGNN for GNNs-based recommendation is that each user AA and each item A A respectively have a unique aggregation weight A (A (AA ), A) and A (A (A A ), A) with
+coefcient A and layer A. This difusion weights represent the distinctive contributions of AA ’s and A A ’s embedding that are captured by ApeGNN at each layer. ApeGNN can serve as a plug-in and be naturally incorporated into any existing GNNs-based models for recommendation without modifying the architecture of models. We conduct extensive experiments on six widely-used public datasets and compare ApeGNN with representative GNNs-based and attention-based models to demonstrate the efectiveness of ApeGNN. We follow the same experimental procedure—data splits, optimization, and evaluation—as existing GNNs-based recommendation studies [9, 36]. The results suggest that the proposed ApeGNN can consistently outperform state-of-the-art GNN baselines (relative improvement up to 48.94% on Ali, 24.09% on Amazon and 7.67% on AMiner) among all data sets on both Recall and NDCG, which shows the benefts of nodebased adaptive aggregation. Case studies show that adaptive node weights contribute to the overall and each layer’s performance.
+2 Graph Neural Networks for Recommendation
+In this section, we revisit GNNs-based recommendation systems and discuss the limitations of existing GNNs for recommendation.
+2.1 Preliminaries
+Generally, the input of a GNNs-based recommendation model is a user-item bipartite graph G = {U, V, R} with the sets of users U = {A1, A2, . . . , AA }, items V = {A1, A2, . . . , AA }, and the interactions
+such as purchase, rate and click, among users and items R ∈ RA×A, where A is the amount of users and A denotes the total number of items. For each interaction, A (AA AA ) ∈ R is set to 1 if AA interacts with A A and 0 otherwise. With R, the purpose of the recommendation system is to predict the items which the user will interact further. GNNs have been recently found wide adoption in recommender systems [5, 40, 42, 48]. Similar to common GNN models, GNN-based recommender systems perform message passing over the input graph structure to get contextual representations. Commonly, the message passing process consists of the aggregation and pooling.
+Aggregation. For node A, the general representation at A-layer during propagation in GCN-based models can be represented as:
+h(A ) = A (h(A −1), AAA ({h(A −1), ∀A ∈ NA )}), (1)
+AA A
+where AAA and A stand for aggregation and update function respectively. Take GCN [17] for example, it aggregates each node’s neighborhood nodes and performs message passing. In particular, the propagation rule Eq.(1) of GCN [17] is defned by:
+h(A ) = A (W(A ) (h(A −1) + Th(A −1) )) (2)
+A AA
+where h(A ) denotes the embedding representation of A after A-layer
+A
+GCN. In particular, h(0) is the 0-layer embedding; A (·) is non-linear
+A
+activation for feature propagation, W is a weight matrix; NA is the D− 1
+2 A ̃ D ̃ − 1
+neighborhood of node A. T can be calculated by  ̃ 2 , where
+Í
+D is the diagonal node degree matrix with DAA = A AA A . Note that A ̃ = I + A and D ̃ = I + D, in which A is the adjacency matrix with self-loop and I is the identity matrix that implies self-loop connections on nodes. Inspired by the design and idea of the GCN model, emerging studies (e.g., GCMC [32] and NGCF [36]) attempt to adopt GCN structure for recommendation tasks. However, recent studies [2, 9]
+760
+
+
+ApeGNN: Node-Wise Adaptive Aggregation in GNNs for Recommendation
+reported that some of the most used designs of GCNs do not contribute much to recommendation performance, which complicates learning process. They are designed to simplify the GCN for recommendation and achieve better performance. Taking LightGCN [9] as an example, it deletes A (·), W and I. Thus, its aggregation and propagation process are expressed as:
+h(A ) = h(A −1) + Th(A −1)
+A A A , (3)
+where normalized item T is computed by D− 1
+2 AD− 1
+2.
+Pooling. In GCN [17], the representation vector learned by the fnal layer is utilized to perform node classifcation. However, the fnal representation of nodes could be varying by changing the pooling operation at the each GCN layer (also called the layer combination operation). In most GNNs-based recommender models, the , h(1), · · · , h(A)
+pooling function combines the embeddings (h(0) )
+AA A
+propagated at each layer and generates the fnal representation vector hA
+∗ . Common pooling operations include weighted sumbased [9, 23, 31], concat-based pooling [30, 36], attention-based and other approaches [45]. Generally, the pooling function A of user A can be formulated as:
+h∗ = A (h(0), h(1), · · · , h(A) ), (4)
+A AA A
+where A is the total number of propagation layers and the pooling function of item A is similar to that of user. In particular, weighted sum pooling function is the most commonly used. For example,
+Í
+A
+h∗ = AA h(A ) , AA is the weight of A-th layer embedding for the
+AA
+A =0
+fnal embedding. Especially, they assign a constant value (e.g., AA = 1/(A + 1)) as fxed weight for the embeddings of the each layer to perform layer combination. In other words, the importance of the embeddings represented by each subgraph structure in diferent GCN layers is the same.
+2.2 The limitation of GNNs-based models
+By default, the current GNNs-based recommendation models have the following setup in the aggregation process: First, these methods treat all nodes in the bipartite graph as the same; Second, they consider the embeddings of multiple layers with the same importance in a local perspective. By design, aggregators of GNNs mainly include two categories: degree-based aggregator represented by LightGCN and attentionbased aggregator represented by GAT. In fact, they do not explicitly diferentiate nodes with global perspective during the message passing process, while all nodes are in nature diferent in recommender systems [9, 23, 29].
+• Degree-based Aggregator Represented by LightGCN. By extending Eq. (3), the graph convolution on the frst and second layers for user embedding AA is formulated as Eq. (5), and item embedding is formulated similarly.
+h(1) ∑
+h(0)
+1
+=
+√,
+AA AA
+AA ∈ NAA ( |NAA ||NAA |)
+∑ ∑ (5)
+h(2) 1 1 h(0)
+=
+√,
+AA AA
+|NAA | ( |NAA ||NAA |)
+AA ∈ NAA
+AA ∈ NAA
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+√
+where 1/|NAA | and 1/( |NAA ||NAA |) are the non-sysmmetric and symmetric normalization, respectively. It is observed that the aggregation and propagation process of embeddings for users and items are exactly the same, that is, the information updated from same type (i.e., users or items) nodes is propagated in odd GCN layers (1, 3, · · · ), and messages from the other type is propagated in even GCN layers. The degree-based aggregator is applied to each node to control the decay factor during aggregation and propagation, potentially making these processes diferent. However, the normalization coeffcient is a constant value computed by degrees of node, which is irrelevant with node types and the layer subgraph structures. In fact, users and items are two diferent types of nodes with distinctive semantics in a user-item bipartite graph, and their own embeddings in diferent subgraphs should be naturally considered dissimilar as well. This efect has been initially investigated by grouping users in higher-order GCN layers [23]. In this work, we frst attempt to explicitly diferentiate node-aware users and items in the simple GNN architecture and examine whether diferent treatments to them can beneft GNNs-based recommender systems.
+• Attention-based Aggregator Represented by GAT. When representation of a node is obtained through all neighbors, the contributions of these neighbors should be diferent as well. Diferent from degree-based aggregator, attention-based aggregator assigns diferent weights for neighbors of each node during aggregation in local graph structure. The aggregation process is described as:
+h(A ) · h(A −1)
+= A (W · AAA AA + b), ∀A A ∈ NAA . (6)
+AA AA
+where AAA AA denotes attentive scores and it is usually calculated by Softmax function. The attention weights are calculated in a local graph and propagated implicitly to next layer via non-linear activation function, which ignores decay factor of each node’s centrality distribution with a node-wise perspective. However, the embeddings at diferent layers of (graph) neural networks are in nature supposed to capture diferent levels of features [37, 46]. In addition, as introduced above, the information updated from same type nodes and the other type in GNNs-based recommendation models is propagated in odd and even GCN layers, respectively. In this paper, we study whether the diferent weights on each node should be assigned from one layer to another. Therefore, in this study, we try to address this research problem: "to what extent such node-wise and layer-wise diferentiation can improve the performance of GNNs for recommendation?"
+3 The ApeGNN
+We design a GNNs-based recommender system ApeGNN in this section. The main idea is to diferentiate each user as well as item from nodes during aggregation and calculate the impacts in a nodewise way in GNNs. To achieve this, we incorporate the idea of graph difusion based adaptive operations into the aggregation.
+3.1 Node-Wise Adaptive Aggregation in GNNs
+To incorporate node importance into existing aggregation in GNNsbased models for recommendation, we design a node-wise adaptive aggregation mechanism. For a user AA and its neighborhood nodes N
+AA , the aggregation function AAA with weight coefcient function
+761
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhang et al.
+Embedding
+u!
+u"
+u#
+u$
+u%
+v!
+v%
+v$
+v"
+3-hop neighbors 2-hop neighbors 1-hop neighbors
+∑ e!!
+(∗)
+e%!
+(∗)
+∑
+Input
+Rank
+Adaptive Aggregation and Propagation
+t(Deg)
+t(Deg) θtu
+H(0T)
+t(Deg)
+user u1
+item v1
+Adaptive Aggregation and Propagation
+e!!
+(&)
+e!!
+(')
+e!!
+(()
+θtu
+H(1T) θtu
+H(2T)
+Figure 2: The overview of the ApeGNN model when A = 3. In ApeGNN, the users and items at each layer are modeled diferently with adaptive weights A via the heat kernel (default) and PPR in the process of aggregation and propagation.
+A (AAA ) for user AA can be presented as:
+h
+AA = AAA ({hAA , ∀A A ∈ NAA }; A (AAA )). (7)
+where AAA is a parameter of adaptive operation for user AA . Similarly, the aggregation function AAA with weight coefcient function A (AAA ) for item A A can be described in Eq. (8). Then, we introduce how to use A (AAA ) and A (AAA ) during aggregation process.
+h
+AA = AAA ({hAA , ∀AA ∈ NAA }; A (AAA )), (8)
+Weighting Coefcients A . As previously discussed, semantics contained in embeddings at diferent layers tend to be diferent in (graph) neural networks. For GNNs over a bipartite graph, each layer is made up of either users or items, which naturally makes the semantics of each layer diferently. In other words, the embeddings at diferent layers should be treated distinctly by setting diferent weights to capture the unique semantics of each layer during aggregation. Specially, we propose two methods, namely heat kernel (HT) [39] and personalized PageRank (PPR) [25], to simulate the graph difusion process and provide better importance selection support. Here, we will introduce how to formulate these
+, AAAA
+two methods as coefcients (AAA ) in detail.
+(A ) (A )
+(A ) (A )
+AA AA
+• The heat kernel. The feature propagation between nodes in the GNNs-based models can be viewed as the practice of Newton’s law of cooling (also known as the heat kernel) [20, 47], in which heat is transferred from regions with higher temperature to regions with lower one. That is, the embedding propagation between two nodes is naturally proportional to their representation. Thus, the derivation of this prior knowledge is calculated as:
+AhAA (A ) + ΔhAA (A ) = 0, (9)
+AA
+∑
+dhAA (A ) = − AAA AA (hAA (A ) − hAA (A )), (10)
+dA
+AA ∈ NAA
+where hAA (A) and hAA (A) denote representations of user AA and item A A after time A. This derivation indicates that hAA is related to its neighbors at one time. Inspired by difusion design of the
+heat kernel, we can incorporate the heat kernel into the GNNsbased models for personalized recommendation. Given an initial defnition that the heat kernel can be expressed as AA = A −AΓ at time A in a graph, where Γ (Γ = I − D) is the Laplacian matrix of graph G. According to this defnition, Eq. (3) can be reformulated as:
+h(A) = AA h(0), (11)
+where h(A) denotes the hidden representation of a node after the difusion time A. For ∀A ≥ 0, the convolution kernel of G with the heat kernel is formulated as:
+∞ AA A −A
+∑
+A −A Γh = TA h, (12)
+A!
+A =0
+where A denotes the current layer, the parameter AA is related to neighborhood size of a node at A-th layer. Therefore, a function AA
+AA A
+and AAA
+with AAA AA with AAA for each node are used to automatically learn and update AA and AA during training. Its formulation can be described as:
+AA A −AAA
+A AA AA
+(A) = . (13)
+(A ) A!
+AA
+• PPR. ApeGNN aims to recognize the local pattern from each node’s graph structure. To achieve this objective, we utilize the PPR used in PageRank [25] and APPNP [18] to build graph structure information and assign unique weights for each node. The coefcient AAAA with teleport probability AA
+(
+A
+0) ∈ (0, 1) for user can be
+AA
+represented as:
+A AAA (A ) (A ) )A
+(A) = AAA (1 − AAA
+. (14)
+(AAA )
+The common points between ApeGNN and APPNP are that we connect GCN with personalized PageRank to propagate long range and reduce the oversmoothing risk, and leverage teleport probability properly to retain the initial features to gain better performance. By leveraging the heat kernel and personalized PageRank, we can assign appropriate weights fexibly for each node to enhance lowfrequency flters and enforce smoothness on a graph.
+762
+
+
+ApeGNN: Node-Wise Adaptive Aggregation in GNNs for Recommendation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+Centrality Importance A. As Figure 1 depicts, the best propagation of A is not certain. Thus, the neighbors weights at each layer should be considered when modeling the importance of nodes, and the diferent infuences among user and item nodes should be modeled when obtaining the representation of a node during the aggregation. Previous research [25] about node importance estimation suggests that the importance of nodes is positively correlated with its centrality in a graph. Generally, the in-degree A (AA ) of user node AA denotes its centrality and popularity. Therefore, we use (0) (0)
+in-degree A (AA ) as weights A and A at the initial layer for AA
+AA AA
+and A A to model the diferences of users as well as items. Here, we defne A for user AA and obtain a small value for A. The centrality importance of items are similar to users’ in Eq. (15).
+(0)
+A = A (A (AA )) = A (AAA(A (AA ) + A)), (15)
+AA
+where A is a small positive constant chosen as 10−7 and the teleport (0)
+propability A ∈ (0, 1).
+AA
+In ApeGNN, by giving a user-item interaction bipartite graph as the input, the embedding of each user and each item is diferentiated via an adaptive aggregation, and this embedding is parameterized with node-wise to form the fnal representations. The architecture of ApeGNN for recommendation is presented in Figure 2 which illustrates main parts of the model—the node-wise inner-layer aggregation and inter-layer propagation.
+3.2 Propagation Process
+By using enhanced representation in the aggregation process, we can add each embedding layer to propagation layers to mine higherorder connectivity information. The propagated embeddings of user AA and item A A at the A-th layer are formulated as:
+∑
+h(A ) = A (A (A ) ) A (AA AA ) h(A −1) ,
+AA AA AA
+AA ∈ NAA
+∑ (16)
+h(A ) = A (A (A ) ) A (AAAA ) h(A −1) .
+AA AA AA
+AA ∈ NAA
+(A ) (A )
+where A and A are the unique weight for AA as well as A A at
+AA AA
+√
+A-th layer, and A (AA AA ) = 1/( |NAA ||NAA |) is the symmetric normal
+ization suggested by GCN [17]. Note that the efect of self-loop connections in the GCN layer could be captured by a weighted sum as pointed out by LightGCN[9]. By following the same setup, we remove the self-loop connections to reduce the information redundancy. By extending the embedding aggregation and propagation function with the convolution kernel, the adaptive graph convolution matrix EA and EA with weight matrix Θ for users and items in ApeGNN at the A-th layer can be represented as Eq. (17):
+∑
+A
+E(A ) (A ) TA E(A −1)
+=Θ ,
+AA
+AA
+A=0 (17)
+A
+E(A ) ∑ (A ) TA E(A −1)
+=Θ
+A A.
+AA
+A =0
+By transforming Eq. (17) into the actual model training process, we take the graph convolution matrix (E(0), · · · , E(A) ) related to the layer into the pooling operation.
+3.3 Pooling
+Given the input user and item embeddings h(0) and h(0) at the 0-th
+AA AA
+layer, they are frst propagated through higher layers by Eq. (16). Then we update the integration of users as well as items through the embedding of the latest layer and the current layer by Eq. (1). Finally, the embeddings of each layer should be combined to formalize the fnal embeddings of user AA and item A A that are used for fnal recommendation. In ApeGNN, we formulate Eq. (4) to model the hop-wise semantic diferences that each layer of embeddings represents. Thus, the fnal embedding of AA and A A are pooled as:
+∑
+A ∑
+A
+h(A ) h(A )
+h∗ = , h∗ = (18)
+AA AA AA AA
+A=0 A=0
+(A ) (A )
+where h and h have been used to model the weights and
+AA AA
+importance of the A-th layer embeddings of user AA and item A A , respectively. Eventually, the inner product of embeddings between AA and A A is calculated as Aˆ(AA,AA ) = h∗ ⊙h∗ , which can be exploited
+AA AA
+to calculate the preference of user AA on item A A .
+3.4 Optimization
+Similar to many other GNNs-based recommendation methods [9, 30, 36], we use the Bayesian Personalized Ranking (BPR) loss [26] to optimize the neural network structure of ApeGNN. The BPR is a pairwise loss which is formalized as:
+∑2
+L = − ln A (AˆAA,AA − AˆAA,AA ) + A||E(0) || , (19)
+(AA ,AA ,AA ) ∈ O
+where O = {(AA, A A , AA )|(AA, A A ) ∈ O+, (AA, AA ) ∈ O− } are the pairwise training data; O− is the set of pairs that interactions between the user and the item are not actually observed, while O+ is the set of interacted records. A infuences the strength of A2 regularization; sigmoid function is denoted by A (·) in this formulation; and the A2 regularization is exploited to avoid overftting issue. The adaptive operation does not change the GNN nature and fexibility of ApeGNN. In fact, ApeGNN can serve as a plugin into any GNNs-based models for personalized recommendation. Therefore, other advanced training techniques, e.g., the hop-mixing negative sampling strategy [13], can be straightforwardly applied into ApeGNN. In summary, the overall training process is formally described in Algorithm 1 of Appendix.
+3.5 Model Analysis
+Here, we provide an additional discussion on the diferences between ApeGNN and other related models, regarding the designs of the inner-layer aggregation operations.
+ApeGNN vs. LightGCN. LightGCN [9] is representative graph convolution network with degree normalization based graph structure, while it ignores the distinctive semantics of each node. ApeGNN considers centrality-based importance to explicitly diferentiate each node. Compare to LightGCN, results in Tabel 2 and Table 4 both show the efectiveness of ApeGNN.
+ApeGNN vs. GAT. It is obvious that ApeGNN is similar to (dual) attention-based models which perform local aggregation for each layer and consider importance of nodes. Specially, attention-based
+763
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhang et al.
+models assign weights for local neighbors via node features from a local perspective, while ApeGNN aggregates neighbors adaptively in a node-wise manner via centrality degree from the global perspective. In addition, by executing high-order propagation in attention-based models, the information of previous layer is implicitly propagated via non-linear activation to next layer. The adaptive aggregation of ApeGNN considers the infuence of subgraph structure and explicitly propagates the message via a layer coefcient. To sufciently show that adaptive aggregation is a better choice than attention modules, we provide compared experimental results in Table 3. As it shows, ApeGNN incorporates node-andlayer-specifc weights to achieve adaptive aggregation, leading to better performance compared to attention-based methods.
+ApeGNN vs. ADC. The difusion model of ADC is able to learn the scale of neighbors during the propagation of each layer from the network for node classifcation. In particular, ADC learns the initial value A of every feature channel as well as layer, but ignores the of node importance. In contrast, the adaptive aggregator of ApeGNN learns centrality-aware A for each node which considers the importance of nodes. To prove the efectiveness of ApeGNN, we compare ADC (i.e., trained-A) and ApeGNN in Table 3 in our ablation study. The experiments show that the efectiveness of centrality-based weights in ApeGNN.
+3.6 Complexity Analysis
+Let the number of nodes and edges be |U + V | and |E |, A denote the number of epochs, where A is the embedding size, and A is the layer number of the proposed GNN. The time and memory complexity are summarized as follows.
+Time Complexity. We analyze whether and how the adaptive operations in aggregation impact the complexity of GNNs-based recommendation methods. The time complexity of ApeGNN mainly comes from three parts: adjacency matrix construction, adaptive graph convolution operation, and BPR loss calculation. Here, we mainly introduce the time complexity of adaptive graph convolution operation. For the graph convolution module, although additional adaptive operations are integrated into its aggregation, it does not increase its complexity, i.e., A = A (AA|U + V |A). Although we try to learn the weighting coefcients as embeddings with fxed size, the cost of all steps is linearly increasing with the A , Thus, the cost of all three steps is linearly changing with the number of A and A—A (|E | + AA (|E | + A|U + V |)), making the time complexity of ApeGNN be equivalent to common GNNs-based recommender systems, such as LightGCN [9]. Take AMiner dataset as an example, the training time of ApeGNN/LightGCN is ∼21s/∼14s per epoch, which demonstrates that the additional node-wise parameters have limited afects on running time.
+Memory Complexity. In adaptive aggregation process , we assign centrality-based weights for each node. Thus, we train models with up to |U +V | parameters. Although this approach brings additional memory consumption (e.g., 12.9 GB on Amazon), ApeGNN can achieve signifcant performance gains with this operation.
+4 Experiments
+4.1 Experimental Settings
+Baselines. For performance comparison, we select various stateof-the-art baselines including MF-based (BPRMF [26], NeuMF [11]), frst-order (Mult-VAE [22], GF-CF [28]), high-order (NGCF [36], LightGCN [9], i.e., GNNs-based ones), attention-based (NAIS [10], SASRec [15], GC-SAN [44] and LightSANs [4]) models. We will testify the efectiveness of our model ApeGNN on these four categories. The detailed description of these models is presented in Appedix A.2.
+Datasets. To evaluate the efectiveness of ApeGNN, we perform experiments on six public datasets (Ali, Amazon, AMiner, Gowalla, MovieLens, and Yelp2018) collected from real-world platforms with diferent data sizes, densities and conditions (# Users ≫ # Items and # Users ≪ # Items) for comparing with representative models. We further testify three datasets (Epinions, ML-1M and Pinterest) which are often evaluated among attention-based models. The detailed meta information of these datasets is shown in Table 5 of Appendix.
+Evaluation Metrics. We select two widely-used evaluation metrics, namely Recall and Normalized Discounted Cumulative Gain for the top-A prediction, which is denoted as Recall@A, NDCG@A, to evaluate performance of representative models. Besides, MRR@A and Hit Ratio (HR@A) are further used to evaluate the performance between the ApeGNN and attention-based models. The detailed explanation and calculation of these metrics are presented in Appendix A.3. In the test stage, we select the all items which has not been interacted by this user and regard them as the negative samples, while the interacted items are regarded as positive ones. For each AA , we rank all predicted items ordered by the preference score Aˆ(AA,AA ) . By selecting top-A items, we present the average value of metrics on all users in the whole test set. Here, we conduct our experiments for the value of A in the range {5, 10, 20, 50}, and report the results of A = 20 for each user for simplicity. The trend of results on others A is similar to A = 20. To express convenience, Recall@20 is simplifed to Recall/R in Table 2/Table 4, etc.
+4.2 Performance Comparison
+The overall top-20 performance results on representative models with average Recall and NDCG metrics are presented in Table 2. In Table 2, we highlight the best results in bold and second best results in underline. The comparison results between ApeGNN and attention-based models are summarized in Table 3. The improvement (%Improv.) is computed according to the second best results. Based on these results, we obtain the following observations:
+Comparison with MF-based models. From Table 2, we observe that high-order models outperform BPR-MF and NeuMF across all datasets. This illustrates they gain signifcant superiority comparing to traditional deep MF-based models. Further, gathering information from high-order neighbors improves the efectiveness of representation learning. This result is consistent with the claim in existing studies [9, 36]. Particularly, ApeGNN derives signifcantly better Recall@20 and NDCG@20 than MF-based models on Ali and Amazon datasets.
+764
+
+
+ApeGNN: Node-Wise Adaptive Aggregation in GNNs for Recommendation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+Table 2: Overall performance (% is omitted) comparison with representative model on six datasets.
+Dataset Ali Amazon AMiner Gowalla MovieLens Yelp2018
+Metrics Recall NDCG Recall NDCG Recall NDCG Recall NDCG Recall NDCG Recall NDCG BPR-MF 1.03 0.46 1.65 0.76 18.42 9.38 14.17 12.04 8.20 10.75 4.72 3.84 NeuMF 0.87 0.37 1.51 0.58 16.84 8.65 13.97 11.63 7.05 9.31 3.88 3.14 Mult-VAE 2.60 0.78 2.30 0.82 17.89 9.81 15.49 11.98 6.18 5.23 5.94 4.64 GF-CF 4.20 1.84 2.38 1.08 18.77 9.81 17.80 14.61 8.23 11.52 6.32 5.16 NGCF 4.26 1.97 2.94 1.23 17.66 9.11 14.22 11.88 9.31 11.37 5.77 4.69 LightGCN 6.13 2.86 4.11 1.86 19.69 9.87 17.75 15.22 9.41 11.36 6.61 5.39 ApeGNN_HK 8.80 4.29 4.98 2.36 21.20 10.69 18.32 15.35 9.73 11.91 6.75 5.56 %Improv. 43.56% 50.00% 21.17% 26.88% 7.67% 8.31% 3.21% 0.85% 3.40% 4.84 7.48% 7.96% ApeGNN_PPR 9.13 4.41 5.10 2.33 20.88 10.29 17.88 15.17 9.77 12.09 6.59 5.44 %Improv. 48.94% 54.20% 24.09% 25.27% 6.04% 4.26% 0.73% - 3.83% 6.43% - 0.93%
+Table 3: Performance (% is omitted) comparison between ApeGNN and attention-based models.
+Dataset Models NAIS SASRec GC-SAN LightSANs ApeGNN
+Epinions
+Recall@20 MRR@20 NDCG@20 HR@20
+1.11 0.47 0.61 1.11
+1.45 0.33 0.57 1.45
+1.56 0.44 0.69 1.56
+1.68 0.49 0.75 1.68
+1.82 0.91 1.11 1.84
+ML-1M
+Recall@20 MRR@20 NDCG@20 HR@20
+24.75 42.65 24.98 84.57
+22.59 4.4 8.29 22.59
+15.27 3.00 5.59 15.27
+33.31 8.17 13.64 33.31
+26.91 44.52 26.66 86.37
+Pinterest
+Recall@20 MRR@20 NDCG@20 HR@20
+11.68 6.16 6.06 22.53
+9.41 1.85 3.44 9.41
+9.64 1.89 3.53 9.64
+9.96 1.98 3.60 9.96
+16.66 9.94 9.37 30.46
+Comparison with frst-order models. As high-order models, ApeGNN, NGCF and LightGCN overall outperform Mult-VAE and GF-CF on all four datasets, which demonstrates their advantages comparing with frst-order models. On Ali dataset, ApeGNN is higher than Mult-VAE in Recall@20 and NDCG@20. Moreover, NGCF and LightGCN underperform GF-CF on Gowalla, but outperform it on Amazon dataset, which may be caused by the diferent densities of datasets (0.084% in Gowalla v.s. 0.014% in Amazon). Meanwhile, our proposed ApeGNN exceeds GF-CF on all datasets and has an improvement up to 117% (Recall@20 on Ali dataset). These observations show that high-order approaches like ApeGNN have remarkable advantages in extreme sparse scenarios than frstorder models.
+Comparison with other higher-order models. ApeGNN outperforms LightGCN on all six datasets, by 0.73-48.94% and 0.85-54.20% in terms of Recall@20 and NDCG@20 on average. This testifes that our ApeGNN can better handle deep multi-hop neighbors than LightGCN, which verifes the efectiveness of incorporating the adaptive aggregation function in ApeGNN. It captures the interactions between users and items and distinguishes diferent importance of embeddings from diferent layers in aggregation process. Especially, the improvements of ApeGNN on Ali and Amazon dataset are more signifcant than those on the other datasets. In other words, ApeGNN can learn the representation better for users and items even if the graph is very sparse.
+Comparison with attention-based models. As Table 3 shows, LightSANs exploits self-attention network-based recommendation, and it performs better than NAIS and SASRec. This shows the usefulness of modeling the node-wise importance in recommender models. ApeGNN can achieve the optimal performance over the three datasets. Compared to NAIS and LightSANs, ApeGNN utilizes the centrality degree to model the importance of users and items, which helps to diferentiate each node. In addition, unlike NAIS, SASRec and LightSANs that use attention mechanism to learn the representations, ApeGNN models high-order user-item interaction to obtain embeddings in GNNs.
+4.3 Study of ApeGNN
+To comprehensively understand the structure of ApeGNN and investigate the reasons of its efectiveness, further exploration experiments are performed. Firstly, we study the infuence of value of A. Secondly, we explore the efect of diferent layer numbers A in adaptive aggregation module. Finally, we evaluate the infuence of regularization A2 during training.
+Efect of value A. To get a better understanding of the proposed ApeGNN model, we evaluate the key components of ApeGNN, i.e. aggregation mechanisms. There are three diferent values of weight A during aggregation, including fxing A to the initialization value for user type and item type (fxed-A), training one A for each node and item without centrality (trained-A), training a unique A for each user and item with centrality (ApeGNN-A). Here, we compare ApeGNN with its three variants: fxed-A, trained-A and ApeGNN-A. Figure 3 shows the Recall@20 results of ApeGNN on six datasets when the inner-layer weights with AA , AA of users and items are set to diferent values. From the results, we have the main observations as follows. Overall, we reach the optimal performance when considering centrality of a node and training a unique A for this node on all datasets. It shows that in-degree of nodes is important to represent their centrality and popularity in user-item interacted graph, further verifes that importance should be considered during aggregation and propagation process. Besides, we fnd that the result of training one A for all nodes and all items respectively is better than fxing A for all nodes on six datasets. It justifes our assumption that users and items are nodes of diferent types that we should diferentiate them to learn better representations and improve the performance of recommendation. To sum up, ApeGNN can diferentiate users and items, and assign centrality-based and layer-wise weights via
+765
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhang et al.
+ApeGNN-A for nodes in aggregation process, which can boost the recommendation performance.
+5.0
+6.8
+8.6
+10.4
+Recall@20
+Ali fixed-t trained-t ApeGNN-t
+4.1
+4.5
+4.9
+5.3 Amazon
+19.8
+20.3
+20.8
+21.3 AMiner
+17.5
+17.8
+18.2
+18.5
+Recall@20
+Gowalla
+9.0
+9.3
+9.6
+9.9 MovieLens
+6.0
+6.3
+6.6
+6.9 Yelp2018
+Figure 3: Recall@20 (with omitting %) on six datasets when A is set with diferent values.
+Efect of layer numbers A in propagation. We analyze the efect of layer number of propagation from 1 to 4, provide a detailed comparison with the LightGCN, and highlight the best results with underline and bold for LightGCN and ApeGNN, respectively. From Figure 3, we also have the following main fndings. Overall, the ApeGNN outperforms LightGCN under all layer settings across all datasets. The result is consistent with Table 2. In general, with the increase of the layer number, the performance frst increases and then decreases. For details, the performance increases to peak value with the layer number from 1 to 2 (or 3), then the performance degrades. It indicates that it is helpful for a node to consider its low-order neighbors which can smooth its embedding and obtain powerful representation.
+Table 4: Results on top-20 recommendation between LightGCN and ApeGNN on three datasets at diferent layers.
+Dataset Ali Amazon AMiner #Layers Method Recall NDCG Recall NDCG Recall NDCG 1 Layer LightGCN
+ApeGNN
+4.90 2.19 8.70 4.23
+3.64 1.55 4.98 2.36
+19.09 9.43 20.90 10.49 2 Layers LightGCN
+ApeGNN
+2.93 1.30 8.69 4.22
+3.88 1.77 4.91 2.28
+19.69 9.87 21.20 10.69 3 Layers LightGCN
+ApeGNN
+5.89 2.77 8.80 4.29
+3.98 1.76 4.78 2.20
+19.24 9.56 21.04 10.65 4 Layers LightGCN
+ApeGNN
+6.13 2.86 8.76 4.29
+4.11 1.86 4.70 2.17
+19.38 9.83 21.02 10.61
+Efect of coefcient A of regularization A2 . In ApeGNN, A of A2 is the additional hyper-parameters. As shown in Figure 4, we analyze the infuence of diferent coefcient A on representative datasets (Amazon and MovieLens). We observe that ApeGNN is relatively insensitive to these hyper-parameters. The optimal value for Amazon and MovieLens both are 10−2. When A is smaller than 10−3, the performance starts to drop, which indicates that regularization can prevent overftting in some degree for ApeGNN.
+5 Related Work 5.1 Attention-based GNN Models
+Attention-based models can enhance the embedding vectors of users and items by applying attention-based mechanism to obtain the interactions on the user-item bipartite graph. To exploit the importance relation between user and item, NAIS [10] automatically learns the importance weight of each interacted item. Similar to
+0 10 6 10 5 10 4 10 3 10 2
+3.5
+3.9
+4.3
+4.7
+5.1
+Recall (Amazon)
+Amazon
+9.20
+9.35
+9.50
+9.65
+9.80
+Recall (MovieLens)
+MovieLens
+0 10 6 10 5 10 4 10 3 10 2
+1.70
+1.85
+2.00
+2.15
+2.30
+NDCG(Amazon)
+10.0
+10.5
+11.0
+11.5
+12.0
+NDCG(MovieLens)
+Figure 4: Performance of ApeGNN at the 3-th layer on Amazon and MovieLens datasets.
+NAIS, GraphRec [3] models the diferent contributions of historical items to shape user’s interest in a user-item graph. SASRec [15] proposes a self-attention model to capture long-term sequences and semantics, further predicting next action from users’ historical items. Inspired by the power of the attention mechanism, LightSANs [4] adopts low-rank decomposed self-attention for next-item recommendation. In contrast, the performance can be improved by projecting interacted items into a GNNs-based model to capture high-order neighbors.
+5.2 GNNs-based Recommendation Methods
+GNNs-based recommendation approaches model each user and each item as embeddings and learn the embedding vectors by reconstructing the historical behavior between users and items. Early MF-based models (such as PMF [27] and SVD++ [21]) are based on decomposing the interaction adjacency matrix between users and items, and predict users’ preferences for unseen items based on these decomposed vectors, which are efective but insufcient to model complex user behaviors and large data inputs. Similar to classical CF methods, the neural collaborative fltering (NCF)-based methods (such as [7, 11, 12, 14, 22, 43]) expanded the inner product of MF in the manner of neural collaborative fltering to increase the capacity, but still faced the problem that it was difcult to learn high-order structural information in the data. Emerging Graph Convolution Networks (GCNs) put up prominent performance by modeling graph structure and learning representation. Motivated by the efciency of graph convolution, the GNNs-based paradigm is introduced into recommendation. Early studies such as GCN [17], PinSage [45] and GAT [34] aggregate the neighborhood representations to generate the embeddings of the target node on the spatial domain. Recent studies [9, 32, 36] build a user-item bipartite graph and use GCN to capture CF signals in highorder neighbors on a graph. However, theses GNNs-based models fail to handle diferent importances of nodes during aggregation.
+6 Conclusion
+In this paper, we propose ApeGNN which introduces the graph difusion process into GNNs-based recommendation. ApeGNN addresses the issues that neighborhood types are not adaptive to identify and the importance of each node which is not divided by expanding the propagation of neighborhood. We assign diferent weights to entities with diferent types and importance of diferent nodes, and assign diferent importance on multi-order neighborhoods. By performing experiments on public recommendation, we empirically show the superiority of the ApeGNN compared with existing baseline models.
+766
+
+
+ApeGNN: Node-Wise Adaptive Aggregation in GNNs for Recommendation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+Acknowledgments
+This research was supported by Natural Science Foundation of China (NSFC) 62276148 and 61836013, Tsinghua-Bosch Joint ML Center and Zhipu.AI.
+References
+[1] Jingyuan Chen, Hanwang Zhang, Xiangnan He, Liqiang Nie, Wei Liu, and TatSeng Chua. 2017. Attentive collaborative fltering: Multimedia recommendation with item-and component-level attention. In Proceedings of the 40th International ACM SIGIR conference on Research and Development in Information Retrieval. 335–344. [2] Lei Chen, Le Wu, Richang Hong, Kun Zhang, and Meng Wang. 2020. Revisiting Graph Based Collaborative Filtering: A Linear Residual Graph Convolutional Network Approach. In AAAI 2020. 27–34. [3] Wenqi Fan, Yao Ma, Qing Li, Yuan He, Eric Zhao, Jiliang Tang, and Dawei Yin. 2019. Graph neural networks for social recommendation. In The world wide web conference. 417–426.
+[4] Xinyan Fan, Zheng Liu, Jianxun Lian, Wayne Xin Zhao, Xing Xie, and Ji-Rong Wen. 2021. Lighter and better: low-rank decomposed self-attention networks for next-item recommendation. In Proceedings of the 44th International ACM SIGIR Conference on Research and Development in Information Retrieval. 1733–1737. [5] Chen Gao, Yu Zheng, Nian Li, Yinfeng Li, Yingrong Qin, Jinghua Piao, Yuhan Quan, Jianxin Chang, Depeng Jin, Xiangnan He, and Yong Li. 2021. Graph Neural Networks for Recommender Systems: Challenges, Methods, and Directions. (2021). https://arxiv.org/abs/2109.12843 [6] Xavier Glorot and Yoshua Bengio. 2010. Understanding the difculty of training deep feedforward neural networks. In AISTATS 2010, Vol. 9. 249–256. [7] Huifeng Guo, Ruiming Tang, Yunming Ye, Zhenguo Li, and Xiuqiang He. 2017. DeepFM: A Factorization-Machine based Neural Network for CTR Prediction. In IJCAI 2017. 1725–1731. [8] William L. Hamilton, Zhitao Ying, and Jure Leskovec. 2017. Inductive Representation Learning on Large Graphs. In NIPS 2017. 1024–1034. [9] Xiangnan He, Kuan Deng, Xiang Wang, Yan Li, Yong-Dong Zhang, and Meng Wang. 2020. LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation. In SIGIR 2020. 639–648. [10] Xiangnan He, Zhankui He, Jingkuan Song, Zhenguang Liu, Yu-Gang Jiang, and Tat-Seng Chua. 2018. Nais: Neural attentive item similarity model for recommendation. IEEE Transactions on Knowledge and Data Engineering 30, 12 (2018), 2354–2366. [11] Xiangnan He, Lizi Liao, Hanwang Zhang, Liqiang Nie, Xia Hu, and Tat-Seng Chua. 2017. Neural Collaborative Filtering. In WWW 2017. 173–182. [12] Cheng-Kang Hsieh, Longqi Yang, Yin Cui, Tsung-Yi Lin, Serge J. Belongie, and Deborah Estrin. 2017. Collaborative Metric Learning. In WWW 2017. 193–201. [13] Tinglin Huang, Yuxiao Dong, Ming Ding, Zhen Yang, Wenzheng Feng, Xinyu Wang, and Jie Tang. 2021. MixGCF: An Improved Training Method for Graph Neural Network-based Recommender Systems. In KDD 2021. 665–674. [14] Jiarui Jin, Jiarui Qin, Yuchen Fang, Kounianhua Du, Weinan Zhang, Yong Yu, Zheng Zhang, and Alexander J. Smola. 2020. An Efcient Neighborhood-based Interaction Model for Recommendation on Heterogeneous Graph. In KDD. 75–84. [15] Wang-Cheng Kang and Julian McAuley. 2018. Self-attentive sequential recommendation. In ICDM (2018). IEEE, 197–206. [16] Diederik P. Kingma and Jimmy Ba. 2015. Adam: A Method for Stochastic Optimization. In ICLR 2015. [17] Thomas N. Kipf and Max Welling. 2017. Semi-Supervised Classifcation with Graph Convolutional Networks. In ICLR 2017. [18] Johannes Klicpera, Aleksandar Bojchevski, and Stephan Günnemann. 2018. Predict then propagate: Graph neural networks meet personalized pagerank. arXiv preprint arXiv:1810.05997 (2018).
+[19] Johannes Klicpera, Stefan Weißenberger, and Stephan Günnemann. 2019. Difusion Improves Graph Learning. In NeurIPS 2019. 13333–13345. [20] Risi Imre Kondor and John Laferty. 2002. Difusion Kernels on Graphs and Other Discrete Structures. In ICML 2002. 315–322. [21] Yehuda Koren. [n. d.]. Factorization meets the neighborhood: a multifaceted collaborative fltering model. In KDD 2008. [22] Dawen Liang, Rahul G. Krishnan, Matthew D. Hofman, and Tony Jebara. 2018. Variational Autoencoders for Collaborative Filtering. In WWW 2018. 689–698. [23] Fan Liu, Zhiyong Cheng, Lei Zhu, Zan Gao, and Liqiang Nie. 2021. Interest-aware Message-Passing GCN for Recommendation. In WWW 2021. 1296–1305. [24] Yao Ma, Xiaorui Liu, Neil Shah, and Jiliang Tang. 2021. Is homophily a necessity for graph neural networks? arXiv preprint arXiv:2106.06134 (2021). [25] Lawrence Page, Sergey Brin, Rajeev Motwani, and Terry Winograd. 1999. The PageRank citation ranking: Bringing order to the web. Technical Report. Stanford InfoLab. [26] Stefen Rendle, Christoph Freudenthaler, Zeno Gantner, and Lars Schmidt-Thieme. 2009. BPR: Bayesian Personalized Ranking from Implicit Feedback. In UAI 2009. 452–461.
+[27] Ruslan Salakhutdinov and Andriy Mnih. 2007. Probabilistic Matrix Factorization. In NIPS 2007. 1257–1264. [28] Yifei Shen, Yongji Wu, Yao Zhang, Caihua Shan, Jun Zhang, Khaled B. Letaief, and Dongsheng Li. 2021. How Powerful is Graph Convolution for Recommendation?. In CIKM 2021. 1619–1629. [29] Jinbo Song, Chao Chang, Fei Sun, Xinbo Song, and Peng Jiang. 2020. NGAT4Rec: Neighbor-Aware Graph Attention Network For Recommendation. (2020). https: //arxiv.org/abs/2010.12256 [30] Jianing Sun, Yingxue Zhang, Wei Guo, Huifeng Guo, Ruiming Tang, Xiuqiang He, Chen Ma, and Mark Coates. 2020. Neighbor Interaction Aware Graph Convolution Networks for Recommendation. In SIGIR 2020. 1289–1298. [31] Riku Togashi, Masahiro Kato, Mayu Otani, and Shin’ichi Satoh. 2021. DensityRatio Based Personalised Ranking from Implicit Feedback. In WWW. 3221–3233. [32] Rianne van den Berg, Thomas N. Kipf, and Max Welling. 2017. Graph Convolutional Matrix Completion. (2017). http://arxiv.org/abs/1706.02263 [33] Petar Veličković, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Lio, and Yoshua Bengio. 2017. Graph attention networks. arXiv preprint arXiv:1710.10903 (2017).
+[34] Petar Velickovic, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Liò, and Yoshua Bengio. 2018. Graph Attention Networks. In ICLR 2018. [35] Menghan Wang, Yujie Lin, Guli Lin, Keping Yang, and Xiao-Ming Wu. 2020. M2GRL: A Multi-task Multi-view Graph Representation Learning Framework for Web-scale Recommender Systems. In KDD 2020. 2349–2358. [36] Xiang Wang, Xiangnan He, Meng Wang, Fuli Feng, and Tat-Seng Chua. 2019. Neural Graph Collaborative Filtering. In SIGIR 2019. 165–174. [37] Ziyang Wang, Wei Wei, Gao Cong, Xiao-Li Li, Xianling Mao, and Minghui Qiu. 2020. Global Context Enhanced Graph Neural Networks for Session-based Recommendation. In SIGIR 2020. 169–178. [38] Zhen Wang, Zhewei Wei, Yaliang Li, Weirui Kuang, and Bolin Ding. 2022. Graph Neural Networks with Node-wise Architecture. In Proceedings of the 28th ACM SIGKDD Conference on Knowledge Discovery and Data Mining. 1949–1958. [39] Widder and David Vernon. 1976. The heat Kernel. Academic Press 1976. [40] Le Wu, Xiangnan He, Xiang Wang, Kun Zhang, and Meng Wang. 2021. A Survey on Neural Recommendation: From Collaborative Filtering to Content and Context Enriched Recommendation. (2021). https://arxiv.org/abs/2104.13030 [41] Le Wu, Junwei Li, Peijie Sun, Richang Hong, Yong Ge, and Meng Wang. 2020. Difnet++: A neural infuence and interest difusion network for social recommendation. IEEE Transactions on Knowledge and Data Engineering (2020).
+[42] Shiwen Wu, Wentao Zhang, Fei Sun, and Bin Cui. 2020. Graph Neural Networks in Recommender Systems: A Survey. (2020). https://arxiv.org/abs/2011.02260 [43] Yao Wu, Christopher DuBois, Alice X. Zheng, and Martin Ester. 2016. Collaborative Denoising Auto-Encoders for Top-N Recommender Systems. In WSDM 2016. 153–162. [44] Chengfeng Xu, Pengpeng Zhao, Yanchi Liu, Victor S Sheng, Jiajie Xu, Fuzhen Zhuang, Junhua Fang, and Xiaofang Zhou. 2019. Graph Contextualized SelfAttention Network for Session-based Recommendation.. In IJCAI, Vol. 19. 39403946. [45] Rex Ying, Ruining He, Kaifeng Chen, Pong Eksombatchai, William L. Hamilton, and Jure Leskovec. 2018. Graph Convolutional Neural Networks for Web-Scale Recommender Systems. In KDD 2018. 974–983. [46] Quanzeng You, Zhengyou Zhang, and Jiebo Luo. 2018. End-to-End Convolutional Semantic Embeddings. In CVPR 2018. 5735–5744. [47] Jialin Zhao, Yuxiao Dong, Ming Ding, Evgeny Kharlamov, and Jie Tang. 2021. Adaptive Difusion in Graph Neural Networks. In NeurIPS 2021, Vol. 34. [48] Wayne Xin Zhao, Shanlei Mu, Yupeng Hou, Zihan Lin, Yushuo Chen, Xingyu Pan, Kaiyuan Li, Yujie Lu, Hui Wang, Changxin Tian, Yingqian Min, Zhichao Feng, Xinyan Fan, Xu Chen, Pengfei Wang, Wendi Ji, Yaliang Li, Xiaoling Wang, and Ji-Rong Wen. 2021. RecBole: Towards a Unifed, Comprehensive and Efcient Framework for Recommendation Algorithms. In CIKM 2021. 4653–4664.
+767
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhang et al.
+A Supplementary
+In this supplementary, we present the detailed implementation note of ApeGNN, including the datasets, baselines, evaluation metrics, parameter settings, and the experimental results.
+A.1 Datasets
+We use public datasets to perform experiments and evaluate the performance of ApeGNN. The detailed descriptions and statistics of these datasets are as follows:
+Table 5: The statistics of our experimental datasets on representative models.
+Dataset # Users # Items # Interactions # Density
+Ali Amazon AMiner Gowalla MovieLens Yelp2018
+106,042 192,403 5,340 29,858 6,040 31,668
+53,591 63,001 14,967 40,981 3,416 38,048
+907,407 1,689,188 163,084 1,027,370 999,611 1,561,406
+0.00016 0.00014 0.00204 0.00084 0.04362 0.00130 Epinions ML-1M Pinterest
+116,260 6,040 55,187
+41,269 3,706 9,911
+188,478 1,000,209 1,445,622
+0.00004 0.00264 0.04468
+• Ali [13] dataset comes from the Alibaba e-commerce plat-form and interaction record of its users is more than 10 in a user-item bipartite graph.
+• Amazon [13] is a widely used dataset for recommendation evaluation. We use the Amazon-rec dataset which contains the interaction of the electronics category. Considering there are many preprocessing setting on the Amazon dataset, this paper keeps the same setting as [13].
+• AMiner1 collects scientifc resource reading behavior from AMiner.org of its users from August to October in 2021. To unify the experimental settings, we remains users and items that each node has at least ten interactions, and splits the interacted records as training, test, and validation set. To evaluate the recommendation performance, for each user, we select 10% of interactions for testing, another 10% of interactions is used for validation and adopting early stopping, and the remaining 80% interactions are used for training.
+• Gowalla2 comes from Gowalla website and contains the check-in historical behavior. Wherein, the locations are shared by users as the items and reviews from the user are regarded as interactions.
+• Yelp20183 dataset is obtained from the Yelp challenge in 2018 and includes the interactions between users and lcoal businesses.
+• MovieLens/ML-1M4 datasets come from GroupLens Research, whose authors have collected and made available rating data sets from the MovieLens website5.
+1 https://www.aminer.cn/data/?nav=openData#AMiner-Paper-Click 2 http://snap.stanford.edu/data/loc-gowalla.html 3 https://www.yelp.com/dataset 4 https://grouplens.org/datasets/movielens/1m/ 5 https://movielens.org
+• Epinions/Pinterest datasets come from RecBole [48] research.
+A.2 Baselines
+In our experiments, the compared baselines mainly include MFbased models (BPR-MF and NeuMF), frst-order models (MultVAE and GF-CF), high-order models (NGCF and LightGCN), and attention-based models (NAIS, SASRec, GC-SAN, and LightSANs).
+• BPR-MF [26] proposes an optimization criterion for personalized ranking by BPR loss which is a matrix factorization-based approach to capture the interactions.
+• NeuMF [11] exploits collaborative fltering on implicit feedback based on deep neural networks. It leverages a multi-layer perception to model and learns the user-item interaction function with non-linearities.
+• Mult-VAE [22] is an item-based CF method for implicit feedback by variational autoencoders (VAEs). It adopts the multi-nomial likelihood of data, uses Bayesian inference for parameter estimation, and connects information-theoretic to maximum entropy discrimination.
+• GF-CF [28] proposes graph flter based CF and proves the special cases via the lens of graph signal processing as well as the importance of smoothness. To compare it with other models fairly, we update its embedding size and test process to keep unity with our test method.
+• NGCF [36] proposes a message-passing architecture to capture collaborative fltering signal in the frst-order and high-order propagation. NGCF stacks embeddings of multiple propagation layers as its fnal representation for users and items.
+• LightGCN [9] simplifes the design GCN and adopts the key component—neighborhood aggregation—for collaborative fltering. After obtaining embeddings of all layers, a weighted sum calculation is applied to generate fnal embedding.
+• NAIS [10] is an attentive item similarity network which can distinguish each historical item of a user to address the inefciency issue for item-based CF.
+• SASRec [15] is a famous sequential-based model to capture longterm interactions. It applies self-attention mechanism to address two issues, which are parsimony of markov chains-based models on sparse data and complexity of RNNs-based models on dense data.
+• GC-SAN [44] captures rich local dependencies via GNNs and learns graph contextualized representations of items in sequences via attention mechanism.
+• LightSANs [4] proposes the low-rank decomposed self-attention networks to address the issue of high complexity in self-attention and uncertain position encoding in sequential relations.
+A.3 Evaluation Metrics
+We apply widely-used metrics to evaluate the top-A performance of the ApeGNN. The detailed description of these metrics are described as follows:
+768
+
+
+ApeGNN: Node-Wise Adaptive Aggregation in GNNs for Recommendation
+• Recall indicates the coverage of true items as a result of top-A recommendation.
+∑
+1 |A (AA )| ∩ |A(AA )|
+AAAAAA@A = , A.A .|A(AA )| = A, (20)
+|U | |A (AA )|
+AA ∈ U
+where A (AA ) and A(AA ) are the test and recommended item set of user AA respectively.
+• NDCG (Normalized Discounted Cumulative Gain) computes a score which emphasizes higher-ranked true positives. First, the discounted cumulative gain (DCG) is calculated as:
+A
+∑ ∑ 2(AAAA,AA
+1 ) −1
+AAA@A = , (21)
+|U| AAA2(2 + A)
+AA ∈ U A=1
+where AAAA,AA is 1 if k-th item k is interacted with user AA , else it is 0. Then the NDCG@A is calculated by Eq. (22):
+AAA @A
+A AAA@A = , (22)
+A AAA @A
+where IDCG@K denotes the ideal cumulative gain.
+• MRR (Mean Reciprocal Rank) is a measure that can return a list of the correctly-recommended item to test users.
+1∑ 1
+AAA@A = , (23)
+A AAAA (A)
+A ∈AA
+where A is the user’s number in test set.
+• HR (Hit Ratio) represents the proportion of the total number of test sets in the top-A list of each user to all test sets.
+Í
+A (A )
+A ∈U
+AAA AAAAA@A = Í , (24)
+A (A) A ∈U
+where U,A (A), A(A) are user set, recommended set of user A, and test set of user A, respectively.
+A.4 Implementation note
+Running Environment. We conduct all experiments on Ubuntu 18.04.2 LTS server with Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz, 252G RAM and 8 NVIDIA GeForce RTX 2080TI-11GB. We implement ApeGNN with Python 3.7.6 and PyTorch 1.7.0.
+Hyper-parameter Settings We implement our ApeGNN in PyTorch. For all models, we set batch size as 2048. We optimize ApeGNN with a learning rate at 0.001 and Adam optimizer [16]. Meanwhile, we set the propagation layer from 1 to 4, the embedding dimension in range of {64, 128, 256, 512}, and the coefcient A of A2 normalization in range of {10−2, 10−3, 10−4, 10−5, 10−6}. In terms of hyper-parameters, to fnd the best settings, we apply a grid search. For Ali, Amazon, AMiner, Gowalla, MovieLens, and Yelp2018, the A2 coefcient A are 10−3, 10−2, 10−3, 10−3, 10−2, and
+10−3, respectively. Besides, to initialize the model parameters, we use the Xavier initializer [6]. Moreover, if Recall@20 does not increase for 10 consecutive epochs on the validation dataset, we apply an early stopping strategy to stop training.
+Training Algorithm. We show the training algorithm of ApeGNN in Algorithm 1.
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+Algorithm 1: The training algorithm of the ApeGNN.
+Input: G: user-item bipartite graph, U: user set, V: item set, A: number of layer.
+1: Initialize h(0), h(0) , ∀AA ∈ U, ∀A A ∈ V
+AA AA
+2: iter ← 0
+3: while L is not converged do
+4: for A ← 0 to A do
+h(A )
+5: = Aggregate and Propagate by Eq. (7) and Eq. (16),
+AA
+∀AA ∈ U
+h(A )
+6: = Aggregate and Propagate by Eq. (8) and Eq. (16),
+AA
+∀A A ∈ V
+7: end for
+h(0)
+8: AA ← hA
+∗
+A = Pooling by Eq.(18), ∀AA ∈ U h(0)
+9: ← h∗ = Pooling by Eq.(18), ∀A A ∈ V
+AA AA
+10: Rˆ ← Aˆ(AA,AA ) = hA
+∗
+A ⊙ h∗
+AA , ∀AA ∈ U, ∀A A ∈ V 11: Update L with BPR Loss by Eq. (19) 12: iter ← iter + 1 13: end while
+Output: Rˆ ∈ RA×A: preferences for users on candidated items.
+Additional Results. We show efectiveness of layer number on the other three datasets (Gowalla, MovieLens and Yelp2018) in Table 6.
+Table 6: Results on top-20 recommendation between LightGCN and ApeGNN on other datasets at diferent layers. Underline and bold denote the best results on LightGCN and ApeGNN, respectively.
+Dataset Gowalla Yelp2018 MovieLens #Layers
+1 Layer
+2 Layers
+3 Layers
+4 Layers
+Method LightGCN ApeGNN LightGCN ApeGNN LightGCN ApeGNN LightGCN ApeGNN
+Recall NDCG 16.38 14.02 17.86 15.04 16.99 14.60 18.16 15.24 17.58 15.02 18.28 15.36 17.75 15.22 18.32 15.35
+Recall NDCG 5.75 4.66 6.55 5.39 6.12 5.00 6.72 5.53 6.34 5.15 6.75 5.56 6.61 5.39 6.67 5.46
+Recall NDCG 9.30 11.25 9.73 11.91 9.41 11.39 9.67 11.87 9.41 11.36 9.65 11.86 9.31 11.34 9.62 11.83
+769

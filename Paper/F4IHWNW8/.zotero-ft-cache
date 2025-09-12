@@ -1,0 +1,736 @@
+Cross-Channel and Regional Node Relation Enhanced
+Hybrid Graph Convolution Transformer for CT
+Segmentation
+Hui Cuia, Qiangguo Jinb, Xixi Wuc, Linlin Wangd, Tiangang Zhange, Toshiya Nakaguchif, Ping Xuang,∗, David Dagan Fengh
+aDepartment of Computer Science and Information Technology, La Trobe University, Melbourne, Australia bSchool of Software, Northwestern Polytechnical University, Shaanxi, China cSchool of Computer Science and Technology,Heilongjiang University, Harbin, China dDepartment of Radiation Oncology, Shandong Cancer Hospital and Institute, Shandong First Medical University and Shandong Academy of Medical Sciences, Jinan, China eSchool of Mathematical Science, Heilongjiang University, Harbin, China fCenter for Frontier Medical Engineering, Chiba University, Chiba, Japan gDepartment of Computer Science, School of Engineering, Shantou University, Shantou, China hSchool of Computer Science, The University of Sydney, Sydney, Australia
+Abstract
+Accurate and robust organ and tumour segmentation from CT scans are critical for precision
+diagnosis and prognosis of cancer, and the development of personalized treatment planning.
+However, automatic segmentation of tumours and organs they have invaded is challenging
+due to significant variations, abnormalities, and unclear boundaries. While graph convolu
+tional networks can propagate knowledge and correlations in a flexible feature space, they
+suffer from information saturation during deep learning which can limit their effectiveness.
+To overcome this issue, we proposed a hybrid graph convolution transformer (HCGT) model.
+The HCGT has a channel transformer (CTrans) component, which helps to learn contextual
+relationships across different feature channels. Furthermore, we developed a convolutional
+graph transformer (convG-Trans) that can simultaneously and interactively learn enhanced
+relationships between different parts of the image by aggregating knowledge propagation
+from graph convolution and cross-node similarities from the transformer. Finally, we incor
+porated category-level attention to understand the significance of the two representations
+from the CTrans and convG-Trans, which helped adjust the fusion process before gener
+ating the segmentation output. We evaluated the HCGT on kidney and tumour and lung
+and non-small cell lung cancer datasets. Our evaluations included comparisons with other
+three-dimensional (3D) medical image segmentation benchmarks, as well as graph-based and
+transformer-based segmentation models. The results demonstrated improved performance
+in abdominal and thorax organ and tumour segmentation tasks. Additionally, ablation stud
+ies showed that the major technical innovations were effective and consistent when using
+different 3D medical image segmentation backbones.
+Keywords: Graph convolutional network, Transformer, Computed tomography, Organ and
+tumor segmentation
+Preprint submitted to Expert Systems with Applications August 3, 2023
+Manuscript Click here to
+access/download;Manuscript;Cross_Channel_and_Regional_N Click here to view linked References
+
+
+1. Introduction
+Computed tomography (CT) is a widely used method for examining thorax and abdomi
+nal organs and tumours, assisting with clinical diagnosis, treatment planning, and treatment
+outcome prediction. Precise volumetric analysis and measurement of three-dimensional (3D)
+5 organs and tumours, including their location, shape, and size, are essential steps for precision
+oncology. However, manually observing and outlining patient scans is time-consuming and
+labour-intensive and prone to inter- and intra-observer variations. To improve the efficiency
+and effectiveness of treatment, it is highly necessary to develop computerized methods to
+aid in the automated detection and boundary delineation of organs and tumours of interest.
+10 Currently, convolution neural network (CNN) based frameworks, particularly U-Net [1]
+and its variants, are widely used for volumetric CT image segmentation architecture. A
+self-configured medical image deep learning model nnU-Net [2] has been widely adopted in
+various segmentation tasks such as kidney and tumour [3] and liver and tumour [4] since
+its release, and the model has demonstrated robust performance. However, CNN-based seg
+15 mentation models primarily concentrate on local and regional details present in an image,
+which can make it difficult to comprehend the intricate long-range associations between var
+ious regions of the image. To address this limitation, a popular approach is to incorporate
+the global context of an image into the CNN process by increasing the perception field [5],
+or modelling correlations between image positions using attention based approaches [6] .
+20 For instance, Jin et al. [4] introducted an attention residual mechanism and embedded the
+module to U-Net structure for liver and tumour segmentation from 3D CT volumes. Sinha
+et al. [7] proposed multi-scale attention mechanisms and a new loss function for healthy
+abdominal multi-organ Magnetic Resonance Imaging (MRI) image segmentation, which in
+tegrated global dependencies and directed the network to focus on discriminate regions.
+25 However, this model was developed in a two-dimensional (2D) manner, which overlooked
+the anatomical spatial relationships in 3D images. To address this limitation, a convolution
+bi-directional gated recurrent unit (GRU) [8] was developed to extract contextual relations
+between local and global regions and image feature channels for lung tumour segmentation.
+However, when tumours with complex and irregular shapes that extend to other healthy
+30 organs such as the lung or chest, the model failed to segment the tumour accurately.
+Graph models are increasingly being used for tasks related to image segmentation and
+classification due to their ability to facilitate knowledge propagation and reasoning between
+local and long-range regions without being constrained by rigid feature spaces. This is possi
+ble because of the flexible and dynamic structure of graph topology and connections between
+35 nodes. [9] Conventional graph-based segmentation models commonly rely on techniques like
+random walk (RW) and conditional random field (CRF), where shallow image features and
+prior knowledge are used to define edge weights for specific tasks such as anatomical image
+segmentation [10]. However, as segmentation tasks have become more complex, these man
+∗Corresponding author
+Email address: pxuan@stu.edu.cn (Ping Xuan)
+2
+
+
+ually designed models may not always deliver satisfactory results or possess the ability to
+40 generalize effectively.
+Sophisticated graph models, including graph neural network (GNN) [11], graph atten
+tion network (GAT) [12] and graph convolutional network (GCN) [13], have demonstrated
+great potential in accomplishing various tasks. For instance, a graph triple-attention net
+work [14] was developed to predict disease-related Long noncoding RNAs (lncRNAs). Cui
+45 et al. [15] proposed a dual-GAT model for the early prediction of lymph node metastasis
+(LNM) using CT and clinical data. For CT segmentation tasks, researcherse developed a
+GCN autoencoder [16] for kidney and tumour segmentation. In this method, the graph
+node attributes encoded the content features extracted by a CNN, while the connection
+between nodes represented topology relations and high-level correlations between different
+50 image regions. A multi-scale GCN autoencoder [17] was further designed and validated us
+ing kidney and tumour segmentation datasets. The multi-scale GCN autoencoder performed
+multi-order RWs to extract local and longer-range information from various image regions.
+However, its graph structure remained static during the training process. To improve this
+model, researchers proposed an adaptive GNN with multi-scale neighbouring nodes atten
+55 tion [18] that allowed for dynamic graph evolution. This approach showed improved kidney
+and tumour segmentation performance compared to the static graph structure used with the
+multi-scale GCN autoencoder. However, since GCNs rely on aggregating node attributes
+and topological structures to enable nodes to exchange information with each other, their
+ability to optimize and fuse correlations between nodes can reach a saturation point during
+60 deep learning [9]. This means that the GCN’s capacity for optimization becomes limited,
+and further improvements in performance may be difficult to achieve.
+Inspired by the success of the transformer and self-attention in natural language process
+ing [19], researchers are now developing transformer-based methods for image processing.
+For instance, the Swin transformer [20] applied the language transformer to images using
+65 a multi-scale sliding window approach, which was validated in a 2D street scene image
+classification task. Zheng et al. proposed a segmentation transformer (SETR) [21], which
+was based on a fully convolutional network (FCN) that encoded a 2D image as a sequence
+of patches. For high-dimensional image processing, the point transformer [22] integrated
+the self-attention mechanism of the transformer based on point clouds, resulting in a high
+70 performance transformer for point cloud classification and dense prediction. However, the
+point transformer did not consider the structural relations of image region nodes or the
+contextual connections between channels. A video vision transformer [23] was developed
+for video classification that used factorized self-attention to extract features from the spa
+tial and temporal dimensions of the input. For medical image segmentation, researchers
+75 developed TransUNet [24] by embedding the transformer into a U-Net. TransUNet took to
+kenized image patches from a feature map produced by a CNN and used them as the input
+sequence of the transformer to capture global contexts. While current transformer-based
+methods incorporate position embedding to highlight the connection between various re
+gions of an image, they overlook either the contextual connections between feature channels
+3
+
+
+80 or the diverse-range spatial dependencies found in 3D anatomical image volumes.
+Recently, some researchers have started to combine both graph and transformer tech
+niques in a single framework due to their respective advantages. For example, Zheng et
+al. [25] proposed a graph transformer for whole slide image classification. This method used
+graph nodes to represent image patches and the transformer to extract features from each
+85 patch. Chen et al. [26] proposed a hybrid graph transformer for tissue microstructure seg
+mentation from MRI which used a GNN to model geometric structures and the transformer
+to extract spatial information. Wang et al. [27] designed a two-branch model which used
+the Swin transformer to extract features from image patches and a GCN to embed the co
+occurrence between objects’ labels for multi-label image recognition. However, the existing
+90 combined graph and transformer models have limitations such as being limited to separated
+learning phases and using the transformer only to extract features from image patches.
+Meanwhile, three longstanding issues in the automatic segmentation of organs and tu
+mours persist. First, there is significant variability in the location, size, and shape of tumour
+growth. This includes tumours that grow exclusively within an organ, partially within an
+95 organ, or attach to an organ. Second, the boundaries between tumours and organs are often
+ambiguous and difficult to distinguish. Finally, the characterization of organs may differ
+from healthy ones because of the pathological impact of tumours.
+To overcome the difficulties in dividing organs and tumours from CT images, and the
+shortcomings of GCN and transformer models, we suggest a new approach called the hy
+100 brid graph convolution transformer model (HCGT). This model can learn contextual re
+lationships across various feature channels and regional nodes simultaneously, resulting in
+improved CT segmentation. The key innovations and technical significance of HCGT are
+outlined below.
+First, we propose a channel transformer (CTrans), which can learn contextual relations
+105 between features in different channels to improve representation. This innovation is inspired
+by the transformer model, which operates on sequences of image patch tokens and uses self
+attention to weigh the importance of each patch based on its context within the sequence.
+However, CTrans operates differently by utilizing the transformer along the feature channel
+dimension. This allows CTrans to determine the similarity between a specific channel and
+110 all other channels in the input sequence. By doing so, CTrans can effectively capture the
+contextual correlations between different channels, thereby enhancing the overall feature
+learning performance of the model.
+Second, we design a convolution graph transformer (convG-Trans), which can learn the
+enhanced relationships between regional nodes in the image from two different perspectives
+115 – knowledge propagation in graphs and cross-node similarity formulation by the transformer
+– simultaneously and interactively. In this module, the transformer is performed along the
+spatial dimension to extract similarities between regional nodes. At the same time, the
+GCN enables the modelling and propagation of knowledge across diverse ranges of regional
+nodes, allowing for the learning of spatial dependencies across the 3D volume. Our newly
+120 introduced convG-Trans combines the outputs of transformer and GCN models to improve
+4
+
+
+graph learning. Our method prevents information saturation in node attributes by evolving
+both node attributes and topology during the learning process. By propagating knowledge
+between related nodes and identifying similarities between unrelated notes, convG-Trans is
+able to extract complex relationships and enhance the performance of GCN models. This is
+125 the first time that such an approach has been used.
+Third, we designed a category-level attention fusion module that combines cross-channel
+relation representations from CTrans and regional node relation representations from convG
+Trans. This module automatically determines the relative importance of the two represen
+tations and adaptively fuses them.
+130 We have validated the effectiveness of our three major contributions through compre
+hensive experiments on public kidney and tumour datasets, as well as in-house lung and
+non-small cell lung cancer (NSCLC) datasets for CT segmentation. Our results show that
+compared to other methods such as U-Net, GNN, GCN, and transformer-based methods,
+HCGT significantly improves segmentation performance and generalization ability across
+135 different medical image segmentation backbones. We have also conducted ablation studies
+to further demonstrate the impact of our contributions on overall performance.
+The rest of this article is organized as follows. Section II describes the methods proposed
+in this study. Section III presents the results and discussion of those results. Finally, Section
+IV concludes the paper.
+140 2. Methodology
+2.1. Overall Architecture
+Our goal is to improve segmentation accuracy by learning optimal relations between
+different regions within a 3D CT volume and contextual relations in various feature channels
+using a segmentation autoencoder. To achieve this, we propose a hybrid convolutional graph
+145 transformer called HCGT, which comprises three components: a CTrans for learning cross
+channel relations, a ConvG-Trans for learning regional node relations, and a category-aware
+attention module for adaptively fusing the information extracted from the Seg-Encoder and
+the learnt spatial cross-channel and regional node relations. The overall architecture of the
+HCGT is shown in Figure 1.
+150 2.2. Learning Cross-channel Relation Using CTrans
+Inspired by the success of the transformer model [19], we designed CTrans to capture
+cross-channel relations. Unlike traditional transformers, our CTrans does not use position
+embedding. Instead, it uses the self-attention mechanism to calculate the similarity between
+a given channel and all other channels.
+The output from the Seg-Encode is denoted as F ∈ RC×W ×H×D. To model cross-channel
+relations, we reshape F into a matrix H(1) ∈ RC×N , where N = W × H × D and each row
+corresponds to a channel while each column corresponds a spatial region. We then use two
+TransLayers to model and learn cross-channel relations. In l-th TransLayer (Figure 1(g)),
+5
+
+
+Figure 1. Overall architecture of the cross-channel and regional node relation enhanced hybrid convolutional
+graph transformer (HCGT) model. a) Input computed tomography (CT) volumes, and the segmentation
+encoder (Seg-Encoder) generates deep image features. Afterwards, cross-channel relation enhanced features
+are learnt by b) channel transformer (CTrans) which is composed of a sequence of g) TransLayer. In
+parallel, relations between regional image nodes are extracted by c) convolution graph transformer (convG
+Trans) which uses TransLayer to dynamically revolutionize the graph convolution network (GCN) to prevent
+information saturation. Finally, cross-channel relation and regional node representations are integrated using
+d) category-level attention before feeding to Seg-Decoder to generate segmentation output.
+where l ∈ [1, 2], the input matrix H(l) is first linearly normalized and then processed using
+multi-head self-attention, as in:
+K (l)
+i = LN (H(l)), Q(l)
+i = LN (H(l)), V (l)
+i = LN (H(l)), (1)
+att head(l)
+i = Sof tmax Q(l)
+i (K (l)
+i
+T
+/σ V (l)
+i (2)
+AT T (l) = ∥
+i∈[1,4]
+att head(l)
+i (3)
+where i denotes number of heads, Q, K, V represent the query, key and value matrices
+in self-attention, LN denotes a linear operation and σ is a scaling factor for numerical
+stability [28], and ∥ denotes the concatenation of the output of each head. After the multi
+head self-attention operation, we perform element-wise addition with the input H(l) and
+obtain the addition result Hd(l) using
+Hd(l) = AT T (l) + H(l) (4)
+6
+
+
+Afterwards, Hd(l) is processed by linear normalization, a multi-layer perceptron (MLP), and
+element-wise addition. The final output from l-th TransLayers is obtained as
+H(l+1) = Hd(l) + M LP LN Hd(l) (5)
+155 After two TransLayers, the output H(3) is recorded by ZCT rans for further fusion.
+2.3. Learning the Relation of Regional Nodes Using convG-Trans
+During the GCN learning process, each graph node aggregates information from its
+neighbouring nodes by combining their attributes and topological structures. However, the
+capacity of GCN to optimize and fuse deep correlations between nodes can often reach
+160 its limit at a certain stage [9], resulting in a state of saturation. To prevent information
+saturation in the attribute vectors during graph convolution, we propose a convG-Trans
+module, which learns relations between regional nodes from two perspectives – knowledge
+propagation in graphs and cross-node similarity formulation using the transformer – simul
+taneously and interactively. As shown in (Figure 1(c), the key idea of our convG-Trans is
+165 to incorporate the relationships among regional nodes learnt through the transformer-based
+approach in each GCN encoding layer. The objective is to improve the learning and aggre
+gation of node attributes and topological structures, resulting in a better understanding of
+the intricate relationships among regional nodes. The process is formulated as below.
+After obtaining the output F from the Seg-Encoder, we reshape F into X ∈ RN×C, where
+170 each row belongs to a spatial regional node and each column represents a channel. X is then
+fed into convG-Trans ((Figure 1(f)), which consists of the GCN auto-encoder, TransLayer,
+and one-hot position encoding operations, as detailed in the following sections.
+2.3.1. Graph Initialization and GCN Encoder
+Given X, we initialize a graph G(0) = (A(0), X), where A(0) ∈ RN×N is a weighted
+adjacency matrix consisting of N regional nodes. Each element A(0)
+ij ∈ A(0) is obtained by
+calculating the L1 distance between Xi∗ and Xj∗, given by A(0)
+ij = e−∥Xi∗−Xj∗∥1 . With the
+input graph G(0), we obtain the output from first GCN encoding layer using
+Z(1)
+GCN = ReLU S(0)XW(0) (6)
+where ReLU is the activation function, W(0) is a learnable matrix randomly initialised and
+updated during the training process, and S is the Laplace normalised adjacency matrix that
+is defined as
+S(0) = D(0) − 1
+2 A(0) D(0) − 1
+2 (7)
+2.3.2. Dynamic Graph Evolution by Incorporating TransLayer and GCN Encoder
+175 Our approach differs from existing GCN methods in that we utilize the relationships
+among regional nodes learnt by the TransLayer to improve both the optimization of the graph
+topology and attribute vectors during the convolution process. The detailed integration and
+graph evolution process are given in Figure 2.
+7
+
+
+Figure 2. Graph evolution process and detailed feature dimension changes in convG-Trans. Using nnU-Net
+as segmentation backbone, the number of channels (C) of Seg-Encoder output is 320.
+Let φT rans denote the TransLayer operations defined in Section B with extra position
+encoding, given X as input, the output from the TransLayer can be denoted by T(1) =
+φT rans(X). Afterwards, we obtain the incorporated attribute matrix X(1) using
+X(1) = conv T(1) ∥ Z(1)
+GCN (8)
+where conv denotes a 1×1 convolution operation for dimension reduction. Therefore, with
+180 X(1), we can construct a new graph G(1) = (A(1), X(1)) where A(1) reflects updated graph
+topology and edge weights, A(1)
+ij = e−∥X(1)
+i∗ −X(1)
+j∗ ∥1 .
+Afterwards, as shown in Figure 1(f) and Figure 2, we perform a second GCN layer to
+generate output Z(2)
+GCN , and obtain a new attribute matrix X(2) = conv Z(2)
+GCN ∥ Z(1)
+GCN .
+Accordingly, a new graph G(2) = (A(2), X(2)) can be constructed.
+Finally, to obtain regional nodes relation representation ZconvG−T rans, we fuse X(2), X,
+and T(2) = φT rans(T(1)) using
+ZconvG−T rans = conv X ∥ X(2) ∥ T(2) (9)
+185 2.3.3. GCN Decoder and Optimization
+To ensure the accuracy of ZconvG−T rans representation and optimize the parameters in
+convG-Trans, we follow the assumption that the gap between the original attribute matrix
+8
+
+
+X and the decoded matrix eZconvG−T rans of ZconvG−T rans should be minimized. Thus, we use
+two GCN decoding layers to project ZconvG−T rans back to the original feature space using
+∼
+ZconvG−T rans = ReLU S(1) ReLU S(2)ZconvG−T ransΘ(1)
+GCN Θ(2)
+GCN (10)
+where S is defined in Eq. (7) and Θ(1)
+GCN and Θ(2)
+GCN denote a learnable weight matrix in the
+first and second GCN decoding layer, which are randomly initialized and optimized during
+the training process. The loss function is defined using the F robenius norm:
+LossconvG−T rans = min
+X∼
+ZconvG−T rans − X
+2
+F
+(11)
+2.4. Adaptive Fusion Using Category-Aware Attention
+To adaptively integrate cross-channel relations ZCT rans from CTrans, and regional nodes
+relations ZconvG−T rans from convG-Trans, we propose a category-aware attention fusion mod
+ule using
+Z = α1 · ZCT rans + α2 · ZconvG−T rans (12)
+where the importance score αm of the m-th category is calculated using
+αm = Sof tM ax
+→
+θ att · tanh Θatt · ZmT +
+→
+b att (13)
+where ⃗θatt , Θatt, and ⃗ batt are a learnable weight vector, weight matrix and bias vector,
+respectively.
+Finally, Z is concatenated with content information H(1) extracted from the Seg-Encoder.
+The resulting matrix is then passed through a 1×1 convolutional operation to project the
+matrix dimensions to match that of F, before being sent to the segmentation decoder. The
+segmentation loss is defined as
+Lossseg = LossCE + LossDice + λLossconvG−T rans (14)
+where LossCE and LossDice denote cross-entropy and Dice loss [2], λ = 0.1.
+190 3. RESULTS AND DISCUSSION
+3.1. Datasets
+To evaluate the performance of our segmentation model and the effectiveness of the tech
+nical innovations proposed in this work, we conducted experiments using the public kidney
+and tumour CT dataset from the KiTS19 Challenge [29]. The KiTS19 dataset consists of
+195 210 patients, each with a 3D volumetric CT scan and manual delineations (referred to as
+Ground Truth (GT)) of the kidney and tumour by clinical experts.
+In addition to the KiTS19 dataset, we also collected an in-house dataset of NSCLC
+CT images from the Shandong Cancer Hospital (SDCH) to validate the robustness and
+effectiveness of our model for other organ and tumour CT segmentation tasks. The SDCH
+9
+
+
+200 dataset contains thorax CT scans from 245 patients, each of whom underwent a thorax CT
+scan between January 2015 and June 2021 using the Philips Brilliance Big Bore CT scanner
+(SOMATOM Sensation, Siemens Healthcare, Erlangen, Germany). The retrospective study
+was approved by the institutional review board of SDCH on 2022 January 17 and was
+conducted in accordance with the Declaration of Helsinki Declaration. The scanning settings
+205 used were as follows: tube voltage of 120 kVp, tube current of 200 mA, reconstruction
+thickness of 5.0 mm, reconstruction interval of 5.0 mm, and detector size of 0.625mm ×
+64. For each scan in the SDCH dataset, we had corresponding gross tumour volume (GTV)
+and entire lungs excluding GTV segmentation results that were manually delineated by two
+experienced radiologists. A senior radiologist with more than 20 years of experience reviewed
+210 the final segmentation results.
+For both the KiTS19 and SDCH datasets, we randomly selected 80% of the cases for
+training and the remaining 20% for testing. To ensure a fair comparison, we used the same
+data augmentation and oversampling strategies during the training process as provided by
+the nnU-Net [2] platform.
+215 3.2. Implementation Details
+Our method was implemented and trained using PyTorch on a single NVIDIA RTX
+2080Ti (11 GB RAM) graphical card. The segmentation backbone used was 3D nnU
+Net [2], and different backbones were also investigated in Section F. Adam was used as the
+optimizer with a learning rate of 3e−4 which was updated by (1 − epoch/total epoch)0.9.
+220 The total epoch was set as 600 and the best model was saved for testing. For the KiTS19
+dataset, a patch size of 160 × 192 × 80 pixels and batch size of 2 were used for training.
+For the SDCH dataset, a patch size of 224 × 224 × 32 pixels and batch size of 2 were used
+for training.
+3.3. Comparison Methods and Evaluation Metrics
+225 To validate the effectiveness of the newly proposed model, we extensively compared it to
+three categories of medical image segmentation models: 1) U-Net based architectures such
+as 3D U-Net [1], 3D nnU-Net [2], MSS U-net [30], and Graph Reasoning enhanced nnU
+Net [31]; 2) GCN based CT segmentation models including dynamic GCN [16], an adaptive
+graph neural network (GNN) [18], and a multi-scale random walk (RW) driven GCN [17];
+230 and 3) Transformer based medical image segmentation models including TransUNet [24] for
+multi-organ segmentation and TransBTS [32] which was originally designed for Brain tumor
+segmentation.
+We also investigated the segmentation performance using different segmentation back
+bones and contributions of major technical innovations through ablation studies.
+235 We evaluated the segmentation performance by comparing it to commonly used medical
+image segmentation evaluation measures including the Dice similarity coefficient (DSC) [33],
+intersection over union (IoU) and 95% Hausdorff distance (HD) [34]. Higher values of DSC
+and IoU indicate better performance in terms of spatial overlap between the segmentation
+10
+
+
+results and GT. Lower HD values indicate that the surfaces of the GT volume and segmented
+240 volumes are closer, indicating better segmentation performance in terms of shape similarity.
+3.4. Ablation Studies
+We performed ablation studies to assess the impact of our major innovations using the
+KiTS19 dataset. As shown in Table 1, the baseline model using nn-Uet achieved a Dicekidney
+of 0.9642, IoU kidney of 0.9318, HDkidney of 24.2922 mm, Dicetumor of 0.8613, IoU tumor of
+245 0.7278, and HDtumor of 34.1577 mm. The addition of the CTrans module to the baseline
+improved tumour segmentation results in terms of all three evaluation measures and in
+creased the kidney segmentation shape similarity by 15.6%, as indicated by HD, despite a
+decrease in the Dice and IoU values for the kidney. Furthermore, adding convG-Trans mod
+ule to the baseline resulted in improved segmentation performance with respect to all the
+250 evaluation measures for both kidney and tumour, particularly in terms of shape similarity,
+where HDkidney increased by 19.76% and HDtumor was significantly increased by 22.47%.
+The Dicetumor and IoU tumor were improved by 1.28% and 1.39% respectively. We also ex
+amined the results without the GCN branch and found that the GCN mainly contributed
+to learning shape similarity of the segmentation region, as shown in Table 1. Ultimately, by
+255 using CTrans and convG-Trans with attention fusion, we obtained the best segmentation
+performance with respect to all the evaluation measures.
+Table 1. Ablation study results of CTrans, Transformer branch and GCN branch in convG-Trans and
+category-aware attention.
+convG-Trans CTrans
+Category-aware
+attention
+Dicekidney IoU kidney
+H Dkidney
+(mm)
+Dicetumor IoU tumor
+H Dtumor
+(mm)
+Trans GCN
+× × × × 0.9642 0.9318 24.2877 0.8613 0.7728 34.1577
+× × ✓ × 0.9635 0.9305 20.4917 0.8650 0.7757 31.7801
+✓ × × × 0.9644 0.9324 18.1165 0.8662 0.7805 21.5036
+✓ ✓ × × 0.9657 0.9344 19.4871 0.8723 0.7836 26.4821
+✓ ✓ ✓ ✓ 0.9678 0.9382 15.7450 0.8764 0.7896 14.5368
+Figure 3 presents five segmentation results. The baseline model failed to identify the
+complete tumour regions in cases (a-d) and misclassified non-tumour region as tumour in
+(e). Both CTrans and TransLayer were able to identify broader tumour regions in the first
+260 four cases when there were indistinct boundaries between tumor and kidney. Using GCN,
+the convG-Trans further contributed to complete tumour segmentation in cases (a), (b),
+and (c). Using adaptively fused representations from CTrans and convG-Trans, the final
+model achieved the best results, particularly for challenging cases (c) and (e) where there
+are heterogeneous intensity distributions.
+265 The findings can be explained as follows. The results of the ablation study showed that
+the learnt regional node relation representation by convG-Trans, the cross-channel relation
+representation by CTrans, and the adaptive fusion of the two representations contributed to
+11
+
+
+improved segmentation results. Notably, our empirical observations indicated that the cross
+channel relations extracted by the Transformer have the ability to enhance the modelling
+270 of shape information, particularly for tumours with indistinct boundaries. In addition, the
+convolutional graph operations assisted the knowledge propagation between regional nodes,
+especially for different organ regions and tumours that were far apart from each other in the
+CT volume.
+Figure 3. Ablation study results of five cases. Purple and yellow colours show the tumour and kidney regions
+obtained by manual segmentation (GT) and segmentation models.
+3.5. Performance on Different Segmentation Backbones
+275 We also evaluated the generalization ability of our model using different segmenta
+tion backbones including 3D U-Net and 3D ResNet. As shown in Table 2, our HCGT
+outperformed 3D U-Net by 0.52%, 0.96% and 25.66% in terms of Dicekidney, IoU kidney,
+and HDkidney , and increased Dicetumor, IoU tumor, and HDtumor by 1.60%, 2.15% and
+40.07% respectively. Compared to the 3D nnU-Net backbone performance on the kidney,
+280 our model achieved 0.37%, 0.69%, and 35.17% better results on Dicekidney, IoU kidney, and
+HDkidney respectively. For tumor segmentation, our model outperformed the baseline 3D
+nnU-Net by 1.75%, 2.17% and 57.44% in terms of Dicetumor, IoU tumor , and HDtumor. Us
+ing the 3D ResNet backbone, HCGT achieved 0.56%, 1.05%, and 28.70% better results
+on Dicekidney, IoU kidney, and HDkidney, and 1.26%, 1.37%, and 63.45% better results on
+285 Dicetumor, IoU tumor, and HDtumor.
+Table 2. Perforamnce of the newly proposed model (ours) on different segmentation backbones.
+Methods Dicekidney IoU kidney HDkidney (mm)Dicetumor IoU tumor HDtumor(mm)
+3D U-Net 0.9627 0.9292 24.8746 0.8542 0.7626 24.0168 3D U-Net+ours 0.9677 0.9381 18.4930 0.8679 0.7790 14.3937 3D nnU-Net 0.9642 0.9318 24.2877 0.8613 0.7728 34.1577 3D nnU-Net+ours 0.9678 0.9382 15.7450 0.8764 0.7896 14.5368 3D ResNet 0.9620 0.9277 25.3935 0.8508 0.7600 41.7243 3D ResNet+ours 0.9674 0.9374 18.1058 0.8615 0.7704 15.2482
+12
+
+
+Figure 4. Segmentation results of different segmentation backbones. Purple and yellow colours show the
+tumour and kidney regions obtained by manual segmentation (GT) and segmentation models.
+Overall, using nnU-Net as the backbone achieved the best results among all the evaluation
+measures except HDtumor, while the best HDtumor performance was achieved using the
+3D U-Net backbone. The differences in segmentation performance between 3D U-Net and
+nnU-Net backbones were small. However, our HCGT consistently improved segmentation
+290 performance in all the evaluation measures, compared to the backbone models.
+Figure 4 shows four examples of segmentation cases. In situations where there were
+inhomogeneous intensity distributions, the baseline models were unable to detect the tumour
+boundary in cases (a), (c), and (e), but the use of HCGT contributed to complete tumour
+delineations. In cases (c) and (d), where there were irregular shapes, the baseline models
+295 misclassified the kidney region as a tumour. However, HCGT achieved better results in these
+two cases by utilizing the regional node relations and feature channel information learnt from
+a diverse range of regions in the CT volume.
+3.6. Comparison with Other Methods
+Table 3 presents the comparison results of our segmentation model with other methods.
+300 Our model achieved Dicekidney of 0.9678, IoU kidney of 0.9382, HDkidney of 15.7450 mm,
+Dicetumor of 0.8764, IoU tumor of 0.7896, and HDtumor of 14.5368 mm, which outperformed
+other graph-based kidney and tumour segmentation models, Transformer based approaches
+and commonly used U-Net benchmark architecture. The second-best model for kidney
+segmentation in terms of spatial overlap performance was achieved by the multi-scaleGCN,
+305 followed by adaptive GNN. The second-best HDkidney was obtained by dynamic GCN, which
+was 11.60% worse than ours, followed by adaptive GNN. For tumour segmentation results,
+the second and third best models were adaptive GNN and multi-scale GCN respectively. Our
+model outperformed adaptive GNN by 0.4%, 0.56% and 23.56% with respect to Dicetumor,
+13
+
+
+IoU tumor, and HDtumor.
+310 We interpret the results in two key ways. First, the findings demonstrate that graph
+based models such as GCN and GNN are successful in capturing the information that is
+displayed across different organs and tumours which may be situated nearby or far apart.
+This is because the graph structure is capable of transmitting information between nodes
+in various regions through the edges present in the entire image volume. This information
+315 propagation is not constrained by physical distances. In contrast, convolutional operations
+mainly concentrate on small areas, while the Transformer model is adept at capturing global
+relationships. Second, our approach yielded better results than other graph-based models,
+indicating that TransLayer’s ability to learn connections between nodes in different regions
+can improve the optimization of graph topology and attribute vectors during the convolution
+320 process. This confirms our assumption that our convG-Trans approach can address the issue
+of information saturation in optimizing and merging deep correlations between graph nodes,
+which is often encountered in other deep graph models.
+Table 3. Comparison with other methods over Kidney and Tumor Segmentation Dataset
+Methods Dicekidney IoU kidney HDkidney (mm) Dicetumor IoU tumor HDtumor(mm)
+3D U-Net [1] 0.9627 0.9292 24.8746 0.8542 0.7626 24.0168 3D nnU-Net [2] 0.9642 0.9318 24.2877 0.8613 0.7728 34.1577 MSS U-net* [30] 0.9580 0.9200 21.1230 0.8210 0.7200 49.3470 Graph Reasoning nnU-Net* [31] 0.9380 0.8900 20.1310 0.8530 0.7560 36.5740 DynamicGCN [16] 0.9613 0.9259 17.5710 0.8649 0.7722 33.8393 TransUNet [24] 0.9639 0.9313 25.8252 0.8622 0.7732 37.0659 TransBTS [32] 0.9637 0.9306 30.9536 0.8675 0.7773 34.4987 AdaptiveGNN [18] 0.9645 0.9326 18.1211 0.8725 0.7852 19.0169 Multi-scaleGCN [17] 0.9660 0.9350 18.7874 0.8648 0.7842 23.2378 Ours (nnU-Net backbone) 0.9678 0.9382 15.7450 0.8764 0.7896 14.5368
+*Copied directly from original paper
+3.7. Generalisation Ability on Lung and NSCLC GTV Segmentation Task
+Finally, we demonstrate the robustness of the HCGT model in lung and NSCLC GTV
+325 segmentation tasks. The results in Table 4 show that our model consistently achieved
+the best results for Dicelung, IoU lung, and HDlung at 0.9921, 0.9841, and 92.132mm, and
+Dicetumor, IoU tumor, and HDtumor at 0.6085, 0.4937, and 34.7168mm. The second-best lung
+and GTV segmentation results in terms of Dice and IoU were achieved by the adaptive GNN
+whose Dicelung and IoU lung were 0.9919 and 0.9839, followed by the multi-scale GCN and
+330 TransBTS. The multi-scale GCN obtained the second-best HD of 93.4592 for lung and HD
+of 81.268mm for tumour.
+Overall, GCN and GNN based models obtained comparable spatial overlapping results
+in terms of Dice and IoU when compared to TransUNet and TransBTS. However, the graph
+model significantly outperformed other models with respect to shape similarity between the
+335 automated segmentation results and GT as reflected by the HD of the lung and GTV.
+The main reason for the superior performance of graph models is their capacity to enable
+the propagation of knowledge and reasoning between local and long-range regions without
+14
+
+
+being constrained by rigid feature spaces. Furthermore, the modelling of multi-scale infor
+mation from a wide range of regions can aid in the learning of shape information for various
+340 organs and tumours.
+Table 4. Comparison with other methods on SDCH Lung and Tumour Segmentation Dataset
+Methods DiceLung IoU Lung HDLung (mm) Dicetumor IoU tumor HDtumor(mm)
+3D U-Net [1] 0.9911 0.9824 107.0010 0.5843 0.4511 124.3670 3D nnU-Net [2] 0.9920 0.9843 99.1273 0.5738 0.4501 130.4220 MSS U-net [30] 0.9914 0.9829 98.4965 0.5643 0.439 144.4847 Graph Reasoning nnU-Net [31] 0.9910 0.9823 106.3122 0.5702 0.4427 138.0237 DynamicGCN [16] 0.9910 0.9841 104.4640 0.5876 0.4598 128.4282 TransUNet [24] 0.9907 0.9817 108.3836 0.5769 0.4464 184.9273 TransBTS [32] 0.9910 0.9823 106.0030 0.6004 0.4678 131.2027 AdaptiveGNN [18] 0.9919 0.9839 93.9971 0.6054 0.4819 115.2876 Multi-scaleGCN [17] 0.9917 0.9836 93.4592 0.5847 0.4657 81.2680 Ours (nnU-Net backbone) 0.9921 0.9841 92.1320 0.6085 0.4937 34.7168
+3.8. Model Complexity Analysis
+Table 5 provides information on our model’s complexity in terms of to GPU memory
+usage, floating-point operations per second (FLOPS), number of parameters, and average
+training time.
+345 When comparing the baseline model to the baseline + CTrans model, we can see that
+CTrans requires 1.868MB of GPU memory, 0.85M parameters, and 25.82 seconds per epoch
+training time. The transformer branch in convG-Trans requires similar GPU memory usage
+of 1.857MB, GLOPs of 0.93, and 26.18 seconds per epoch training time. However, the
+Transformer-based learning component in convG-Trans requires 2.15M parameters, which
+350 is greater than CTrans. This is primarily due to the inclusion of position embedding and
+feature extraction operations along different feature channel and spatial dimensions. The
+GCN in convG-Trains requires 14M GPU memory, 0.11 GLOPs, 0.34M parameters, and
+1.27 seconds average training time, which is very efficient compared to transformer and
+CNN operations. Finally, the entire HCGT model requires 28.2% more GPU memory, 0.1%
+355 more GLOPs, 14.1% more parameters, and 6.6% longer average training time than the
+nnU-Net backbone alone.
+Table 5. Model complexity analysis with respect to GPU memory, floating-point operations per second
+(FLOPS), number of parameters and average training time (Second per epoch).
+convG-Trans CTrans
+Category-aware
+attention
+Memory
+(GPU) (MB)
+FLOPS Parameters(M)
+Average
+training time
+Trans GCN
+× × × × 6,818 1252.19 30.7860 477.27
+× × ✓ × 8,686 1252.66 31.6340 503.09
+✓ × × × 8,675 1253.12 33.8989 503.45
+✓ ✓ × × 8,689 1253.23 34.2360 504.72
+✓ ✓ ✓ ✓ 8,742 1253.72 35.1163 508.76
+15
+
+
+4. Conclusion
+This paper introduces a novel approach for segmenting organs and tumours in CT vol
+umes, called the cross-channel and regional node relation enhanced hybrid graph convolu
+360 tion transformer (HCGT). The HCGT model combines a channel-wise transformer to model
+contextual relations between features in different feature channels and a convolution graph
+transformer to prevent information saturation in deep graph convolution and learn enhanced
+relations between regional image nodes. We evaluate the HCGT model on kidney and tu
+mour and lung tumour segmentation tasks and show improved performance compared to
+365 other methods. Furthermore, we demonstrate the robustness of our model when used with
+different segmentation backbones
+Credit authorship contribution statement
+Hui Cui: Designed the method and participated in manuscript writing. Qiangguo
+Jin: Participated in experiment design. Xixi Wu: Participated in experiment design.
+370 Linlin Wang: Participated in experiment design and data analysis. Tiangang Zhang:
+Participated in method design. Toshiya Nakaguchi: Participated in experiment design.
+Ping Xuan: Designed the method and participated in experiment design. David Dagan
+Feng: Participated in method design.
+Declaration of competing interest
+375 The authors declare that they have no known competing financial interests or personal
+relationships that could have appeared to influence the work reported in this paper.
+Acknowledgments
+This work was supported by the Natural Science Foundation of China (61972135, 62172143,
+82172865, 62201460), STU Scientific Research Institution Grant (NTF22032), the Natural
+380 Sience Foundation of Heilongjiang Province (LH2023F044), and the China Postdoctoral
+Science Foundation (2019M650069, 2020M670939). (Corresponding author: Ping Xuan)
+All authors contributed to the article and approved the submitted version.
+References
+[1] O ̈ . C ̧ i ̧cek, A. Abdulkadir, S. S. Lienkamp, T. Brox, O. Ronneberger, 3d u-net: Learning dense volu
+385 metric segmentation from sparse annotation, in: Medical Image Computing and Computer-Assisted
+Intervention–MICCAI 2016: 19th International Conference, Athens, Greece, October 17-21, 2016, Pro
+ceedings, Part II 19, Springer, 2016, pp. 424–432.
+[2] F. Isensee, P. F. Jaeger, S. A. Kohl, J. Petersen, K. H. Maier-Hein, nnu-net: A self-configuring method
+for deep learning-based biomedical image segmentation, Nature Methods 18 (2021) 203–211.
+390 [3] N. Heller, F. Isensee, K. H. Maier-Hein, X. Hou, C. Xie, F. Li, Y. Nan, G. Mu, Z. Lin, M. Han, et al.,
+The state of the art in kidney and kidney tumor segmentation in contrast-enhanced ct imaging: Results
+of the kits19 challenge, Medical image analysis 67 (2021) 101821.
+16
+
+
+[4] Q. Jin, Z. Meng, C. Sun, H. Cui, R. Su, Ra-unet: A hybrid deep attention-aware network to extract
+liver and tumor in ct scans, Frontiers in Bioengineering and Biotechnology 8 (2020) 1471.
+395 [5] H. Zhao, J. Shi, X. Qi, X. Wang, J. Jia, Pyramid scene parsing network, in: Proceedings of the IEEE
+Conference on Computer Vision and Pattern Recognition, 2017, pp. 2881–2890.
+[6] H. Zhao, J. Jia, V. Koltun, Exploring self-attention for image recognition, in: Proceedings of the IEEE
+Conference on Computer Vision and Pattern Recognition, 2020, pp. 10076–10085.
+[7] A. Sinha, J. Dolz, Multi-scale self-guided attention for medical image segmentation, IEEE Journal of
+400 Biomedical and Health Informatics 25 (2020) 121–130.
+[8] P. Xuan, B. Jiang, H. Cui, Q. Jin, P. Cheng, T. Nakaguchi, T. Zhang, C. Li, Z. Ning, M. Guo, et al.,
+Convolutional bi-directional learning and spatial enhanced attentions for lung tumor segmentation,
+Computer Methods and Programs in Biomedicine 226 (2022) 107147.
+[9] X. Wang, M. Zhu, D. Bo, P. Cui, C. Shi, J. Pei, Am-gcn: Adaptive multi-channel graph convolutional
+405 networks, in: Proceedings of the 26th ACM SIGKDD International conference on knowledge discovery
+& data mining, 2020, pp. 1243–1253.
+[10] H. Cui, X. Wang, J. Zhou, G. Gong, S. Eberl, Y. Yin, L. Wang, D. Feng, M. Fulham, A topo
+graph model for indistinct target boundary definition from anatomical images, Computer Methods and
+Programs in Biomedicine 159 (2018) 211–222.
+410 [11] C. Zhang, D. Song, C. Huang, A. Swami, N. V. Chawla, Heterogeneous graph neural network, in:
+Proceedings of the 25th ACM SIGKDD international conference on knowledge discovery & data mining,
+2019, pp. 793–803.
+[12] P. Velicˇkovi ́c, G. Cucurull, A. Casanova, A. Romero, P. Lio, Y. Bengio, Graph attention networks,
+arXiv preprint arXiv:1710.10903 (2017).
+415 [13] F. Manessi, A. Rozza, M. Manzo, Dynamic graph convolutional networks, Pattern Recognition 97
+(2020) 107000.
+[14] P. Xuan, L. Zhan, H. Cui, T. Zhang, T. Nakaguchi, W. Zhang, Graph triple-attention network for
+disease-related lncrna prediction, IEEE Journal of Biomedical and Health Informatics 26 (2021) 2839
+2849.
+420 [15] H. Cui, P. Xuan, Q. Jin, M. Ding, B. Li, B. Zou, Y. Xu, B. Fan, W. Li, J. Yu, et al., Co-graph attention
+reasoning based imaging and clinical features integration for lymph node metastasis prediction, in:
+Medical Image Computing and Computer Assisted Intervention–MICCAI 2021: 24th International
+Conference, Strasbourg, France, September 27–October 1, 2021, Proceedings, Part V 24, Springer,
+2021, pp. 657–666.
+425 [16] P. Xuan, H. Cui, H. Zhang, T. Zhang, L. Wang, T. Nakaguchi, H. B. Duh, Dynamic graph convolutional
+autoencoder with node-attribute-wise attention for kidney and tumor segmentation from ct volumes,
+Knowledge-Based Systems 236 (2022) 107360.
+[17] P. Xuan, H. Bi, H. Cui, Q. Jin, T. Zhang, H. Tu, P. Cheng, C. Li, Z. Ning, H. B. Duh, et al., Graph
+based multi-scale neighboring topology deep learning for kidney and tumor segmentation, Physics in
+430 Medicine & Biology 67 (2022) 225018.
+[18] P. Xuan, X. Wu, H. Cui, Q. Jin, L. Wang, T. Zhang, T. Nakaguchi, H. B. Duh, Multi-scale random walk
+driven adaptive graph neural network with dual-head neighboring node attention for ct segmentation,
+Applied Soft Computing 133 (2023) 109905.
+[19] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, L. Kaiser, I. Polosukhin,
+435 Attention is all you need, Advances in Neural Information Processing Systems 30 (2017).
+[20] Z. Liu, Y. Lin, Y. Cao, H. Hu, Y. Wei, Z. Zhang, S. Lin, B. Guo, Swin transformer: Hierarchical vision
+transformer using shifted windows, in: Proceedings of the IEEE/CVF Conference on Computer Vision
+and Pattern Recognition, 2021, pp. 10012–10022.
+[21] S. Zheng, J. Lu, H. Zhao, X. Zhu, Z. Luo, Y. Wang, Y. Fu, J. Feng, T. Xiang, P. H. Torr, et al.,
+440 Rethinking semantic segmentation from a sequence-to-sequence perspective with transformers, in:
+Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, 2021, pp. 6881
+6890.
+17
+
+
+[22] H. Zhao, L. Jiang, J. Jia, P. H. Torr, V. Koltun, Point transformer, in: Proceedings of the IEEE/CVF
+International Conference on Computer Vision, 2021, pp. 16259–16268.
+445 [23] A. Arnab, M. Dehghani, G. Heigold, C. Sun, M. Luˇci ́c, C. Schmid, Vivit: A video vision transformer,
+in: Proceedings of the IEEE/CVF International Conference on Computer Vision, 2021, pp. 6836–6846.
+[24] J. Chen, Y. Lu, Q. Yu, X. Luo, E. Adeli, Y. Wang, L. Lu, A. L. Yuille, Y. Zhou, Transunet: Transformers
+make strong encoders for medical image segmentation, arXiv preprint arXiv:2102.04306 (2021).
+[25] Y. Zheng, R. H. Gindra, E. J. Green, E. J. Burks, M. Betke, J. E. Beane, V. B. Kolachalama, A graph
+450 transformer for whole slide image classification, IEEE Transactions on Medical Imaging 41 (2022)
+3003–3015.
+[26] G. Chen, H. Jiang, J. Liu, J. Ma, H. Cui, Y. Xia, P.-T. Yap, Hybrid graph transformer for tissue
+microstructure estimation with undersampled diffusion mri data, in: Medical Image Computing and
+Computer Assisted Intervention–MICCAI 2022: 25th International Conference, Singapore, September
+455 18–22, 2022, Proceedings, Part I, Springer, 2022, pp. 113–122.
+[27] Y. Wang, Y. Xie, L. Fan, G. Hu, Stmg: Swin transformer for multi-label image recognition with graph
+convolution network, Neural Computing and Applications 34 (2022) 10051–10063.
+[28] F.-J. Chang, M. Radfar, A. Mouchtaris, B. King, S. Kunzmann, End-to-end multi-channel transformer
+for speech recognition, in: ICASSP 2021-2021 IEEE International Conference on Acoustics, Speech
+460 and Signal Processing (ICASSP), IEEE, 2021, pp. 5884–5888.
+[29] N. Heller, N. Sathianathen, A. Kalapara, E. Walczak, K. Moore, H. Kaluzniak, J. Rosenberg, P. Blake,
+Z. Rengel, M. Oestreich, et al., The kits19 challenge data: 300 kidney tumor cases with clinical context,
+ct semantic segmentations, and surgical outcomes, arXiv preprint arXiv:1904.00445 (2019).
+[30] W. Zhao, D. Jiang, J. P. Queralta, T. Westerlund, Mss u-net: 3d segmentation of kidneys and tumors
+465 from ct images with a multi-scale supervised u-net, Informatics in Medicine Unlocked 19 (2020) 100357.
+[31] Y. Chen, M. Rohrbach, Z. Yan, Y. Shuicheng, J. Feng, Y. Kalantidis, Graph-based global reasoning
+networks, in: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition,
+2019, pp. 433–442.
+[32] W. Wang, C. Chen, M. Ding, H. Yu, S. Zha, J. Li, Transbts: Multimodal brain tumor segmentation
+470 using transformer, in: Medical Image Computing and Computer Assisted Intervention–MICCAI 2021:
+24th International Conference, Strasbourg, France, September 27–October 1, 2021, Proceedings, Part
+I 24, Springer, 2021, pp. 109–119.
+[33] K. H. Zou, S. K. Warfield, A. Bharatha, C. M. Tempany, M. R. Kaus, S. J. Haker, W. M. Wells III,
+F. A. Jolesz, R. Kikinis, Statistical validation of image segmentation quality based on a spatial overlap
+475 index1: scientific reports, Academic radiology 11 (2004) 178–189.
+[34] D. P. Huttenlocher, G. A. Klanderman, W. J. Rucklidge, Comparing images using the hausdorff
+distance, IEEE Transactions on Pattern Analysis and Machine Intelligence 15 (1993) 850–863.
+18
+
+
+Hui Cui is with Department of Computer Science and Information Technology, La Trobe University, Melbourne, Australia (e-mail: L.Cui@latrobe.edu.au). ORCID: 0000-0001-8224-4698
+Qiangguo Jin is with School of Software, Northwestern Polytechnical University, Shaanxi, China (email: qgking@nwpu.edu.cn). ORCID: 0000-0002-1781-1067
+Xixi Wu is with School of Computer Science, Heilongjiang University, Harbin, China (e-mail: wuxixihdu@126.com).
+Linlin Wang is with Department of Radiation Oncology, Shandong Cancer Hospital and Institute, Shandong First Medical University and Shandong Academy of Medical Sciences, Jinan, China (e-mail: wanglinlinatjn@163.com).
+Tiangang Zhang is with School of Mathematical Science, Heilongjiang University, Harbin 150080, China (e-mail: zhang@hlju.edu.cn).
+Toshiya Nakaguchi is with Center for Frontier Medical Engineering, Chiba University, Chiba 2638522, Japan (e-mail: nakaguchi@faculty.chiba-u.jp).
+Ping Xuan is with Department of Computer Science, School of Engineering, Shantou University, Shantou, China (e-mail: xuanping@hlju.edu.cn). ORCID: 0000-0001-5328-691X
+David Dagan Feng is with School of Computer Science, The University of Sydney, Sydney, Australia (e-mail: dagan.feng@sydney.edu.au).
+ORCID Information
+
+
+ A novel hybrid graph convolution transformer for accurate and robust organ and tumour segmentation from volumetric CT.
+ A convolutional graph transformer is innovatively designed to simultaneously and interactively learn enhanced relationships across different parts of the image, preventing information saturation in node attributes by evolving both node attributes and topology during the learning process.
+ A novel channel transformer module is designed to empower the network to learn contextual relationships across different feature channels, enhancing the overall feature learning performance of the model.
+ The category-level attention fusion module automatically weighs relative importance of different representations for adaptive fusion.
+ Comprehensive evaluations using different organs on both public and in-house datasets.
+Highlights
+
+
+Declaration of interests
+☒The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+☐The authors declare the following financial interests/personal relationships which may be considered as potential competing interests:
+Declaration of Interest Statement

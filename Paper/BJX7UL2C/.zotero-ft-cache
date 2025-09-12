@@ -1,0 +1,438 @@
+DPMGCDA: Deciphering circRNA−Drug Sensitivity Associations with Dual Perspective Learning and Path-Masked Graph Autoencoder
+Yue Luo and Lei Deng*
+Cite This: J. Chem. Inf. Model. 2024, 64, 4359−4372 Read Online
+ACCESS Metrics & More Article Recommendations s*ı Supporting Information
+ABSTRACT: Accumulating evidence has indicated that the expression of circular RNAs (circRNAs) can affect the cellular sensitivity to drugs and significantly influence drug efficacy. However, traditional experimental approaches for validating these associations are resourceintensive and time-consuming. To address this challenge, we propose a computational framework termed DPMGCDA leveraging dual perspective learning and path-masked graph autoencoder to predict circRNA− drug sensitivity associations. Initially, we construct circRNA−circRNA fusion similarity networks and drug−drug fusion similarity networks using similarity network fusion, ensuring a comprehensive integration of information. Based on the above, we built the circRNA homogeneous graph, the drug homogeneous graph, and the circRNA−drug heterogeneous graph. Next, we form the initial node features in the circRNA−drug heterogeneous graph from the homogeneous graph-level perspective and the combined feature-level perspective and complete the prediction of potential associations using the path-masked graph autoencoder in both perspectives. The predictions under both perspectives are finally combined to obtain the final prediction score. Transductive setting experiments and inductive setting experiments all demonstrate that our method, DPMGCDA, outperforms state-of-the-art approaches. Additionally, we verify the necessity of employing dual perspective learning through ablation tests and analyze the effective encoding capability of the pathmasked graph autoencoder for features through embedding visualization. Moreover, case studies on four drugs corroborate DPMGCDA’s ability to identify potential circRNAs associated with new drugs.
+■
+INTRODUCTION
+Circular RNA (circRNA) constitutes a novel class of functional noncoding RNA characterized by a closed-loop structure,
+prevalent within the eukaryotic transcriptome.1 Primarily composed of exon sequences, circRNAs exhibit conservation across diverse species while concurrently demonstrating tissuespecific expression patterns across various developmental stages. Notably distinct from traditional linear RNA, circRNAs’ closed circular configuration renders them resistant to exonuclease-mediated degradation, endowing them with enhanced stability. Advancements in RNA sequencing technology and bioinformatics have unveiled the abundance and diversity of circRNAs, elucidating their dynamic expression profiles across distinct developmental stages and
+physiological conditions.2 Furthermore, circRNAs have been
+found to encode proteins,3,4 serve as scaffolds in protein
+complex assembly,5 mediate subcellular protein localization,6
+regulate parental gene expression,7−10 modulate alternative
+splicing,11,12 facilitate RNA−protein interactions,13 and act as
+microRNA sponges,10,14−18 among other functions. Recently, there is a growing body of evidence suggesting that the expression of circRNAs can significantly impact cellular sensitivity to drugs, thereby influencing drug efficacy. Investigations into cisplatin resistance mechanisms have
+revealed the influential role of circRNAs in this process. For
+instance, Li et al.19 identified has_circ_0002483 as capable of reducing the expression level of miR-182-5p, thereby alleviating its inhibition of target molecules GRB2, FOXO1, and FOXO3, ultimately enhancing the sensitivity of non−
+small-cell lung cancer to paclitaxel. Similarly, Liu et al.20 reported that hsa_circ_0060060 enhances thyroid carcinoma resistance to cisplatin by acting as a sponge for miR-144-3p, consequently increasing the expression of TGF-α and promoting autophagy while suppressing cell apoptosis.
+Mechanistic experiments conducted by Rao et al.21 revealed that overexpression of hsa_circ_0007874 suppresses cell proliferation, fosters apoptosis, and reduces glioblastoma cell resistance to Temozolomide by regulating miR-630. Further
+more, Chi et al.22 explored the differential expression of circRNAs in bladder cancer cell lines, highlighting a nearly 3
+Received: April 3, 2024 Revised: May 2, 2024 Accepted: May 2, 2024 Published: May 15, 2024
+pubs.acs.org/jcim Article
+© 2024 American Chemical Society 4359
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+Downloaded via ZHEJIANG UNIV on September 22, 2024 at 07:20:09 (UTC).
+See https://pubs.acs.org/sharingguidelines for options on how to legitimately share published articles.
+
+
+fold decrease in the expression of hsa_circ_0000285 in cisplatin-resistant cells compared to that in cisplatin-sensitive counterparts. These studies collectively demonstrate the involvement of circRNAs in drug resistance development through various molecular mechanisms, underscoring the potential of circRNA−drug resistance associations to guide strategies for preventing and managing drug resistance. Compared to traditional costly and time-intensive biomedical approaches, computational methods offer efficient and convenient means to predict the relationship between circRNA and drug sensitivity, significantly reducing both cost and time.
+For instance, Deng et al.23 organized circRNA and drug sensitivity information and introduced the GATECDA prediction method based on graph attention autoencoder
+(GATE).24 Yang et al.’s study,25 namely, MNGACDA, builds
+upon the groundwork laid by Deng et al.,23 integrating a nodelevel attention layer into their deep graph neural network
+architecture. Lu et al.’s study26 DHANMKF constructed the combined kernel in circRNA and drug spaces through duallevel attention networks and multikernel fusion and inferred the potential associations between circRNAs and drug sensitivity using dual Laplacian-regularized least-squares. Li et
+al.27 proposed a computational framework named DGATCCDA, in which they used DeepWalk and graph attention networks to extract node embeddings, ultimately employing an inner product method to construct an association matrix between circRNAs and drugs for prediction. Moreover, in the biomedical field, where labeled data are often scarce and valuable, self-supervised learning offers a promising approach to address this challenge. By deriving supervisory signals from the data itself via various handcrafted auxiliary tasks, known as pretext tasks, self-supervised learning can effectively mitigate the scarcity of labeled data. Among selfsupervised learning paradigms tailored for graph data, contrastive learning stands out as a widely adopted approach. By learning invariant representations from diverse expanded views of a graph, contrastive learning has demonstrated significant success across various graph representation learning
+tasks. In the study MNCLCDA proposed by Li et al.,28 a contrastive learning approach was adopted for predicting the association between circRNAs and drug sensitivity. They utilized mixed neighborhood information and double Laplacian-regularized least-squares for prediction, and the application of contrastive learning enhanced the robustness of the model they proposed. However, the effectiveness of graph contrastive methods heavily relies on specialized and complex pretext tasks for self-supervised learning. In particular, data augmentation plays a crucial role in contrasting different structured views of graphs, thus enhancing the robustness and generalizability of the learned representations. To the best of current knowledge, the methods mentioned above represent all existing computational approaches for predicting the association between circRNAs and drug sensitivity. Despite advancements, these methods have limitations. Notably, existing methods fail to adequately handle circRNA and drug similarity information as well as association information from different sources, and most of them have not explored the performance of the models in cold-start scenarios. Thus, there is still considerable room for improving the prediction performance and ensuring more reliable prediction of circRNA−drug sensitivity associations. In this study, we present DPMGCDA, a novel computational framework designed to predict the sensitivity associa
+tions between circRNAs and drugs. Our approach begins by constructing circRNA−circRNA and drug−drug fusion similarity networks using similarity network fusion (SNF), employing a nonlinear integration method to amalgamate multiple similarity data sources from circRNAs and drugs, respectively. Subsequently, we build a circRNA−drug heterogeneous graph based on two homogeneous graphs derived from the two fusion similarity networks and circRNA−drug association network. Next, we make predictions about the possibility of association from dual perspectives, the initial features of the nodes in the circRNA−drug heterogeneous graph formed from the homogeneous graph level and the combined feature level. In both perspectives, the possibility of association of each circRNA−drug pair is predicted by pathmasked graph autoencoder, which adopts masked graph modeling (MGM) as the pretext task to strengthen the learning of known associations in the heterogeneous graph through a contrastive learning strategy. The final prediction of the model is obtained by combining the predictions from both perspectives. To assess the performance of DPMGCDA, we conduct comparative analyses with five state-of-the-art methods under transductive setting experiments and inductive setting experiments. Our experimental findings demonstrate that DPMGCDA outperforms existing approaches. Additionally, we conduct the ablation study and embedding visual analysis to explore the necessity of using dual perspective learning and path MGM. Parameter sensitivity experiments enabled the identification of optimal settings for the model. In conclusion, our case studies provide empirical evidence that DPMGCDA effectively predicts previously unknown circRNA−drug sensitivity associations in real-world scenarios.
+■
+MATERIALS AND METHODS
+Data Source. We utilized the circRNA−drug association data set obtained from ref 23 as our benchmark data set. The drug sensitivity data in the data set were obtained from the
+GDSC database,29 comprising 271 circRNAs and 218 drugs. After the Wilcoxon test with a false discovery rate <0.05, 4134 significant circRNA−drug sensitivity associations were included. In our experiments, circRNAs and drugs are represented as two different types of nodes. The node set Nc of circRNAs is defined as C = {c1, ···, cNdc}. Similarly, the node set Nd of drugs is described as D = {d1, ···, dNd}. We construct
+the circRNA−drug association matrix *
+A RNc Nd. For the element Aij in A, Aij = 1 denotes that the circRNA ci and the sensitivity of drug dj are pertinent; otherwise Aij = 0. Additionally, we also downloaded the host gene sequences of circRNAs from the National Center for Biotechnology
+Information (NCBI) gene database,30 and the drug structure
+data were downloaded from NCBI’s PubChem database.31
+Similarity Calculation. Sequence Similarity of Host
+Genes of circRNAs. Similar to previous studies,23,25 we used the sequence similarity between circRNA host genes as a measure of circRNA similarity. Sequence similarity between circRNA’s host genes was obtained based on the Levenshtein distances, which were computed via the Levenshtein-package’s ratio function in python. The resulting circRNA sequence similarity matrix *
+CSS RNc Nc was obtained (for more details, see Section S1 in the Supporting Information).
+Structural Similarity of Drugs. The structure of a drug has a significant impact on its functionality, making it reasonable to
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4360
+
+
+measure drug similarity based on structural similarities. Based
+on previous research studies,23,25 we selected the RDKit toolkit and the Tanimoto method to calculate the structural similarity of drugs. First, we obtained structural data for several drugs from the PubChem database. RDKit was employed to calculate the topological fingerprints for each drug, and the Tanimoto method was used to compute the structural similarity between drugs. Finally, the drug structure similarity matrix, denoted as *
+DSS RNd Nd, was exported.
+GIP Kernel Similarity of circRNAs and Drugs. Gaussian interaction profile (GIP) nuclear similarity is a method commonly used in bioinformatics and network biology to measure the similarity between two biological entities (e.g., genes, proteins, or drugs), which helps to obtain topological information about circRNAs and drugs in a relational graph. Based on the assumption that circRNAs associated with the same drug sensitivity are more likely to be similar, we define the binary vector IP(ci), which is the ith row of the matrix A, representing the association between circRNA ci with all drug sensitivities. The GIP nuclear similarity matrix for circRNAs is calculated as follows
+CGS(c , c ) = exp( IP(c ) IP(c ) )
+ij i j
+c
+2
+(1)
+i
+k
+jjjjjj
+y
+{
+zzzzzz
+=
+=
+/ N1 IP(c )
+i
+N
+i
+cc c1
+2
+c
+(2)
+αc was set to 1 as in the previous research work. Similarly, we compute the GIP nuclear similarity matrix of the drug
+DGS(d , d ) = exp( IP(d ) IP(d ) )
+ij i j
+d
+2
+(3)
+i
+k
+jjjjjj
+y
+{
+zzzzzz
+=
+=
+/ N1 IP(d )
+i
+N
+i
+dd d1
+2
+d
+(4)
+Here, IP(di) is the ith column of the association matrix A, representing the association between the sensitivity of drug di with all circRNAs. αd was set to 1 as in the previous research work. Model Framework. The general architecture of DPMGCDA is shown in Figure 1. The proposed model consists of three main steps:
+(1) Fusion of similarity networks and construction of graphs: Based on the similarity network constructed through multiple information sources, the integration of them is accomplished using SNF, and the similarity network is processed by binarization to obtain the circRNA−circRNA homogeneous graph and the drug− drug homogeneous graph. A circRNA−drug heterogeneous graph is constructed based on two homogeneous graphs and circRNA−drug association information. (2) Feature construction of heterogeneous graph nodes in dual perspective: The feature construction of the corresponding nodes of circRNA molecules and drug
+Figure 1. Illustrative flowchart of the proposed DPMGCDA model for circRNA and drug sensitivity association prediction. Representations of the corresponding nodes of circRNA and drugs are constructed in both homogeneous graph-level perspective and combined feature perspective, and then, the generated node representations are applied as the initial features for propagation on the heterogeneous graph in each perspective. In the training phase, the graph autoencoder’s ability to recognize higher-order proximity information is strengthened by a path-masked strategy on the heterogeneous graph, and the trained graph autoencoder is used in the prediction phase to perform unknown link prediction between nodes. The link prediction will be performed simultaneously in both perspectives, and the final prediction result of the model is obtained by averaging the predictions in both perspectives.
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4361
+
+
+molecules in the heterogeneous graph is accomplished in the homogeneous graph-level perspective and combined feature-level perspective, respectively, to serve as the initial features of the nodes for the subsequent association prediction in the dual perspective. (3) Association prediction and combination of predicted results: In both perspectives, we use the path-masked graph autoencoder to learn higher-order proximate neighbor information for each node in the circRNA− drug heterogeneous graph to improve the representation of node embeddings, and thus, we make accurate predictions about unknown connections between nodes in the heterogeneous graph. Finally, the predictions obtained from the two perspectives are combined to obtain the prediction output by the model.
+In the following, we provide an introduction to each step. Fusion of Similarity Network and Graph Construction. We have obtained sequence similarity network and GIP nuclear similarity network for circRNA, as well as structural similarity network and GIP nuclear similarity network for drugs. Considering that the information in each independent similarity network is relatively sparse and incomplete, it is crucial to perform SNF. SNF is a method for fusing multiple similarity networks with the goal of integrating different types of data features to improve the performance of data analysis and mining. SNF provides an equivalent system matrix for each similarity network to generate an equivalent system matrix and fuses these networks using a nonlinear combination method such as k-nearest neighbor. This method can effectively deal with the sparsity and incompleteness in similarity networks. For circRNAs, CSS and CGS are normalized to obtain NCSS and NCGS, and then, KNCSS and KNCGS are obtained by KNN processing as shown in eqs 5 and 6
+l
+m
+oooooo
+n
+oooooo
+cc =
+cc c c c Nc
+KNCSS( , )
+NCSS( , )
+NCSS( , ) , ( )
+0, otherwise
+ij
+ij
+c Nc i j
+ji ()
+ki
+(5)
+l
+m
+oooooo
+n
+oooooo
+cc =
+cc c c c Nc
+KNCGS( , )
+NCGS( , )
+NCGS( , ) , ( )
+0, otherwise
+ij
+ij
+c Nc i j
+ji ()
+ki
+(6)
+where N(ci) is the collection of K-nearest neighbors of ci. Finally, multiple similar networks are fused using an iterative method.
+NCSS = KNCSS × NCSS × KNCSS , t 1
+tt
+T 1
+(7)
+NCGS = KNCGS × NCGS × KNCGS , t 1
+tt
+T 1
+(8)
+where t is the number of iterations. The initial NCSS0 = NCSS and NCGS0 = NCGS. After iterating t times, we get the final NCSSt and NCGSt, and the final fusion similarity network for circRNAs is the average of these two networks.
+=+
+CSMM NCSS NCGS
+2
+tt
+(9)
+Similarly, the fusion similarity network of drugs was calculated by SNF and obtained NDSSt and NDGSt, and the
+final fusion similarity network for drugs is the average of these two networks.
+=+
+DSMM NDSS NDGS
+2
+tt
+(10)
+These two fusion similarity networks were binarized according to the specified thresholds cth and dth, respectively, to obtain circRNA−circRNA homogeneous graph CG = (Vc, Ec) and drug−drug homogeneous graph DG = (Vd, Ed), and the corresponding adjacency matrices of them are *
+CSM RNc Nc
+and *
+DSM RNd Nd. Furthermore, based on the two homogeneous graphs and by integrating circRNA−drug sensitivity association information, we constructed a circRNA−drug heterogeneous graph HG = (V, E), V = Vc ∪ Vd, Ec ⊆ E, Ed ⊆ E. The specific definition of the adjacency matrix of HG is as follows Ä
+Ç
+ÅÅÅÅÅÅÅÅÅ
+É
+Ö
+ÑÑÑÑÑÑÑÑÑ
+=A
+A
+HGM CSM DSM
+T (11)
+Feature Construction of Heterogeneous Graph Nodes in Dual Perspective. Homogeneous Graph-Level Perspective. Under the homogeneous graph-level perspective,
+we applied the graph convolutional network (GCN)32 on both the circRNA−circRNA homogeneous graph and the drug− drug homogeneous graph to generate subsequent node features for association prediction. Taking circRNA as an example, each circRNA node has an input feature vector xc
+(in)
+i,
+which is initialized from a standard normal distribution. Next, we utilize the GCN to generate the circRNA representation based on the homogeneous graph of circRNA as follows
+i
+k
+jjjjjjjj
+y
+{
+zzzzzzzz
+x = b + px W
+1
+c
+c N ij
+c
+(out)
+c
+(in) c
+i
+j ci
+j
+( ) (12)
+where N(ci) is the set of neighbors of node ci in the
+homogeneous graph of circRNA, pij is the product of the square root of node degrees, and σ is an activation function which is designated as ReLU(x) = max(0, x) in our model.
+xc
+(out)
+i denotes the representation of circRNA ci exported after GCN treatment, and the final representations of all circRNAs are concatenated to form a matrix *
+XG RN m
+c c g. mg represents both the input and output dimensions of each layer of GCN.
+i
+k
+jjjjjjjj
+y
+{
+zzzzzzzz
+x = b + px W
+1
+d
+d N ij
+d
+(out)
+d
+(in)
+d
+i
+j di
+j
+( ) (13)
+Similarly, we can extract the final representation matrix of all drugs *
+XG RN m
+d d g based on the drug−drug homogeneous graph and a GCN with the same structure as above. XGc and XGd are used as the initial features of circRNAs and drugs in the heterogeneous graph and subsequently used for association predictions under this perspective.
+Combined Feature-Level Perspective. Under the combined feature-level perspective, we combined circRNA−drug sensitivity association information with fused circRNA similarity information and fused drug similarity information. The final representation matrix of all circRNAs can be represented as
+XFc = concat(CSMM, A), and XFd = concat(DSMM, AT) is the final representation matrix of all drugs. *
+XF RN m
+c c f and
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4362
+
+
+*
+XF RN m
+d d f will be used as the initial features of corresponding circRNA and drug nodes in the heterogeneous graph for the subsequent association prediction under this perspective. mf represents the dimension of the representation formed after concatenating.
+Association Prediction and Combination of Predicted Results. Inspired by the work of Li et al.,33 we implemented the path-masked graph autoencoder on the circRNA−drug heterogeneous graph for predicting potential circRNA−drug links in both perspectives. Specifically, we opted for path-wise random masking as an augmentation strategy before the graph autoencoder models the heterogeneous graph. Unlike simple edge masking, path-wise random masking breaks up shortdistance connections between nodes by utilizing paths, which are sequences of edges connecting sequences of neighboring nodes. Li et al.33 suggested that this strategy enables better exploitation of structural dependency patterns and facilitates the capture of more meaningful higher-order proximity. Let H = Hmask ∪ Hvis, where Hmask = (V, Emask) represents the graph masked from H, and Hvis denotes the remaining visible graph. We sample a set of masked edges as follows
+E = Random(R , l )
+mask walk (14)
+where R ⊆ V is a set of root nodes to start random walks and lwalk is the walk length. Here, the set of root nodes R is randomly selected from the graph obeying the Bernoulli distribution, i.e., R ∼ Bernoulli(q) where 0 < q < 1 is the sample ratio for the graph. We perform simple random walk to sample masked edges Emask and denote path-wise random masking as Tpath. Taking the homogeneous graph-level perspective as an example, for each node v ε V, there is an mg-dimensional
+feature vector xg ε Rmg. The goal is to learn a graph encoder
+= | |×
+f (H) Z R V mh that can accomplish the mapping from the initial feature space to a low-dimensional latent representation = { }=
+||
+Z zi i
+V
+1 to better describe each node. mh is the embedding dimension. Considering that the encoder only needs to be applied to visible and unmasked subgraphs, we choose a common GCN as the encoder of the path-masked graph autoencoder. The decoder of the path-masked graph autoencoder is composed of an element-wise product layer and a multilayer perceptron (MLP), which decodes the graph by aggregating pairs of node representations into link representations. The decoderw with parameters w is defined as follows
+decoder (z , z ) = Sigmoid(MLP(z ·z ))
+w u v u v (15)
+The path mask strategy is only used when the model is being trained to maximize the mutual information between paired subgraph views associated with a linked edge. In the testing phase, we only use the already trained graph auto-encoders (GAEs) in the path-masked graph autoencoder to obtain the embeddings of the nodes and model the heterogeneous graph. The loss of path-masked graph autoencoder measures how well the model rebuilds the masked graph in terms of edgereconstruction, and it is calculated by eq 15.
+=| |
+=| |
+=+
++ +
++
++
+E zz
+E zz
+1 log(decoder ( , ))
+1 log(1 decoder ( , ))
+()
+uv E
+wu v
+uv E
+wu v
+( ,)
+( ,)
+(16)
+where E+ and E− represent a set of positive edges and a set of negative edges, respectively. In both perspectives, based on different initial features, link prediction between nodes on the circRNA−drug heterogeneous graph is done by two path-masked graph autoencoders with the same structure but different parameters. Two predicted scores, namely, Gprediction and Fprediction, for the same circRNA−drug sensitivity association can be obtained under homogeneous graph-level perspective and combined featurelevel perspective, respectively. The two prediction scores are then averaged to calculate the final prediction score for circRNA−drug sensitivity association, as shown below
+= G +F
+final prediction 2
+prediction prediction
+(17)
+■
+EXPERIMENTS AND RESULTS
+Baselines. In this work, we compare our method to the following baselines. Brief descriptions of these models are provided below:
+• GATECDA:23 a computational model based on GATE for predicting circRNA−drug sensitivity associations. To the best of our knowledge, GATECDA was the first research effort to accomplish circRNA−drug sensitivity prediction.
+• MNGADA:25 a computational method for predicting circRNA−drug sensitivity associations. This method uses a node-level attention graph autoencoder to obtain embedded representations of circRNAs and drugs from a multimodal network and then applies an inner-product decoder to predict the association score between circRNA and drug sensitivity.
+• DHANMKF:26 a computational model based on intratype attention and intertype attention called DHANMKF. This model used the multikernel fusion method to fuse intratype embedding and intertype embedding, and the dual Laplacian-regularized leastsquares method was used to predict the potential circRNA−drug sensitivity associations using the combined kernel in circRNA and drug spaces.
+• DGATCCDA:27 DGATCCDA first constructs a multimodal network from the original feature information on circRNAs and drugs. Subsequently, it utilizes DeepWalkaware graph attention networks to obtain node embeddings from the multimodal network. These embeddings are then fused through hierarchical attention and multiplied to produce the association matrix.
+• MNCLCDA:28 MNCLCDA utilizes a mixed neighborhood GCN to gather node neighborhood information and enhance the model’s robustness by a graph-based contrastive learning approach. Finally, it predicts potential associations between circRNAs and drugs in
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4363
+
+
+their respective spaces using double Laplacian-regularized least-squares based on the kernel matrices.
+In our evaluation, the parameters of each method were set according to the recommended optimal parameters.
+Performance Evaluation on Transductive Setting for Existing circRNAs and Drugs. In transductive setting experiments, both circRNAs and drugs included in the test set were also present in the training set. We adopted the 10fold cross-validation to comprehensively evaluate the performance of DPMGCDA in our experiments. The labeled circRNA−drug sensitivity associations were previously randomized into 10 equal groups. In each round of validation, we sequentially selected one group as the testing set and the remaining nine groups as the training set, and then, the same number of unlabeled samples as that of the group was selected to be added to the testing set. In considering the performance of the model, we chose several metrics to evaluate, including accuracy, precision, recall, specificity, F1-score, the area under the curve of the receiver operation characteristic, and the area under the precision−recall curve (AUPR). As depicted in Figure 2, DPMGCDA achieved the highest area under the curve (AUC) of 92.79% and the highest AUPR of 93.95%. Detailed performance metrics of DPMGCDA and other methods, including accuracy, precision, recall, specificity, and F1-score, are presented in Table 1. Notably, DPMGCDA consistently outperformed other models across various evaluation metrics, showcasing its superiority in predicting circRNA−drug sensitivity associations.
+Performance Evaluation on Inductive Setting for Unseen circRNAs and Drugs. In the inductive setting, we
+designed three validation schemes to make an objective evaluation of the model’s performance.
+• P1 partition scheme: We randomly selected 10% of circRNAs in the benchmark data set and removed all their prior association information with drugs to make them as unknown circRNAs and the rest as known circRNAs. The information associated with all drugs is still retained, and all drugs are considered to be known. All positive and negative samples on the train data set are circRNA−drug pairs in which both circRNA and drug are known. For the test set, the positive and negative samples all consist of unknown circRNAs and known drugs. The task was to predict the association of new circRNAs with all existing drugs.
+• P2 partition scheme: We randomly selected 10% of the drugs in the benchmark data set and removed all their prior association information with circRNAs to make them as unknown drugs and the rest as known drugs. The information associated with all circRNAs is still retained, and all circRNAs are considered to be known. All positive and negative samples on the train data set are circRNA−drug pairs in which both circRNA and drug are known. For the test set, the positive and negative samples all consist of known circRNAs and unknown drugs. The task was to predict the association of new drugs with all existing circRNAs.
+• P3 partition scheme: We simultaneously randomly selected 10% of circRNAs and 10% of the drugs in the benchmark data set as unknown circRNAs and unknown drugs. All association information related to them was removed from the benchmark data set to construct the
+Figure 2. Transductive setting experimental results on benchmark data set: (a) ROC curves and average AUC values of different prediction models for 10-fold cross-validation. (b) Precision−recall curves (PR) and average AUPR values of different prediction models for 10-fold cross-validation.
+Table 1. Performance of DPMGCDA on the Transductive Setting Experiment and Comparison of Performance with Other Baseline Models
+method AUC AUPR F1-score accuracy precision recall specificity
+GATECDA23 0.8918 0.9015 0.8234 0.8211 0.8128 0.8343 0.8079 MNGACDA25 0.9182 0.9262 0.8519 0.8498 0.8401 0.8646 0.8350 DHANMKF26 0.9171 0.9269 0.8523 0.8521 0.8401 0.8648 0.8450 DGATCCDA27 0.9139 0.9209 0.8457 0.8459 0.8414 0.8502 0.8229 MNCLCDA28 0.9113 0.9244 0.8494 0.8492 0.8553 0.8469 0.8553 DPMGCDA (our) 0.9279 0.9395 0.8630 0.8613 0.8527 0.8735 0.8538
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4364
+
+
+training set. For the test set, the positive and negative samples all consist of unknown circRNAs and unknown drugs. The task was to predict the association of new drugs with new circRNAs.
+To ensure the credibility of the experiment, we repeated the experiment five times under the above setting requirements, and the selected unknown circRNAs/drugs in each experiment were randomized. In the inductive setting experiment, we chose AUC and AUPR to evaluate the performance of the model. Unlike the transductive setting, circRNAs or drugs in the circRNA−drug pairs to be predicted in the test set of the inductive setting may not be present in the training set. The performance of the model in the inductive setting experiment can reveal its ability to handle the cold-start scenario, which is one of the most popular breakthroughs in the field of association prediction. Besides, the test set of P3 can be considered as constructing an independent data set to validate the generalization ability of DPMGCDA. Since the host gene sequence of circRNA/drug structure information in the training set may be very different from that in the test set, the predictive performance of the model is bound to be affected. As shown in Table 2, the scores of all models for each assessment metric in the inductive setting are significantly lower than those obtained in the transductive setting, which indicates that the inductive setting experiment is more challenging than the transductive setting experiment. Upon comparisons with the baseline models, it can be observed that our proposed model DPMGCDA also achieves the best performance compared to several baseline methods and outperforms the second best algorithm to a larger extent. These results suggest that an effective response of DPMGCDA is to adequately learn similarity information, association information, and structural information on the homogeneous graph and heterogeneous graph through a dual perspective, which to some extent compensates for the lack of information in the cold-start problem. Ablation Tests. The two perspectives of DPMGCDA construct initial node features in the circRNA−drug heterogeneous graph by means of homogeneous graph convolution and feature combination, respectively, and the final prediction results of both perspectives are obtained by the path-masked
+graph autoencoder to complete the link predictions in the heterogeneous graph. In the ablation experiments, we explored the prediction performance of the model under single perspective at the homogeneous graph level and single perspective at a combined feature level, respectively, and analyzed the impact of the strategy of applying the pathmasked graph autoencoder to predict circRNA−drug sensitivity associations on model performance. In each experiment, we reconfigured three different comparison models by removing/replacing specified components while retaining others. The results of the experiments with 10-fold crossvalidation are then reported.
+• DPMGCDA_GRA: a model that only retains the homogeneous graph-level perspective. This demonstrates the validity of the features constructed from the homogeneous graph-level perspective for making circRNA−drug sensitivity association predictions in the heterogeneous graph.
+• DPMGCDA_FEA: a model that only retains the combined feature-level perspective. This demonstrates the validity of the features constructed from the combined feature-level perspective for making circRNA−drug sensitivity association predictions in the heterogeneous graph.
+• DPMGCDA_EDG: a model that replaces the pretask of the graph autoencoder from path-masked to edgemasked. This demonstrates the greater effectiveness of using path masked as the pretask of the graph autoencoder compared to edge masking.
+• DPMGCDA_MLP: a model that replaces the pathmasked graph autoencoder with a simple MLP to accomplish linkage prediction between circRNA and drug nodes. This demonstrates the effectiveness of the strategy of path-masked graph autoencoder for circRNA−drug sensitivity association prediction in heterogeneous graphs.
+To ensure the fairness of the comparison, we performed a consistent experimental setup for all comparison methods and used grid search to obtain the best performance. Based on the experimental results in Table 3, we summarized the following conclusions.
+Table 2. Performance of DPMGCDA on the Inductive Setting Experiment and Comparison of Performance with Other Baseline Models
+method P1 P2 P3
+AUC AUPR AUC AUPR AUC AUPR
+GATECDA23 0.7813 0.7832 0.7743 0.7722 0.7310 0.7442 MNGACDA25 0.8055 0.8193 0.8080 0.7932 0.7679 0.7736 DHANMKF26 0.7923 0.7898 0.8061 0.7987 0.7554 0.7582 DGATCCDA27 0.8174 0.8166 0.8118 0.8205 0.7607 0.7715 MNCLCDA28 0.8118 0.8199 0.8154 0.8230 0.7749 0.7756 DPMGCDA (our) 0.8626 0.8706 0.8630 0.8735 0.8290 0.8369
+Table 3. Results of the Ablation Study Based on 10-Fold Cross-Validation on Benchmark Data Set
+method AUC AUPR F1-score accuracy precision recall specificity
+DPMGCDA_GRA 0.9171 0.9290 0.8518 0.8504 0.8438 0.8603 0.8404 DPMGCDA_FEA 0.9184 0.9295 0.8543 0.8549 0.8450 0.8638 0.8423 DPMGCDA_EDG 0.9232 0.9323 0.8543 0.8516 0.8400 0.8636 0.8351 DPMGCDA_MLP 0.8978 0.9014 0.8356 0.8361 0.8387 0.8325 0.8399 DPMGCDA 0.9279 0.9395 0.8617 0.8613 0.8527 0.8735 0.8538
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4365
+
+
+(1) Both DPMGCDA_GRA and DPMGCDA_FEA are able to accomplish circRNA−drug sensitivity association prediction better, which indicates that the feature information constructed by both perspectives of the model is meaningful.
+(2) Full DPMGCDA architecture outperformed all variants, which indicates the effectiveness of all proposed modules. DPMGCDA is superior to two models that used only a single perspective for prediction, suggesting that it is beneficial to learn the representations of circRNAs and drugs jointly from dual perspectives.
+(3) DPMGCDA_MLP shows the largest performance degradation compared to that of the previous three comparison models, and the performance of DPMGCDA_EDG is also reduced compared to that of DPMGCDA, which suggests that the path-masked graph autoencoder is able to better utilize the structural dependency patterns to capture higher-order graph structural information through the contrastive learning strategy of path masked.
+Embedding Visual Analysis. To evaluate the distribution of embeddings encoded by the path-masked graph autoencoder for circRNAs and drugs, we used the t-distributed stochastic neighbor embedding (t-SNE) algorithm to predict circRNA and drug embeddings learned from the benchmark data sets into 2D space. We used random initialization to construct the original node representations in the homogeneous graph-level perspective, in which the features of circRNAs and drugs are scattered throughout the 2-dimensional space (Figure 3a). In the combined feature-level perspective, nodes are characterized by the combination of fused similarity information and association information on their corresponding molecules, the distribution of which is shown in Figure 3c. We visualize the node embedding representations encoded by the path-masked graph autoencoder, and the results are shown in Figure 3b,d, where blue dots correspond to circRNAs and red dots correspond to drugs. It shows that after path-masked graph autoencoder processing, the embedding representations of circRNAs and drugs can be distinguished almost perfectly, and similar
+Figure 3. Embedding visualization by t-SNE of circRNA and drug: (a) initial feature representations of nodes in the homogeneous graph-level perspective. (b) Node embeddings processed by the path-masked graph autoencoder in homogeneous graph-level perspective. (c) Initial feature representations of nodes in the combined feature-level perspective. (d) Node embeddings processed by the path-masked graph autoencoder in combined feature-level perspective.
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4366
+
+
+circRNAs and drugs can be aggregated together effectively. In other words, the path-masked graph autoencoder is able to efficiently capture and learn complex structural information in the circRNA−drug heterogeneous graph and generate useful feature representations of each node based on this information.
+Parameter Sensitivity Analysis. Next, parameter sensitivity experiments were performed on the model. When selecting and configuring specific parameters, we maintain other parameters at relatively optimal values to streamline computational requirements while ensuring consistently high
+Figure 4. Binarization threshold parameter sensitivity analysis experimental results: (a) average AUC values of DPMGCDA with 10-fold crossvalidation at different cth and dth. (b) Average AUPR values of DPMGCDA with 10-fold cross-validation at different cth and dth.
+Figure 5. Dimension of homogeneous graph feature and the number of model training epoch parameter sensitivity analysis experimental results: (a) average AUC values of DPMGCDA with 10-fold cross-validation at different feature dimension and training epoch. (b) Average AUPR values of DPMGCDA with 10-fold cross-validation at different feature dimension and training epoch.
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4367
+
+
+performance. (In addition to the parameters explored below, for more details about DPMGCDA’s parameter settings, see Section S2 in the Supporting Information.)
+Impact of Threshold Selection for Homogeneous Graph Construction. The binarization threshold used in constructing homogeneous graph from similarity networks is a parameter worth exploring. Higher thresholds can be effective in reducing noise, but they may inadvertently eliminate potentially valuable information. Conversely, lower thresholds may introduce too much noise, preventing the model from paying enough attention to important information. We chose the AUC and AUPR scores to evaluate the model performance. As shown in Figure 4, we found that setting the thresholds to cth = 0.0040 and dth = 0.0048 resulted in superior performance compared to that of other parameter configurations. This optimal combination strikes a balance between reducing noise and retaining information.
+Impact of the Dimension of Homogeneous Graph Feature and the Number of Model Training Epochs. Choosing the appropriate dimensions for the features constructed in the homogeneous graph-level perspective and an adequate number of model training epochs helps to improve the model’s generalization ability while reducing the risk of overfitting. To explore the optimal recommended settings of these two parameters, we adopted the grid search to tune the two parameters. The dimension of features constructed in the homogeneous graph was selected from
+the list 64, 128, 256, and 512. The number of model training epochs was set to 200, 400, 600, 800, and 1000. We compare the performance of the models by comparing the values of AUC and AUPR. The experimental results are shown in Figure 5. When the dimension of features constructed in the homogeneous graph-level perspective was selected as 256 and the number of model training epochs was set to 600, the model achieved the best performance.
+Impact of Positive and Negative Sample Proportions. Among the huge number of circRNA−drug pairs, the number of proven circRNA−drug sensitivity associations is comparatively small. To address this data imbalance, we designed experiments with different negative case ratios. We tested positive to negative ratios of 1:1, 1:2, 1:5, and 1:10 to verify the model’s ability to generalize when the number of negative cases is much larger than the number of positive cases. From the experimental results in Table 4, it can be seen that DPMGCDA still has a relatively stable performance when trained on an unbalanced data set. Case Studies. For our case studies, we selected PAC-1 and doxorubicin to further validate the utility of our proposed DPMGCDA in real-world application scenarios. Following a similar approach as previous study, we first trained the DPMGCDA model using all known association information
+from the GDSC database29 in the benchmark data set. Subsequently, we identified predicted new associations by
+searching another independent database, CTRP.34
+Table 4. Results of 10-Fold Cross-Validation of Model Performance According to Different Positive and Negative Case Proportions on Unbalanced Data Sets
+proportions AUC AUPR F1-score accuracy precision recall specificity
+1:1 0.9279 0.9395 0.8617 0.8613 0.8527 0.8735 0.8538 1:2 0.9267 0.9368 0.8596 0.8582 0.8501 0.8695 0.8514 1:5 0.9267 0.9365 0.8593 0.8573 0.8468 0.8721 0.8471 1:10 0.9235 0.9333 0.8580 0.8562 0.8459 0.8705 0.8465
+Table 5. Top 20 circRNAs Associated with the Drug PAC-1
+ranking circRNA evidence ranking circRNA evidence
+1 CTTN CTRR 11 KRT19 CTRP 2 VIM CTRR 12 EHBP1L1 nonsignificant 3 PTMS CTRR 13 COL1A2 CTRP 4 MEF2D CTRR 14 ANKRD36C CTRP 5 POLR2A CTRR 15 COL1A1 CTRP 6 SPINT2 nonsignificant 16 ITM2C nonsignificant 7 ANP32B CTRR 17 THBS1 CTRP 8 FBLN1 CTRR 18 HNRNPUL1 nonsignificant 9 ASPH CTRR 19 MATN2 CTRP 10 CRIM1 CTRR 20 CTSB CTRP
+Table 6. Top 20 circRNAs Associated with the Drug Doxorubicin
+ranking circRNA evidence ranking circRNA evidence
+1 THBS1 CTRR 11 DCBLD2 CTRP 2 VIM CTRR 12 EHBP1L1 nonsignificant 3 CRIM1 CTRR 13 SFPQ CTRP 4 ANKRD36 CTRR 14 COL18A1 CTRP 5 COL1A1 CTRR 15 MUC16 CTRP 6 ANP32B CTRR 16 CALM3 nonsignificant 7 ASPH CTRR 17 COL7A1 CTRP 8 TCOF1 nonsignificant 18 CPSF6 CTRP 9 PEA15 CTRR 19 CTTN CTRP 10 PTMS CTRR 20 ITSN1 CTRP
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4368
+
+
+Procaspase-activating compound 1 (PAC-1) was reported to enhance the activity of procaspase-3 in vitro and induce
+apoptotic death in cancer cells in culture.35 PAC-1 has been investigated in trials for the treatment of lymphoma,
+melanoma, solid tumors, breast cancer, and thoracic cancers.36 As indicated in Table 5, among the top 20 circRNAs predicted by our method to be associated with PAC-1, 16 have been identified in CTRP. Doxorubicin is a member of the anthracycline group of chemotherapeutic agents. It is utilized in the treatment of soft tissue and bone sarcomas, as well as cancers of the breast, ovary, bladder, and thyroid. Moreover, it is indicated for acute lymphoblastic leukemia, acute myeloblastic leukemia, Hodgkin
+lymphoma, and small-cell lung cancer.37 Table 6 demonstrates that 17 of the top 20 circRNAs predicted by our method have been confirmed in CTRP. To assess the predictive capability of DPMGCDA in identifying potential associations between existing circRNAs and new anticancer drugs, we chose two drugs, MS-275 (Entinostat) and Bortezomib, both of which have only one known circRNA−drug sensitivity association. During the training phase, we deliberately removed the sole known associations between these drugs and all circRNAs. This ensured that both drugs were unassociated with any circRNAs and were treated as new drugs. This approach allowed us to demonstrate the model’s potential in identifying new therapeutic candidates in cancer treatment. MS-275, also known as entinostat, operates as a histone deacetylase (HDAC) inhibitor, effectively curtailing the
+expressions of HDAC1 and HDAC2.38 It orchestrates cellular pathways by diminishing the level of Bcl-XL, eliciting p21 protein expression, prompting cell cycle arrest (G1 phase), and
+triggering apoptosis.39 Research indicates that MS-275 exhibits a promising antitumor activity and low toxicity across diverse tumor types, including liver cancer, breast cancer, and colon
+cancer.40 Bortezomib has potent chemo-/radio-sensitizing effects and can overcome traditional drug resistance in tumors. Furthermore, some cytotoxicities were found to be associated
+with bortezomib treatment.41 Based on the prediction results in Tables 7 and 8, it can be noted that 14 of the top 20 circRNAs predicted to be possibly associated with MS-275 were validated in CTRP. Meanwhile, 16 of the top 20 circRNAs predicted to be possibly associated with Bortezomib were validated in CTRP. All of the above case studies indicate that our proposed DPMGCDA model is highly promising in predicting circRNAs associated with new drugs. Additionally, we evaluated DPMGCDA’s performance by tallying the correctly identified circRNA−drug sensitivity associations across various top-ranked thresholds to provide a more holistic appraisal of the model’s predictive capabilities. As depicted in Figure 6, DPMGCDA successfully identifies 3395 out of 4134 true positives, accounting for 82.12% of known associations within the top 40 predictions. These findings underscore DGATCCDA’s proficiency in recognizing circRNA−drug interactions.
+■
+DISCUSSION AND CONCLUSIONS
+Numerous studies have emphasized the significance of identifying the relationship between circRNA and drug sensitivity in shaping drug regimens for various diseases and facilitating the discovery of new therapeutic agents. However, conventional biological experiments are often costly and timeconsuming, necessitating the development of more efficient and robust computational methods to unveil undiscovered associations. In this study, we proposed a computational model DPMGCDA to address this challenge. We integrated association information and similarity information on circRNAs and drugs collected from diverse sources using the SNF. Leveraging these consolidated data, we employ dualperspective learning coupled with two path-masked graph
+Table 7. Top 10 circRNAs Associated with the Drug MS-275
+ranking circRNA evidence ranking circRNA evidence
+1 POLR2A nonsignificant 11 FBLN1 CTRP 2 CTTN CTRR 12 COL1A1 CTRP 3 ASPH CTRR 13 PEA15 CTRP 4 THBS1 CTRR 14 CALM3 nonsignificant 5 CRIM1 CTRR 15 MUC16 CTRP 6 VIM nonsignificant 16 ANKRD36C nonsignificant 7 PTMS CTRR 17 KRT19 CTRP 8 MEF2D nonsignificant 18 MATN2 CTRP 9 FBLN1 CTRR 19 FKBP10 CTRP 10 ANP32B CTRR 20 ANKRD36 nonsignificant
+Table 8. Top 10 circRNAs Associated with the Drug Bortezomib
+ranking circRNA evidence ranking circRNA evidence
+1 POLR2A nonsignificant 11 KRT19 CTRP 2 SPINT2 CTRP 12 MUC16 CTRP 3 PTMS CTRP 13 EFEMP2 CTRP 4 ASPH CTRP 14 DCBLD2 CTRP 5 ANP32B nonsignificant 15 COL18A1 CTRP 6 FBLN1 CTRP 16 CTSB nonsignificant 7 CTTN CTRP 17 SPINT2 CTRP 8 THBS1 CTRP 18 PSMB5 CTRP 9 MEF2D CTRP 19 CTSD CTRP 10 CRIM1 CTRP 20 SPARC nonsignificant
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4369
+
+
+autoencoders to derive node embeddings, enabling precise predictions of circRNA−drug sensitivity correlations. To validate our approach, we conducted a comprehensive set of experiments underscoring both the necessity and practical relevance of our research. In our work, we not only explored the experimental performance of the model in transductive settings, as in previous studies, but also introduced experiments in inductive settings to test the model’s robustness and generalization ability. This provides a more persuasive demonstration of the model’s performance in practical applications compared to previous research. Our proposed DPMGCDA achieved superior performance in experiments under both settings, particularly in the inductive settings experiments in which there was less available known information. This suggests that DPMGCDA can better integrate known information and extract latent dependency patterns and also indicates that our proposed model can mitigate the impact on predictive performance caused by insufficient information to some extent. We believe that the main reasons for this are as follows: (1) DPMGCDA utilizes two perspectives simultaneously for representation learning: the homogeneous graph-level perspective and the combined feature-level perspective. This allows the model to fully learn from multiple sources of similarity information, association information, as well as complex structural information on both homogeneous and heterogeneous graphs. (2) DPMGCDA employs contrastive learning methods, encouraging the model to learn both the invariances and variabilities of the data to enhance its generalization capability. This enables the model to effectively leverage the hidden information and structure of the data. (3) DPMGCDA utilizes the path-masked strategy as a pretask for contrastive learning, allowing it to learn more complex structural dependencies and higher-order proximity information. However, there is still room for further improvement. The number of validated circRNA−drug sensitivity-associated entities mentioned in this study is relatively limited, potentially introducing biases into the model’s predictions. Additionally, when dealing with larger-scale circRNA−drug heterogeneous graphs, the attention of the path-masked graph autoencoder
+toward the associated graphs may decrease, which could also impact the predictive performance of the model. In subsequent studies, we will collect and integrate more biological information about circRNA and drug sensitivity to reduce the model’s reliance on known circRNA−drug associations and to enhance the model’s performance in new drug prediction. Furthermore, we will make more reasonable adjustments to the strategy of path-masked graph autoencoder when selecting masked paths, focusing more on the edges representing the circRNA−drug associations within the heterogeneous graph. This will enable the model to achieve accurate predictive performance even on large-scale circRNA−drug heterogeneous graphs.
+■
+ASSOCIATED CONTENT Data Availability Statement
+The source code and data sets are available at https://github. com/lylikeeMoon/DPMGCDA. s*ı Supporting Information
+The Supporting Information is available free of charge at https://pubs.acs.org/doi/10.1021/acs.jcim.4c00573.
+Levenshtein distance used in building sequence similarity of host genes of circRNAs and the detailed parameter settings and instructions of DPMGCDA (PDF)
+■
+AUTHOR INFORMATION Corresponding Author
+Lei Deng − School of Computer Science and Engineering, Central South University, Changsha 410083, China; Email: leideng@csu.edu.cn
+Author
+Yue Luo − School of Computer Science and Engineering, Central South University, Changsha 410083, China; orcid.org/0009-0005-0139-9943
+Complete contact information is available at: https://pubs.acs.org/10.1021/acs.jcim.4c00573
+Author Contributions
+Y.L. conceptualized the main ideas and framed the manuscript. L.D. evaluated and supervised the conceptualization of the article. Y.L. designed the experiments, constructed the experimental environment, conducted the experiments, collected the data, and analyzed the results. L.D. revised the manuscript and provided funding. All authors wrote, revised, and approved the manuscript. Funding
+This work was supported by the National Natural Science Foundation of China under grant numbers U23A20321 and 62272490. Notes
+The authors declare no competing financial interest.
+■
+ACKNOWLEDGMENTS
+We are grateful for resources from the High-Performance Computing Center of Central South University.
+■
+REFERENCES
+(1) Qu, S.; Yang, X.; Li, X.; Wang, J.; Gao, Y.; Shang, R.; Sun, W.; Dou, K.; Li, H. Circular RNA: A New Star of Noncoding RNAs. Cancer Lett. 2015, 365, 141−148.
+Figure 6. Percentage of predicted true positives by DPMGCDA under different rankings.
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4370
+
+
+(2) Meng, S.; Zhou, H.; Feng, Z.; Xu, Z.; Tang, Y.; Li, P.; Wu, M. Circrna: Functions and Properties of a Novel Potential Biomarker for Cancer. Mol. Cancer 2017, 16, 94.
+(3) Dawoud, A.; Ihab Zakaria, Z.; Hisham Rashwan, H.; Braoudaki, M.; Youness, R. A. Circular RNAs: New Layer of Complexity Evading Breast Cancer Heterogeneity. Non-coding RNA Res. 2023, 8, 60−74. (4) Pamudurti, N. R.; Bartok, O.; Jens, M.; Ashwal-Fluss, R.; Stottmeister, C.; Ruhe, L.; Hanan, M.; Wyler, E.; Perez-Hernandez, D.; Ramberger, E.; et al. Translation of CircRNAs. Mol. Cell 2017, 66, 9−21.e7. (5) Du, W. W.; Fang, L.; Yang, W.; Wu, N.; Awan, F. M.; Yang, Z.; Yang, B. B. Induction of Tumor Apoptosis Through a Circular RNA Enhancing Foxo3 Activity. Cell Death Differ. 2017, 24, 357−370. (6) Armakola, M.; Higgins, M. J.; Figley, M. D.; Barmada, S. J.; Scarborough, E. A.; Diaz, Z.; Fang, X.; Shorter, J.; Krogan, N. J.; Finkbeiner, S.; et al. Inhibition of RNA Lariat Debranching Enzyme Suppresses TDP-43 Toxicity in ALS Disease Models. Nat. Genet. 2012, 44, 1302−1309. (7) Li, Z.; Huang, C.; Bao, C.; Chen, L.; Lin, M.; Wang, X.; Zhong, G.; Yu, B.; Hu, W.; Dai, L.; et al. Exon-Intron Circular RNAs Regulate Transcription in the Nucleus. Nat. Struct. Mol. Biol. 2015, 22, 256− 264. (8) Zhang, Y.; Zhang, X. O.; Chen, T.; Xiang, J. F.; Yin, Q. F.; Xing, Y. H.; Zhu, S.; Yang, L.; Chen, L. L. Circular Intronic Long Noncoding RNAs. Mol. Cell 2013, 51, 792−806. (9) Xu, H.; Guo, S.; Li, W.; Yu, P. The Circular RNA Cdr1as, via miR-7 and Its Targets, Regulates Insulin Transcription and Secretion in Islet Cells. Sci. Rep. 2015, 5, 12453. (10) Li, F.; Zhang, L.; Li, W.; Deng, J.; Zheng, J.; An, M.; Lu, J.; Zhou, Y. Circular RNA ITCH has Inhibitory Effect on ESCC by Suppressing the Wnt/β-Catenin Pathway. Oncotarget 2015, 6, 6001− 6013. (11) Ashwal-Fluss, R.; Meyer, M.; Pamudurti, N. R.; Ivanov, A.; Bartok, O.; Hanan, M.; Evantal, N.; Memczak, S.; Rajewsky, N.; Kadener, S. CircRNA Biogenesis Competes with Pre-mRNA Splicing. Mol. Cell 2014, 56, 55−66.
+(12) Shoombuatong, W.; Basith, S.; Pitti, T.; Lee, G.; Manavalan, B. THRONE: A New Approach for Accurate Prediction of Human RNA N7-Methylguanosine Sites. J. Mol. Biol. 2022, 434, 167549. (13) Du, W. W.; Yang, W.; Liu, E.; Yang, Z.; Dhaliwal, P.; Yang, B. B. Foxo3 Circular RNA Retards Cell Cycle Progression via Forming Ternary Complexes with p21 and CDK2. Nucleic Acids Res. 2016, 44, 2846−2858. (14) Memczak, S.; Jens, M.; Elefsinioti, A.; Torti, F.; Krueger, J.; Rybak, A.; Maier, L.; Mackowiak, S. D.; Gregersen, L. H.; Munschauer, M.; et al. Circular RNAs Are a Large Class of Animal RNAs with Regulatory Potency. Nature 2013, 495, 333−338. (15) Hansen, T. B.; Jensen, T. I.; Clausen, B. H.; Bramsen, J. B.; Finsen, B.; Damgaard, C. K.; Kjems, J. Natural RNA Circles Function as Efficient microRNA Sponges. Nature 2013, 495, 384−388. (16) Zheng, Q.; Bao, C.; Guo, W.; Li, S.; Chen, J.; Chen, B.; Luo, Y.; Lyu, D.; Li, Y.; Shi, G.; et al. Circular RNA Profiling Reveals an Abundant circHIPK3 that Regulates Cell Growth by Sponging Multiple miRNAs. Nat. Commun. 2016, 7, 11215. (17) Peng, L.; Chen, G.; Zhu, Z.; Shen, Z.; Du, C.; Zang, R.; Su, Y.; Xie, H.; Li, H.; Xu, X.; et al. Circular RNA ZNF609 Functions as a Competitive Endogenous RNA to Regulate AKT3 Expression by Sponging miR-150-5p in Hirschsprung’s Disease. Oncotarget 2017, 8, 808−818. (18) Wang, K.; Long, B.; Liu, F.; Wang, J. X.; Liu, C. Y.; Zhao, B.; Zhou, L. Y.; Sun, T.; Wang, M.; Yu, T.; et al. A Circular RNA Protects the Heart from Pathological Hypertrophy and Heart Failure by Targeting miR-223. Eur. Heart J. 2016, 37, 2602−2611. (19) Li, X.; Yang, B.; Ren, H.; Xiao, T.; Zhang, L.; Li, L.; Li, M.; Wang, X.; Zhou, H.; Zhang, W. Hsa_circ_0002483 Inhibited the Progression and Enhanced the Taxol Sensitivity of Non-small Cell Lung Cancer by Targeting miR-182-5p. Cell Death Dis. 2019, 10, 953. (20) Liu, F.; Zhang, J.; Qin, L.; Yang, Z.; Xiong, J.; Zhang, Y.; Li, R.; Li, S.; Wang, H.; Yu, B.; Zhao, W.; Wang, W.; Li, Z.; Liu, J. Circular
+RNA EIF6 (Hsa_circ_0060060) Sponges miR-144-3p to Promote the Cisplatin-Resistance of Human Thyroid Carcinoma Cells by Autophagy Regulation. Aging 2018, 10, 3806−3820. (21) Rao, J.; Cheng, X.; Zhu, H.; Wang, L.; Liu, L. Retraction: Circular RNA-0007874 (circMTO1) Reverses Chemoresistance to Temozolomide by Acting as a Sponge of microRNA-630 in Glioblastoma by Jiang Rao, Xinxin Cheng, Huimin Zhu, Lifeng Wang, Li Liu. Cell Biol. Int. 2019, 43, 1525. (22) Chi, B. J.; Zhao, D. M.; Liu, L.; Yin, X. Z.; Wang, F. F.; Bi, S.; Gui, S. L.; Zhou, S. B.; Qin, W. B.; Wu, D. M.; et al. Downregulation of Hsa_circ_0000285 Serves as a Prognostic Biomarker for Bladder Cancer and Is Involved in Cisplatin Resistance. Neoplasma 2019, 66, 197−202. (23) Deng, L.; Liu, Z.; Qian, Y.; Zhang, J. Predicting CircRNA-Drug Sensitivity Associations via Graph Attention Auto-Encoder. BMC Bioinf. 2022, 23, 160.
+(24) Salehi, A.; Davulcu, H. Graph Attention Auto-Encoders. arXiv 2019, arXiv:1905.10715. (25) Yang, B.; Chen, H. Predicting CircRNA-Drug Sensitivity Associations by Learning Multimodal Networks Using Graph AutoEncoders and Attention Mechanism. Briefings Bioinf. 2023, 24, bbac596. (26) Lu, S.; Liang, Y.; Li, L.; Liao, S.; Zou, Y.; Yang, C.; Ouyang, D. Inferring CircRNA-Drug Sensitivity Associations via Dual Hierarchical Attention Networks and Multiple Kernel Fusion. BMC Genom. 2023, 24, 796. (27) Li, G.; Li, Y.; Liang, C.; Luo, J. DeepWalk-Aware Graph Attention Networks with CNN for CircRNA-Drug Sensitivity Association Identification. Briefings Funct. Genomics 2023, 2023, No. elad053. (28) Li, G.; Zeng, F.; Luo, J.; Liang, C.; Xiao, Q. MNCLCDA: Predicting CircRNA-Drug Sensitivity Associations by Using Mixed Neighbourhood Information and Contrastive Learning. BMC Med. Inf. Decis. Making 2023, 23, 291.
+(29) Yang, W.; Soares, J.; Greninger, P.; Edelman, E. J.; Lightfoot, H.; Forbes, S.; Bindal, N.; Beare, D.; Smith, J. A.; Thompson, I. R.; et al. Genomics of Drug Sensitivity in Cancer (GDSC): A Resource for Therapeutic Biomarker Discovery in Cancer Cells. Nucleic Acids Res. 2012, 41, D955−D961. (30) Rangwala, S. H.; Kuznetsov, A.; Ananiev, V.; Asztalos, A.; Borodin, E.; Evgeniev, V.; Joukov, V.; Lotov, V.; Pannu, R.; Rudnev, D.; et al. Accessing NCBI Data Using the NCBI Sequence Viewer and Genome Data Viewer (GDV). Genome Res. 2021, 31, 159−169. (31) Wang, Y.; Bryant, S. H.; Cheng, T.; Wang, J.; Gindulyte, A.; Shoemaker, B. A.; Thiessen, P. A.; He, S.; Zhang, J. PubChem BioAssay: 2017 Update. Nucleic Acids Res. 2017, 45, D955−D963. (32) Kipf, T. N.; Welling, M. Semi-Supervised Classification with Graph Convolutional Networks. arXiv 2016, arXiv:1609.02907. (33) Li, J.; Wu, R.; Sun, W.; Chen, L.; Tian, S.; Zhu, L.; Meng, C.; Zheng, Z.; Wang, W. MaskGAE: Masked Graph Modeling Meets Graph Autoencoders. arXiv 2022, arXiv:2205.10053. (34) Rees, M. G.; Seashore-Ludlow, B.; Cheah, J. H.; Adams, D. J.; Price, E. V.; Gill, S.; Javaid, S.; Coletti, M. E.; Jones, V. L.; Bodycombe, N. E.; et al. Correlating Chemical Sensitivity and Basal Gene Expression Reveals Mechanism of Action. Nat. Chem. Biol. 2016, 12, 109−116. (35) Peterson, Q. P.; Hsu, D. C.; Goode, D. R.; Novotny, C. J.; Totten, R. K.; Hergenrother, P. J. Procaspase-3 Activation as an AntiCancer Strategy: Structure-Activity Relationship of ProcaspaseActivating Compound 1 (PAC-1) and Its Cellular Co-Localization with Caspase-3. J. Med. Chem. 2009, 52, 5721−5731. (36) Wishart, D. S.; Feunang, Y. D.; Guo, A. C.; Lo, E. J.; Marcu, A.; Grant, J. R.; Sajed, T.; Johnson, D.; Li, C.; Sayeeda, Z.; et al. DrugBank 5.0: A Major Update to the DrugBank Database for 2018. Nucleic Acids Res. 2018, 46, D1074−D1082.
+(37) Johnson-Arbor, K.; Dubey, R. Doxorubicin; StatPearls Publishing: Treasure Island (FL), 2023. (38) Hess-Stumpp, H.; Bracker, T. U.; Henderson, D.; Politz, O. MS-275, a Potent Orally Available Inhibitor of Histone Deacety
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4371
+
+
+lases�The Development of an Anticancer Agent. Int. J. Biochem. Cell Biol. 2007, 39, 1388−1405. (39) Knipstein, J.; Gore, L. Entinostat for Treatment of Solid Tumors and Hematologic Malignancies. Expert Opin. Invest. Drugs 2011, 20, 1455−1467. (40) Karasic, T. B.; Brown, T. J.; Schneider, C.; Teitelbaum, U. R.; Reiss, K. A.; Mitchell, T. C.; Massa, R. C.; O’Hara, M. H.; DiCicco, L.; Garcia-Marcano, L.; et al. Phase I Trial of Regorafenib, Hydroxychloroquine, and Entinostat in Metastatic Colorectal Cancer. Oncologist 2022, 27, 716−e689.
+(41) Mujtaba, T.; Dou, Q. P. Advances in the Understanding of Mechanisms and Therapeutic Use of Bortezomib. Discovery Med. 2011, 12, 471−480.
+Journal of Chemical Information and Modeling pubs.acs.org/jcim Article
+https://doi.org/10.1021/acs.jcim.4c00573 J. Chem. Inf. Model. 2024, 64, 4359−4372
+4372

@@ -1,0 +1,540 @@
+Intra and Inter Domain HyperGraph Convolutional Network for Cross-Domain Recommendation
+Zhongxuan Han Xiaolin Zheng Chaochao Chen∗ College of Computer Science and College of Computer Science and College of Computer Science and Technology, Zhejiang University Technology, Zhejiang University Technology, Zhejiang University zxhan@zju.edu.cn xlzheng@zju.edu.cn zjuccc@zju.edu.cn
+Wenjie Cheng Yao Yang College of Computer Science and Zhejiang Lab Technology, Zhejiang University yangyao@zhejianglab.com wenjiec@zju.edu.cn
+ABSTRACT
+Cross-Domain Recommendation (CDR) aims to solve the data sparsity problem by integrating the strengths of diferent domains. Though researchers have proposed various CDR methods to efectively transfer knowledge across domains, they fail to address the following key issues, i.e., (1) they cannot model high-order correlations among users and items in every single domain to obtain more accurate representations; (2) they cannot model the correlations among items across diferent domains. To tackle the above issues, we propose a novel Intra and Inter Domain HyperGraph Convolutional Network (II-HGCN) framework, which includes two main layers in the modeling process, i.e., the intra-domain layer and the inter-domain layer. In the intra-domain layer, we design a user hypergraph and an item hypergraph to model high-order correlations inside every single domain. Thus we can address the data sparsity problem better and learn high-quality representations of users and items. In the inter-domain layer, we propose an inter-domain hypergraph structure to explore correlations among items from diferent domains based on their interactions with common users. Therefore we can not only transfer the knowledge of users but also combine embeddings of items across domains. Comprehensive experiments on three widely used benchmark datasets demonstrate that II-HGCN outperforms other state-of-the-art methods, especially when datasets are extremely sparse.
+CCS CONCEPTS
+• Information systems → Recommender systems.
+KEYWORDS
+Cross-Domain Recommendation, Hypergraph, Graph Embedding
+∗Chaochao Chen is the corresponding author.
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for proft or commercial advantage and that copies bear this notice and the full citation on the frst page. Copyrights for components of this work owned by others than the author(s) must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specifc permission and/or a fee. Request permissions from permissions@acm.org. WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+© 2023 Copyright held by the owner/author(s). Publication rights licensed to ACM. ACM ISBN 978-1-4503-9416-1/23/04. . . $15.00 https://doi.org/10.1145/3543507.3583402
+ACM Reference Format:
+Zhongxuan Han, Xiaolin Zheng, Chaochao Chen, Wenjie Cheng, and Yao Yang. 2023. Intra and Inter Domain HyperGraph Convolutional Network for Cross-Domain Recommendation. In Proceedings of the ACM Web Conference 2023 (WWW ’23), April 30–May 04, 2023, Austin, TX, USA. ACM, New York, NY, USA, 11 pages. https://doi.org/10.1145/3543507.3583402
+1 INTRODUCTION
+Data sparsity is a common problem in the Recommendation System (RS). Nowadays, more and more users participate in multiple domains (platforms) for diferent purposes, like buying books on Amazon’s eBook platform and watching movies on Amazon’s Prime Video platform. The data sparsity problem could be mitigated if one can transfer useful knowledge among diferent domains. Based on this idea, Cross-Domain Recommendation (CDR) [3] was proposed. Existing research on CDR has introduced diferent techniques to transfer knowledge across diferent domains. In the earlier studies, clustering-based [27] and variations of Matrix Factorization (MF)-based CDR methods [18, 32] have been proposed and achieved some improvements compared with single-domain recommendation methods. However, most clustering-based and MF-based CDR methods cannot model the nonlinear patterns in user-item interactions. Thus, researchers designed many deep-learning-based CDR methods [7, 23, 40] to better transfer knowledge across domains and mine more complex user-item interactions. Though existing research has already proved that CDR is a reasonable way to solve the data sparsity problem, they overlook several key issues.
+Firstly, the data sparsity problem is not well addressed in CDR since essential high-order correlations among users and items have not been explored in every single domain. Most of the existing CDR methods generate user and item embeddings based on pairwise user-item interactions inside each domain. However, the data sparsity problem is widespread and there is a serious shortage of these pairwise interactions in a sparse domain, which will limit the qualities of the learned embeddings and may lead the negative transfer [34] problem to CDR. To better address the data sparsity problem inside every single domain, some potential high-order correlations should be explored. As Figure 1(a) shows, A1, A2, A3 are likely to be similar since they all interact with A1. Besides, A4, A5, A6 should have some similar features to A1, A2, A3 since there are direct neighbor relationships among them. Although these kinds of high-order correlations can also be captured by some Graph Neural Networks
+449
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhongxuan Han, Xiaolin Zheng, Chaochao Chen, Wenjie Cheng, and Yao Yang
+(a) High-order correlations among users and items inside a single domain.
+(b) Correlations among items in diferent domains.
+Figure 1: Motivating examples. (a) gives an example of highorder correlations among users and items inside a single domain. Paths with arrow indicate the message passing process for A1. The background circles denote the high-order correlations among users, and the high-order correlation with A = 1 is contained by that with A = 2. (b) gives an example of correlations among items across diferent domains. The items that have been interacted with by more common users are more similar, and similar items are shown in similar colors, e.g., AA and A1
+A are more similar than AA and A2
+A.
+11
+(GNN)-based CDR methods [15, 43], the graph convolution process is directly related to the degrees of message passing in the graph. For example, the degree of passing message from A6 to A1 (A6 → A4 → A3 → A1 → A1) is so high that A6 has a very limited efect on A1 by graph convolution. Naturally, if one can link the users or items with high-order correlations and pass messages among them directly, the data sparsity problem will be mitigated. Secondly, the performance of CDR is always limited since existing CDR methods ignore the correlations among items across domains. The data of users and items are both limited in a sparse domain. However, previous methods mainly focus on learning the overlapping properties of users’ preferences and ignore the correlations among items across diferent domains. Failing to transfer the knowledge of items will lead to inaccurate representations of items, due to the data sparsity problem in every single domain. In fact, correlations among items from diferent domains can be modeled based on their interactions with common users. For example, as Figure 1(b) shows, A1
+A and A1
+A should be similar since they have been interacted with by a set of common users. By introducing such correlations, CDR methods can learn more accurate items’ representations. In summary, to better address the data sparsity problem in CDR, there are two signifcant challenges. CH1: How to explore and model high-order correlations inside every single domain to better solve the data sparsity problem. CH2: How to discover the hidden correlations among items across diferent domains to address the data sparsity problem better. In order to address the above two challenges, we propose a novel Inter and Intra Domain HyperGraph Convolutional Network (IIHGCN) framework in this paper. The main idea of II-HGCN is to enhance the performance of CDR by exploring high-order correlations among users and items. Hypergraph [4] has been proposed to bring more fexibility in handling relationships among nodes in the graph structure. A hypergraph generalizes the concept of an edge to make it connect more than two nodes, providing a natural way to model complex high-order relations among users and items. To the best of our knowledge, we are the frst to combine the advantages of hypergraph with CDR to better solve the data sparsity problem.
+Our method designs two types of hypergraph structures in the intra-domain layer and the inter-domain layer so that both highorder correlations inside every single domain and across domains can be modeled. To solve CH1, we propose a novel intra-domain hypergraph framework to model high-order correlations among users and items in every single domain. We build two separate hypergraphs for users and items respectively, and here the hyperedge generation rules can be fexible. For instance, a hyperedge can associate users with similar behaviors or model the similarities among items being interacted with by the same users. Besides, to identify the importance of diferent hyperedges and avoid generating redundant hyperedges, we defne a novel metric HyperDegree for a hyperedge so that redundant hyperedges can be fltered out. To solve CH2, we design a novel inter-domain hypergraph framework to capture correlations among items across domains. Firstly, we defne a novel metric HyperSimilarity to model the similarity between two items from diferent domains. Then for each item in a domain, we construct a hyperedge containing several most similar items from another domain so that potential relationships among items from diferent domains can be explored and transferred. In addition, we propose an adjusted hypergraph convolutional network to aggregate item embeddings in this phase. Finally, an element-wise attention mechanism is used to combine embeddings learned from the intra-domain and inter-domain processes for users and items. To evaluate the performance of our II-HGCN framework, we conduct extensive experiments on three real-world datasets. Multiple evaluation metrics demonstrate that II-HGCN outperforms the State-Of-The-Art (SOTA) models [7, 40] from various perspectives. Furthermore, after sparsifying the dataset, we fnd that the improvement of II-HGCN against the SOTA models is more significant, proving that our framework can better deal with the data sparsity problem. We summarize our main contributions as follows: (1) We propose a novel II-HGCN framework, which can model the high-order correlations among users and items to better address the data sparsity problem in CDR. (2) We design an intra-domain layer and an interdomain layer to capture high-order correlations inside every single domain and transfer knowledge of both users and items across domains. (3) We conduct extensive experiments on three real-world datasets, demonstrating that II-HGCN outperforms SOTA methods, and the improvement is more signifcant in sparser datasets.
+2 RELATED WORK
+2.1 Cross-Domain Recommendation
+CDR was proposed to solve the data sparsity problem by transferring knowledge across diferent domains [3]. Early CDR methods are mainly based on MF [18, 26, 29, 36] and clustering methods [12, 32]. For example, Collective Matrix Factorization (CMF) [36] utilizes multiple auxiliary matrices on users to combine users’ features across diferent domains. While cluster-level matrix factorization [32] uses the K-means method to explore the shared patterns of users and items between two domains. Though these non-deeplearning based CDR methods have achieved better performance compared with single-domain recommendation methods, they cannot model complex patterns in user-item interactions. Deep-learning can model user-item interactions more fexibly and learn better representations of users and items. Researchers
+450
+
+
+Intra and Inter Domain HyperGraph Convolutional Network for Cross-Domain Recommendation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+have proposed many deep-learning-based CDR methods [5, 7, 9, 17, 28, 31, 40, 41]. Lm et al. [22] pointed out that users’ search modes play an essential role in improving the recommendation accuracy in CDR. Hu et al. [17] proposed a multi-task learning strategy by building a deep cross-connection network to transfer knowledge between user-item interactions across domains. DARec [40] learns shared user representations across domains inspired by domain adaptation technique. DDTCDR [28] proposes a deep dual transfer network to learn user embeddings jointly and combine embeddings from diferent domains. ETL [7] considers both the users’ preference for diferent domains and the domain-specifc properties, and thus has achieved SOTA performance. Some researchers [17, 30, 43] tend to incorporate content information in CDR to mitigate the data sparsity problem in each domain. While content information like attributes [3], social tags [11], and browsing or watching histories [24] is not always available. Though existing CDR methods have achieved good performance, they only learn representations of users and items from pairwise correlations, which can be severely afected by the data sparsity problem inside every single domain. Besides, previous methods only focus on learning the overlapping properties of users and ignoring the correlations among items that are mostly non-overlapping across diferent domains. As a comparison, in this paper, we introduce a framework II-HGCN to capture both high-order correlations inside each single domain and hidden correlations among items across domains to better solve the data sparsity problem.
+2.2 HyperGraph
+The hypergraph [6, 13, 21, 42] structure has been employed to model high-order correlations among data. Zhou et al. [42] frst proposed hypergraph learning and designed a propagation process on hypergraph structure. Hypergraph was further employed in the video object segmentation task [19] and the image retrieval task [20]. Furthermore, Uthsav et al. [8] introduced a spectral theory for hypergraphs with edge-dependent vertex weights by the random walk method. Later on, Feng et al. [10] introduced a hypergraph convolution operation to better exploit the high-order data correlations for representation learning, which provides a more efective way to deal with complex correlations. A graph structure can naturally model user-item interactions of RS and some hypergraph-based recommendation methods [23, 38, 39] have been proposed to explore implicit high-order correlations in RS and achieved good performance. In this paper, we design a hypergraph based framework to better solve the data sparsity problem in CDR.
+3 THE PROPOSED METHOD
+In this section, we frst give the problem formulation and then describe the details of our proposed II-HGCN.
+3.1 Problem Formulation
+Problem Defnition. We assume there are two domains, i.e., A and A, who have the same set of users U = {A1, A2, . . . , AA } with N denoting the number of users. The item sets of domain A and domain A are IA = {A1
+A, A2
+A, . . . , AA } and IA = {A1
+A, A2
+A, . . . , A A }, where
+AA
+M and T denote the number of items in each domain, respectively.
+The user-item interactions of domain A and domain A are represented by matrixs RA ∈ {0, 1}A ×A and RA ∈ {0, 1}A ×A . Usually, R
+A and RA are very sparse since users can only interact with a small subset of items in each domain. CDR aims to provide users with accurate recommendation results in a domain with the help of the other domain. In this paper, we do not distinguish a source or target domain since the recommendation process for each domain is performed in a unifed way.
+Representation of HyperGraph. A hypergraph can be represented by G = (V, E), where V denotes the vertex set and E represents the edge set. An edge can connect two or more vertices in a hypergraph [4]. An adjacency matrix H ∈ {0, 1}| V |×| E | is used to represent the connections among vertices on the hypergraph, where HAA = 1 indicates vertex A belongs to hyperedge A. Two diagonal matrices DA ∈ R| V |×| V | and DA ∈ R| E |×| E | are used to represent the degrees of vertices and edges respectively, where (DA)AA = Í
+A ∈ E HAA and (DA )AA = Í
+A∈ V HAA .
+Notations. We list the important notations in Appendix A.
+3.2 Overview
+In this paper, we propose a novel Intra and Inter-Domain HyperGraph Convolutional Network for CDR, namely II-HGCN, to better solve the data sparsity problem. As shown in Figure 2, the framework of II-HGCN is divided into four components, i.e., input layer, intradomain layer, inter-domain layer, and prediction layer. We generate the embeddings of users and items from each domain in the input layer, and calculate the recommendation result in the prediction layer. In the main modeling process, we explore the high-order correlations inside each domain and across domains in the rest two layers to solve CH1 and CH2, respectively. In the intra-domain layer, we model each domain’s high-order correlations to learn better user and item embeddings. In the inter-domain layer, we transfer useful knowledge of both users and items across domains to enhance the recommendation performance. We will describe the details of the intra-domain layer and the inter-domain layer in the following subsections. Then we will introduce the prediction layer and the optimization strategy.
+3.3 Intra-Domain Layer (Solving CH1)
+As shown in Figure 2, in the intra-domain layer, domain A and domain A share the same process to learn user and item embeddings, i.e., frstly building two hypergraphs for users and items respectively, and then utilizing the hypergraph convolution network to update embeddings. For readability, we construct a common domain to introduce this unifed intra-domain process. We suppose there are A users and A items in this common domain. The user set is U = {A1, A2, . . . , AA }, the item set is I = {A1, A2, . . . , AA }, and
+the rating matrix is formed as R ∈ {0, 1}A ×A . In the intra-domain layer, the modeling processes of users and items are symmetrical. Without loss of generality, we take the modeling process of users as an example to describe the intradomain layer in detail.
+3.3.1 HyperGraph Construction for Users. To solve CH1, we propose a novel hypergraph construction method to explore high-order correlations inside every single domain. Before presenting the details, we frst give the defnition of Item’s A-order Reachable Users according to [23] as follows.
+451
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhongxuan Han, Xiaolin Zheng, Chaochao Chen, Wenjie Cheng, and Yao Yang
+Figure 2: The proposed framework of II-HGCN. The modeling process for domain A is shown in blue, while the modeling process for domain A is shown in orange. The common modeling process for combining embeddings of users is shown in gray. Similar users and items are shown in similar colors.
+Defnition 3.1 (Item’s A-order Reachable Users). In a user-item bipartite graph, A A is A-order reachable from AA if at least one of the direct paths between A A and AA exists A or less than A users.
+The basic idea of constructing a hypergraph for users can be summarized into three steps. Step 1, extracting an item’s A-order reachable user set as a hyperedge. For AA , its A-order reachable user set is termed as AA (AA ).
+U
+Step 2, combining A-order reachable user sets for all items into a Aorder user hypergroup HA = {AA (AA )|AA ∈ I}, where HA denotes
+UU U
+the A-order user hypergroup. The matrix form of constructing HA
+U is as follows:
+H
+A = R · AAA(1, AAA (RA · R, A − 1)), (1)
+U
+where AAA (R, A) is the function that calculates the A power of a matrix R, AAA(A, R) is the function that replace all elements bigger than A in matrix R with A, and · denotes the matrix multiplication. Step 3, aggregrating all A-order user hypergroups for A = 1, 2, . . . , AAAAAA to generate the user hypergraph. AAAAAA indicates the furthest reachable users we consider for each item. In this paper, we use a simple concatenation operation || to aggregate all hypergroups:
+HU = H1 ||H2 || . . . ||HAAAAAA . (2)
+UU U
+We give an example in Appendix B.1 to show the hypergraph construction rule in the intra-domain layer. However, the above method simply extracts all items’ A-order reachable users to construct hypergroups, but no consideration is given to whether every hyperedge is useful. For some users who have interacted with many items (active users), their embeddings can be well learned just based on the neighbors in close proximity. In this case, some noise will be added to these active users by including redundant hyperedges. To avoid such negative efects, we aim to remove redundant hyperedges so that on the one hand, more high-order correlations can be explored for less active users, and on the other hand, active users can be less afected.
+Firstly, to evaluate the importance of a hyperedge, we defne HyperDegree, a novel metric for a hyperedge by adding up all vertices’
+degrees in this hyperedge. Note that a hyperedge with a big hyperdegree means it has already contained some active users (its higherorder reachable users maybe redundant). The matrix form of calculating hyperdegrees for A-order user hypergroup DA ∈ {0, 1}A ×A
+U
+is DA = A (HA ⊙ (DA · 1)), where ⊙ is the matrix element-wise
+U U UA
+multiplication, 1 ∈ {1}A ×A is a matrix with all elements being 1, D
+A indicates the vertex degree matrix of HA , and A (R) denotes
+U
+AU
+the operation that converts a matrix R ∈ RA ×A into a diagonal matrix R ∈ RA ×A by summing up all elements in each column and storing the results in diagonal positions.
+Secondly, to evaluate whether each hyperedge should be added to the A-order hypergroup, we sum up the hyperdegrees of each hyperedge in {1, 2, . . . , A − 1}-order hypergroups as:
+D ̃ A = D1 + D2 + · · · + DA −1, (3)
+U UU U
+D
+A
+where  ̃ denotes the summing result and + denotes the matrix
+U addition.
+Thirdly, to flter the redundant hyperedges, we calculate the meD
+A
+dian value AA of all values in  ̃ , and then generate a diagonal
+U
+matrix FA ∈ {0, 1}A ×A to remove redundant hyperedges:
+U
+D
+A < AA
+(
+1, if (  ̃ ) ,
+AA U AA
+(FA ) = U (4)
+0, otherwise.
+Finally, the adjusted hypergraph of users can be formulated as:
+HU = H1 ||H2 · F2 || . . . ||HAAAAAA · FAAAAAA . (5)
+UUU U U
+Thus, only hyperedges containing some inactive users will be added to each hypergroup.
+3.3.2 HyperGraph Convolution for users. We design a hypergraph convolution network to update embeddings EU generated from the input layer. To distill discriminative information and model the correlations among users and items, we apply a shared parameter W
+A ∈ RA (A ) ×A (A+1) for users and items in each convolution layer, where A (A) indicates the output embedding size of layer A. The
+452
+
+
+Intra and Inter Domain HyperGraph Convolutional Network for Cross-Domain Recommendation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+matrix form of the hypergraph convolution process for users is as follows:
+E
+A
+U
++1 = A (D−1/2HU DUA HA
+U D−1/2EA
+U WA + EA
+U ), (6)
+U
+A UA
+where DUA ∈ RA ×A and DUA ∈ RA ×A are vertex and hyperedge degrees of the user hypergraph, and A is the activation function. We add the resnet-like skip connection to allow the model simultaneously considers both its original features and features aggregated from the hypergraph. The modeling process for items is similar to which of users and we show the details in Appendix B.2. Based on the unifed intradomain layer framework, we can learn high-quality representations (EA , EA ), (EA , EA ) of users and items in domain A and domain
+U
+A IA UA IA
+A for the further inter-domain process. By addressing the strengths of hypergraph, we can explore high-order correlations inside every single domain and solve the data sparsity problem better, as specifed in CH1.
+3.4 Inter-Domain Layer (Solving CH2)
+In this section, we will introduce how to combine the features of users and items between domain A and domain A who share the same set of users. As the modeling process of domain A and domain A is symmetrical, we take domain A as an example to describe the inter-domain layer in detail. The learning process of domain A is shown in Appendix B.3.
+As shown in Fig. 2, the embedding combination processes of users and items are separate and distinct. Firstly, we will introduce the embedding combination process of users, and then we will describe how to combine embeddings of items by exploring highorder correlations among items across domains.
+3.4.1 Combine Embeddings of Users. Since users are overlapping across domains and we want to identify the diferent proportions of features learned from diferent domains, we use an element-wise attention mechanism [43] to combine the user embeddings learned from domain A and domain A. Compared with the traditional attention mechanism [2], the element-wise attention mechanism allows more fexibility in identifying the importance of each element of embeddings learned from diferent domains. Given the output embeddings EA and EA from the A-th layer of the hypergraph
+U
+A UA
+convolutional network in the intra-domain process, the combined embeddings of users in domain A is calculated as follows:
+E
+A = EA ⊙ WA + EA
+ ̃ ⊙ (1 − WA ), (7)
+U
+A UA UA UA UA
+where WA
+U
+A
+∈ RA ×A (A ) is the weight matrices for the attention network of domain A.
+3.4.2 Combine Embeddings of Items. Diferent domains always contain entirely diferent items. Existing CDR methods have not given a good solution to model the correlations among items across domains. In our framework, we propose a hypergraph-based method to explore potential correlations among items based on their interactions with common users to enhance the recommendation performance. We divide the embedding combination process into two phases: HyperGraph Construction and HyperGraph Convolution. HyperGraph Construction. To fnd high-order relationships among items in each domain, we defne the HyperSimilarity SA A
+between two items AA and A A by calculating the number of users
+AA
+who interact with both AA and A A as SA = Í(RA ⊛ RA ), where ⊛
+A A A A ∗A ∗A
+Í
+denotes the element-wise AND operation, indicates the operation of summing up all values in a vector, and R∗A denotes the A-th column of matrix R. It should be noticed that the time complexity of constructing SA is the same as doing matrix multiplication on matrices RA and RA, which means the time consuming of calculating the hypersimilarity matrix is low. Based on the hypersimilarity matrix SA, we can construct the
+hypergraphs HA ∈ RA ×A by extracting topA most similar items
+A
+in domain A as (HA)∗A = AAAA (SA , A), where AAAA indicates the
+A ∗A
+function of saving topA biggest elements in a vector and replacing all other elements to be 0. We set the value of A to be AAAAAA , which means for every item, we consider the topAAAAAA most similar items in the other domain. We give an example in Appendix B.4 to show the hypergraph construction rule in the inter-domain layer.
+HyperGraph Convolution. Based on the hypergraphs HA, we
+A
+propose an adjusted hypergraph convolution network to transfer knowledge of items from domain A to domain A:
+P
+A = A (DH
+−
+A
+1/2 HA DH
+−
+A
+1/2EA ), (8)
+I
+A A IA AA AA
+∈ RA ×A
+where DHA and DHA ∈ RA ×A denotes the vertex and
+AA AA
+, PA
+hyperedge degrees of HA
+I
+A
+∈ RA ×A (A ) is the aggregated item
+A
+embeddings. To combine the features of items learned from the intra-domain layer and the inter-domain layer, we also use the element-wise attention network to combine them together:
+E ̃ A = EA ⊙ WA + PA ⊙ (1 − WA ), (9)
+I
+A IA IA IA IA
+where WA
+I
+A
+∈ RA ×A (A ) is the trainable parameter for the A-th layer of the element-wise attention network for items. Suppose the number of layers of the hypergraph convolution network in the intra-domain process is A, we can generate the fnal embeddings of users and items in domain A as:
+E ̃ UA = E ̃ 1 ||E ̃ 2 || . . . ||E ̃ A , E ̃ IA = E ̃ 1 ||E ̃ 2 || . . . ||E ̃ A , (10)
+U
+A UA UA IA IA IA
+where  ̃EUA and  ̃EIA denote the combined embeddings. Through the modeling process of the inter-domain layer, we can transfer knowledge of both users and items across diferent domains, so that we can address the CH2 and solve the data sparsity problem better.
+3.5 Prediction Layer and Optimization Strategy
+Prediction Layer. After generating fnal embeddings of users and items in each domain, we use the cosine similarity to decide the R
+A
+possibility ˆ of whether A A will interact with AA:
+AA A A
+(E ̃ UA )A · (E ̃ IA ) A
+= . (11)
+Rˆ AAA
+||(E ̃ UA ) || ||(E ̃ IA ) ||
+AA
+R
+A
+The possibility ˆ of whether A A will interact with A A can be
+AA A A
+calculated in the same way.
+Optimization Strategy. We choose the binary cross-entropy loss to optimize our model [35]. Taking domain A’s loss function LA as
+453
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhongxuan Han, Xiaolin Zheng, Chaochao Chen, Wenjie Cheng, and Yao Yang
+an example:
+∑
+R
+A RA RA
+L
+A = A A log ˆ A A + (1 − RA A
+A ) (1 − log ˆA A ).
+(12)
+A A ∈ UA,A A ∈ IA
+AA
+Similarly, we can obtain the loss function LA for domain A. We sum up them to get the total loss function for optimization: L = LA + LB.
+4 EXPERIMENTS AND ANALYSIS
+To fully evaluate the proposed II-HGCN framework, we conduct extensive experiments on three real-world datasets to answer the following questions: Q1: How does our II-HGCN outperform the stateof-the-art single-domain models? Q2: How does our II-HGCN perform compared with the state-of-the-art CDR models? Q3: Can our II-HGCN address the data sparsity problem better than other CDR models? Q4: How do combining embeddings of users and combining embeddings of items across domains contribute to performance improvement? Q5: How do important hyperparameters afect II-HGCN?
+4.1 Dataset and Experimental Settings
+Dataset Description. We choose three domains from the Amazon dataset1: Movies and TV (Movie), Books (Book), CDs and Vinyl (Music) to evaluate the performance of our proposed II-HGCN. These three domains are benchmarks for CDR and have been widely used in recent work [7, 17, 40]. We preprocess these domains as follows to construct experimental datasets for CDR. Firstly, since the user-item interaction information in these three domains is basically ratings ranging from 1 to 5, we convert the ratings of 3, 4, and 5 as positive samples and others including non-rating items as negative samples [17]. Next, following [7, 17, 40], we combine each of the two domains to obtain Movie & Book, Movie & Music, and Music & Book as our experimental cross-domain datasets, where each domain pairs share the same set of users. Then, for each experimental dataset, we flter users and items whose total number of interactions in two domains is less than 5 [7]. As shown in Table 4 in Appendix C.1, we can fnd that both domains for each dataset are still extremely sparse, with at least 99.86% interactions being unobserved. The severe data sparsity problem brings a great challenge to existing CDR methods.
+Evaluation Protocols. Firstly, we split each experimental dataset into the train set, the validation set, and the test set. Following [7, 16, 17], we utilize leave-one-out (LOO) to do the dataset splitting process. In detail, for each user, we randomly select two items from the positive samples, one as the validation item and the other one as the test item. After it, the remaining items are all considered as train items. Secondly, we train and evaluate each model as follows. Following [7, 16, 17], we randomly sample 99 items from negative samples for each user and then evaluate how recommendation models can rank the validation and the test item against these negative items. During the training process, we save the model with the best performance on the validation set. Finally, we perform testing with the saved model. In order to comprehensively evaluate the performance of each model, we adopt three widely used metrics [7, 17], i.e., Hit Ratio (HR), Normalized Discounted Cumulative Gain (NDCG), and Mean Reciprocal Rank (MRR). A higher value
+1 http://jmcauley.ucsd.edu/data/amazon/
+means a better recommendation performance for all these three metrics and the predicted ranking cut-of is set as topA = 5, 10 [7].
+Baselines. We compare our II-HGCN with seven baselines, including single-domain methods (PMF, NCF, and NGCF) and crossdomain methods (CoNet, DDTCDR, DARec, and ETL): (1) PMF [33]: Probabilistic matrix factorization is a classic factorization-based method for single-domain recommendation. (2) NCF [16]: Neural network-based collaborative fltering replaces the inner product with a neural architecture that can learn an arbitrary function from data. (3) NGCF [37]: Neural graph collaborative fltering exploits the user-item graph structure by propagating embeddings on it. Note that NGCF also considers the high-order connectivity in an item-user bipartite graph. (4) CoNet [17]: CoNet proposes a modifed cross-stitch neural network to transfer knowledge between two domains. (5) DDTCDR [28]: DDTCDR transfers knowledge across two domains by designing a deep dual transfer network. (6) DARec [40]: DARec learns shared user representations across diferent domains based on the domain adaptation technique. (7) ETL [7]: ETL is a recent state-of-the-art CDR model that captures both the overlapping and domain-specifc properties to adopt equivalent transformations across two domains. Besides, we also do ablation experiments to explore the infuence of the intra-domain layer and the inter-domain layer for II-HGCN: (1) II-HGCN-S indicates the model with only the intra-domain layer, which is a type of single-domain method. (2) II-HGCN-U denotes the model which only combines the embeddings of users across two domains in the inter-domain layer. (3) II-HGCN-I denotes the model which only combines the embeddings of items across two domains in the inter-domain layer.
+Parameter Settings. For a fair comparison, the batch size is set to 256 for all methods. Besides, we use the Adam optimizer [25] with the learning rate as 0.001 to optimize all models, and the Xavier initializer [14] to initialize all models’ parameters. To ensure the convergence for all models, we set the number of training epochs to 300. We optimize the unique parameters of all baseline models to get better performance. For II-HGCN, we set AAAAAA as 2 and AAAAAA as 5 based on the experiments of hyperparameters. The number of layers of the hypergraph convolutional network in the intradomain layer is set to 2 and the embedding size is set to 128. All activation functions in II-HGCN are ReLU [1].
+4.2 Overall Comparison (RQ1, RQ2)
+To answer Q1 and Q2, we conduct experiments on three experimental datasets to compare the performance of II-HGCN with single-domain methods and cross-domain methods. The results are reported in Table 1, and Table 5 in Appendix C.2. Improv. is calculated compared with the most competitive baseline.
+To answer Q1. In all these three experimental datasets, crossdomain methods generally outperform the single-domain methods, indicating the importance of transferring knowledge across domains in recommendation. This is because these datasets are extremely sparse, and CDR can combine each domain’s strengths to mitigate the data sparsity problem. Comparing the performance of II-HGCN with single-domain methods, generally, our II-HGCN framework signifcantly outperforms all single-domain models. In each dataset, II-HGCN-S with
+454
+
+
+Intra and Inter Domain HyperGraph Convolutional Network for Cross-Domain Recommendation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+Table 1: Experiment on Movie & Book Dataset
+Movie & Book topK topK = 5 topK = 10 Domain Movie Book Movie Book Metrics HR NDCG MRR HR NDCG MRR HR NDCG MRR HR NDCG MRR PMF 0.3889 0.2771 0.2402 0.3057 0.2214 0.1936 0.5218 0.3200 0.2579 0.4100 0.2550 0.2075 NCF 0.4320 0.3062 0.2779 0.3756 0.2759 0.2434 0.5498 0.3474 0.2848 0.4838 0.3113 0.2580 NGCF 0.4275 0.2993 0.2672 0.3685 0.2702 0.2418 0.5544 0.3496 0.2851 0.4903 0.3196 0.2608 CoNet 0.3846 0.2686 0.2304 0.3084 0.2167 0.1866 0.5206 0.3125 0.2485 0.4370 0.2581 0.2036 DDTCDR 0.3968 0.2670 0.2309 0.2979 0.2042 0.1766 0.5593 0.3298 0.2585 0.4439 0.2615 0.2119 DARec 0.4590 0.3270 0.2834 0.4196 0.2839 0.2494 0.6008 0.3729 0.3023 0.5368 0.3350 0.2962 ETL 0.4953* 0.3687* 0.3267* 0.4963* 0.3830* 0.3456* 0.6253* 0.4108* 0.3440* 0.6179* 0.4223* 0.3617* II-HGCN-S 0.4552 0.3251 0.2812 0.4386 0.3339 0.2995 0.5717 0.3527 0.2910 0.5522 0.3630 0.3260 II-HGCN-I 0.4811 0.3628 0.3246 0.4906 0.3756 0.3477 0.6051 0.3942 0.3513 0.6085 0.4104 0.3820 II-HGCN-U 0.5035 0.3756 0.3456 0.5151 0.3967 0.3509 0.6286 0.4171 0.3626 0.6261 0.4254 0.3870 II-HGCN 0.5298 0.3921 0.3472 0.5328 0.4218 0.3852 0.6544 0.4361 0.3654 0.6346 0.4579 0.4009 Improv. 6.97% 6.35% 6.27% 7.35% 10.13% 11.46% 4.65% 6.16% 6.22% 2.70% 8.43% 10.84% Note that the results marked with * are the best performing baselines.
+Table 2: Experimental results on sparse dataset for domain Music & Book
+Music & Book Domain Music Book Sparse Ratio 0 10% 20% 30% 40% 50% 0 10% 20% 30% 40% 50%
+HR@5
+ETL II-HGCN
+0.4638 0.5008
+0.4330 0.4740
+0.4026 0.3746 0.4477 0.4219
+0.3295 0.3913
+0.2712 0.3489
+0.4594 0.4762
+0.4315 0.4516
+0.4031 0.3764 0.4253 0.4033
+0.3357 0.3707
+0.2773 0.3531 Improv. 7.98% 9.47% 11.20% 12.63% 18.76% 28.65% 3.66% 4.66% 5.51% 7.15% 10.43% 27.34%
+NDCG@5
+ETL II-HGCN
+0.3572 0.3839
+0.3320 0.3663
+0.3010 0.2814 0.3391 0.3198
+0.2479 0.2980
+0.1984 0.2776
+0.3587 0.3771
+0.3353 0.3571
+0.3094 0.2842 0.3312 0.3145
+0.2538 0.2893
+0.1890 0.2556 Improv. 7.47% 10.33% 12.66% 13.65% 20.21% 39.92% 5.13% 6.50% 7.05% 10.66% 13.99% 35.24%
+MRR@5
+ETL II-HGCN
+0.3225 0.3457
+0.2985 0.3294
+0.2733 0.2504 0.3038 0.2806
+0.2195 0.2643
+0.1764 0.2451
+0.3203 0.3435
+0.3028 0.3256
+0.2777 0.2534 0.3004 0.2828
+0.2239 0.2597
+0.1634 0.2369 Improv. 7.19% 10.35% 11.16% 12.06% 20.41% 38.95% 7.24% 7.53% 8.17% 11.60% 15.99% 44.98%
+HR@10
+ETL II-HGCN
+0.5867 0.6190
+0.5548 0.5917
+0.5270 0.4943 0.5684 0.5422
+0.4452 0.5188
+0.3737 0.4807
+0.5728 0.5955
+0.5463 0.5691
+0.5195 0.4909 0.5434 0.5261
+0.4472 0.4858
+0.3836 0.4417 Improv. 5.51% 6.65% 7.86% 9.69% 16.53% 28.63% 3.96% 4.17% 4.60% 7.17% 8.63% 15.15%
+NDCG@10
+ETL II-HGCN
+0.3972 0.4239
+0.3710 0.4052
+0.3412 0.3199 0.3786 0.3556
+0.2837 0.3368
+0.2314 0.3145
+0.3954 0.4221
+0.3714 0.3981
+0.3455 0.3208 0.3735 0.3566
+0.2898 0.3343
+0.2242 0.2957 Improv. 6.72% 9.22% 10.96% 11.16% 18.72% 35.91% 6.75% 7.19% 8.10% 11.16% 15.36% 31.89%
+MRR@10
+ETL II-HGCN
+0.3390 0.3629
+0.3145 0.3454
+0.2893 0.2662 0.3201 0.2967
+0.2341 0.2800
+0.1898 0.2547
+0.3357 0.3581
+0.3177 0.3408
+0.2925 0.2685 0.3212 0.3001
+0.2384 0.2755
+0.1778 0.2413 Improv. 7.05% 9.83% 10.65% 11.46% 19.61% 34.19% 6.67% 7.27% 9.81% 11.77% 15.56% 35.71%
+only the intra-domain layer has already got the best performance among all single-domain models. While II-HGCN still improves the performance by at least 13.83% and 14.62% for NDCG@5 and NDCG@10 compared with II-HGCN-S, which proves that the embeddings learned from a sparse domain can be optimized with the help of the other domain. Compared with NGCF which also considers high-order correlations among users and items, our proposed II-HGCN-S achieves better performance. Since by using hypergraphs, we can model high-order relationships in a more fexible way. Besides, users and items with high-order correlations can directly pass messages to each other based on hyperedges instead of using other nodes as bridges in conventional graph structures.
+To answer Q2. II-HGCN yields consistent best performance compared with all CDR methods on all datasets. In particular, II-HGCN improves the strongest baseline (i.e., ETL) by 6.27% in average in terms of NDCG@5 and 6.11% in average in terms of NDCG@10. We attribute the improvement mainly to the fexible and explicit modeling of high-order correlations inside each domain and the ability to combine items’ embeddings across domains. Specifically, (1) in the intra-domain layer, we construct user and item hypergraphs for each domain, respectively, to explore high-order relationships. Thus we can deal with the data sparsity problem better than other CDR methods and learn more accurate embeddings from each domain; (2) in the inter-domain layer, we can not
+only combine embeddings of users but also transfer knowledge of items across two domains. In each dataset, items are totally nonoverlapping across domains, and all listed CDR methods cannot model the correlations among items from diferent domains. In contrast, we propose a hypergraph-based method in II-HGCN to explore the high-order relationships among items according to their interactions with common users. Thus, the embeddings of items in each domain can be optimized with the help of the other domain, and we can calculate more accurate recommendation results compared with other CDR methods. Compared with ETL, II-HGCN consistently yields better performance. ETL is the strongest baseline among all listed methods, which intends to learn the domain-specifc properties as well as the overlapping users’ properties. However, correlations among items across diferent domains are ignored by ETL. As a result, it can learn items’ embeddings only based on each extremely sparse single domain, which limits its performance.
+4.3 Experiment on Sparse Datasets (RQ3)
+To prove that our II-HGCN framework can address the data sparsity problem better than other CDR methods, we conduct exhaustive experiments on sparser datasets and the results are shown in Table 2. We choose the Music & Book dataset for testing since the sparsity of these two domains is relatively similar. For each domain, we randomly drop diferent ratios of interactions among users and items. To compare the performance of diferent models
+455
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA Zhongxuan Han, Xiaolin Zheng, Chaochao Chen, Wenjie Cheng, and Yao Yang
+Figure 3: The efect of AAAAAA and AAAAAA on II-HGCN in the Music & Book dataset.
+as data sparsity changes, we select drop ratios (i.e., sparse ratio) in {10%, 20%, 30%, 40%, 50%} as Sparse Ratio indicates in Table 2. Note that a higher sparse ratio means a sparser dataset and the sparse ratio of 0 indicates the original dataset. Since ETL is the strongest baseline, we choose it as the comparison method. Overall, as the sparse ratio increases (the dataset becomes sparser), II-HGCN achieves greater improvement compared with ETL, which proves II-HGCN can better deal with the data sparsity problem. In particular, when we drop 50% interactions, II-HGCN improves ETL by as high as 39.92% and 35.24% on the music domain and the book domain respectively, in terms of NDCG@5. This is because ETL can only model the pairwise interactions among users and items. With the dataset becoming sparser, the loss of user-item interactions will lead to inaccurate representations of users and items, since relationships among users and items cannot be identifed well. In addition, when both two domains become sparser, transferring knowledge across them may bring the negative transfer problem [34]. In contrast, II-HGCN can deal with the data sparsity problem better because of two reasons. Firstly, II-HGCN can explore highorder correlations in addition to pairwise relationships inside each single domain. Thus II-HGCN can maintain the high-order relationships as much as possible despite the dataset becoming sparser. Secondly, II-HGCN can still model the potential correlations among items across diferent domains in the inter-domain layer so that the knowledge transfer process for CDR can be stable. We give an example in Appendix C.3 to explain why II-HGCN can maintain more correlations than other methods in a sparse dataset.
+4.4 Ablation Study (RQ4)
+We conduct ablation experiments to analyze the efect of combining embeddings of users and combining embeddings of items across diferent domains. Firstly, as Table 1, and Table 5 in Appendix C.2 show, II-HGCN-S with only the intra-domain layer outperforms all single-domain methods, which proves that II-HGCN-S can generate more accurate embeddings in sparse domains by modeling high-order correlations among users and items. Besides, combining embeddings of only users (II-HGCN-U) or only items (II-HGCNI) can enhance the recommendation performance compared with II-HGCN-S. Combining embeddings of users across domains is natural since users’ behaviors in diferent domains can show their diferent features. While II-HGCN-I achieves better performance than II-HGCN-S proves that our inter-domain hypergraph structure can explore the high-order correlations among items in diferent domains and transfer useful knowledge of items across domains. Finally, II-HGCN achieves the best performance among these models
+with diferent combinations, illustrating that transferring knowledge of items and users are both necessary for CDR.
+4.5 Impact of Hyperparameters (RQ5)
+To answer Q5, we select the Music & Book dataset to analyze the efect of important hyperparameters on II-HGCN. Due to space constraints, we only show the efect of the most important hyperparameters of our model: AAAAAA and AAAAAA which infuence the hypergraph structure of the intra-domain layer and the inter-domain layer. Their efect is depicted in Figure 3.
+Efect of AAAAAA. Accroding to Fig. 3, all metrics peak at AAAAAA = 2 in both domains. When AAAAAA = 1, the hypergraph of the intra-domain layer degrades to the conventional graph structure. II-HGCN with AAAAAA = 2 outperforms that with AAAAAA = 1, because some solid high-order correlations among users and items can be explored and modeled, which compensates for the data sparsity problem in each single domain. However, the performance of II-HGCN becomes worse as AAAAAA further increases. The reason is that with higherorder hypergroups being added to the hypergraph in the intradomain layer, some users or items with little correlations will also be connected in a hyperedge. Considering such too weak correlations will bring some noise to the modeling process.
+Efect of AAAAAA . According to Fig. 3, our II-HGCN framework is insensitive to this hyperparameter. Though all metrics peak at AAAAAA = 5, the overall fuctuation is very limited. The reason is that we extract topAAAAAA similar items from another domain to construct a hyperedge for each target item. In each hyperedge, an item’s weight is proportional to its hypersimilarity with the target item. Thus, the most similar items always have the greatest impact on the target item. With AAAAAA increases, some less similar items will also be added to the hyperedge, but they do not have a signifcant efect on the target item because of their small weights.
+5 CONCLUSION
+In this paper, we propose an Intra and Inter Domain HyperGraph Convolutional Network for Cross-Domain Recommendation, called II-HGCN, to solve the data sparsity problem. We design a novel intra-domain hypergraph structure to explore the high-order correlations in each sparse domain to generate more accurate embeddings. In addition, we also propose a hypergraph-based interdomain framework to not only combine features of users but also transfer the knowledge of items across diferent domains. Comprehensive experiments show that our II-HGCN framework outperforms the state-of-the-art CDR methods and can achieve more signifcant improvement in sparser datasets, proving that our method can better deal with the data sparsity problem.
+456
+
+
+Intra and Inter Domain HyperGraph Convolutional Network for Cross-Domain Recommendation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+ACKNOWLEDGMENTS
+This work was supported in part by the National Natural Science Foundation of China (No.62172362) and Leading Expert of "Ten Thousands Talent Program" of Zhejiang Province (No.2021R52001).
+REFERENCES
+[1] Abien Fred Agarap. 2018. Deep learning using rectifed linear units (relu). arXiv preprint arXiv:1803.08375 (2018).
+[2] Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio. 2014. Neural machine translation by jointly learning to align and translate. arXiv preprint arXiv:1409.0473 (2014).
+[3] Shlomo Berkovsky, Tsvi Kufik, and Francesco Ricci. 2007. Cross-domain mediation in collaborative fltering. In International Conference on User Modeling. Springer, 355–359. [4] Alain Bretto. 2013. Hypergraph theory. An introduction. Mathematical Engineering. Cham: Springer (2013).
+[5] Chaochao Chen, Huiwen Wu, Jiajie Su, Lingjuan Lyu, Xiaolin Zheng, and Li Wang. 2022. Diferential Private Knowledge Transfer for Privacy-Preserving Cross-Domain Recommendation. In Proceedings of the ACM Web Conference 2022. 1455–1465. [6] Hongxu Chen, Hongzhi Yin, Xiangguo Sun, Tong Chen, Bogdan Gabrys, and Katarzyna Musial. 2020. Multi-level graph convolutional networks for crossplatform anchor link prediction. In Proceedings of the 26th ACM SIGKDD international conference on knowledge discovery & data mining. 1503–1511.
+[7] Xu Chen, Ya Zhang, Ivor Tsang, Yuangang Pan, and Jingchao Su. 2020. Towards Equivalent Transformation of User Preferences in Cross Domain Recommendation. arXiv preprint arXiv:2009.06884 (2020).
+[8] Uthsav Chitra and Benjamin Raphael. 2019. Random walks on hypergraphs with edge-dependent vertex weights. In International Conference on Machine Learning. PMLR, 1172–1181. [9] Ali Mamdouh Elkahky, Yang Song, and Xiaodong He. 2015. A multi-view deep learning approach for cross domain user modeling in recommendation systems. In Proceedings of the 24th international conference on world wide web. 278–288. [10] Yifan Feng, Haoxuan You, Zizhao Zhang, Rongrong Ji, and Yue Gao. 2019. Hypergraph neural networks. In Proceedings of the AAAI Conference on Artifcial Intelligence, Vol. 33. 3558–3565. [11] Ignacio Fernández-Tobías and Iván Cantador. 2014. Exploiting Social Tags in Matrix Factorization Models for Cross-domain Collaborative Filtering.. In CBRecSys@ RecSys. Citeseer, 34–41. [12] Sheng Gao, Hao Luo, Da Chen, Shantao Li, Patrick Gallinari, and Jun Guo. 2013. Cross-domain recommendation via cluster-level latent factor model. In Joint European conference on machine learning and knowledge discovery in databases. Springer, 161–176. [13] Yue Gao, Meng Wang, Zheng-Jun Zha, Jialie Shen, Xuelong Li, and Xindong Wu. 2012. Visual-textual joint relevance learning for tag-based social image search. IEEE Transactions on Image Processing 22, 1 (2012), 363–376.
+[14] Xavier Glorot and Yoshua Bengio. 2010. Understanding the difculty of training deep feedforward neural networks. In Proceedings of the thirteenth international conference on artifcial intelligence and statistics. JMLR Workshop and Conference Proceedings, 249–256. [15] Lei Guo, Li Tang, Tong Chen, Lei Zhu, Quoc Viet Hung Nguyen, and Hongzhi Yin. 2021. DA-GCN: a domain-aware attentive graph convolution network for shared-account cross-domain sequential recommendation. arXiv preprint arXiv:2105.03300 (2021).
+[16] Xiangnan He, Lizi Liao, Hanwang Zhang, Liqiang Nie, Xia Hu, and Tat-Seng Chua. 2017. Neural collaborative fltering. In Proceedings of the 26th international conference on world wide web. 173–182.
+[17] Guangneng Hu, Yu Zhang, and Qiang Yang. 2018. Conet: Collaborative cross networks for cross-domain recommendation. In Proceedings of the 27th ACM international conference on information and knowledge management. 667–676. [18] Liang Hu, Jian Cao, Guandong Xu, Longbing Cao, Zhiping Gu, and Can Zhu. 2013. Personalized recommendation via cross-domain triadic factorization. In Proceedings of the 22nd international conference on World Wide Web. 595–606. [19] Yuchi Huang, Qingshan Liu, and Dimitris Metaxas. 2009. ] Video object segmentation by hypergraph cut. In 2009 IEEE conference on computer vision and pattern recognition. IEEE, 1738–1745. [20] Yuchi Huang, Qingshan Liu, Shaoting Zhang, and Dimitris N Metaxas. 2010. Image retrieval via probabilistic hypergraph ranking. In 2010 IEEE computer society conference on computer vision and pattern recognition. IEEE, 3376–3383. [21] TaeHyun Hwang, Ze Tian, Rui Kuangy, and Jean-Pierre Kocher. 2008. Learning on weighted hypergraphs to integrate protein interactions and gene expressions
+for cancer outcome prediction. In 2008 Eighth IEEE International Conference on Data Mining. IEEE, 293–302. [22] Il Im and Alexander Hars. 2007. Does a one-size recommendation system ft all? the efectiveness of collaborative fltering based recommendation systems across diferent domains and search modes. ACM Transactions on Information Systems (TOIS) 26, 1 (2007), 4–es. [23] Shuyi Ji, Yifan Feng, Rongrong Ji, Xibin Zhao, Wanwan Tang, and Yue Gao. 2020. Dual channel hypergraph collaborative fltering. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining. 2020–2029. [24] Heishiro Kanagawa, Hayato Kobayashi, Nobuyuki Shimizu, Yukihiro Tagami, and Taiji Suzuki. 2019. Cross-domain recommendation via deep domain adaptation. In European Conference on Information Retrieval. Springer, 20–29.
+[25] Diederik P Kingma and Jimmy Ba. 2014. Adam: A method for stochastic optimization. arXiv preprint arXiv:1412.6980 (2014).
+[26] Bin Li, Qiang Yang, and Xiangyang Xue. 2009. Can movies and books collaborate? cross-domain collaborative fltering for sparsity reduction. In Twenty-First international joint conference on artifcial intelligence.
+[27] Bin Li, Qiang Yang, and Xiangyang Xue. 2009. Transfer learning for collaborative fltering via a rating-matrix generative model. In Proceedings of the 26th annual international conference on machine learning. 617–624.
+[28] Pan Li and Alexander Tuzhilin. 2020. Ddtcdr: Deep dual transfer cross domain recommendation. In Proceedings of the 13th International Conference on Web Search and Data Mining. 331–339.
+[29] Jianxun Lian, Fuzheng Zhang, Xing Xie, and Guangzhong Sun. 2017. CCCFNet: a content-boosted collaborative fltering neural network for cross domain recommender systems. In Proceedings of the 26th international conference on World Wide Web companion. 817–818.
+[30] Weiming Liu, Xiaolin Zheng, Mengling Hu, and Chaochao Chen. 2022. Collaborative Filtering with Attribution Alignment for Review-based Non-overlapped Cross Domain Recommendation. In Proceedings of the ACM Web Conference 2022. 1181–1190. [31] Weiming Liu, Xiaolin Zheng, Jiajie Su, Longfei Zheng, Chaochao Chen, and Mengling Hu. 2023. Contrastive Proxy Kernel Stein Path Alignment for CrossDomain Cold-Start Recommendation. IEEE Transactions on Knowledge and Data Engineering (2023).
+[32] Nima Mirbakhsh and Charles X Ling. 2015. Improving top-n recommendation for cold-start users via cross-domain information. ACM Transactions on Knowledge Discovery from Data (TKDD) 9, 4 (2015), 1–19.
+[33] Andriy Mnih and Russ R Salakhutdinov. 2007. Probabilistic matrix factorization. Advances in neural information processing systems 20 (2007).
+[34] Sinno Jialin Pan and Qiang Yang. 2009. A survey on transfer learning. IEEE Transactions on knowledge and data engineering 22, 10 (2009), 1345–1359.
+[35] Reuven Y Rubinstein and Dirk P Kroese. 2004. The cross-entropy method: a unifed approach to combinatorial optimization, Monte-Carlo simulation, and machine learning. Vol. 133. Springer. [36] Ajit P Singh and Geofrey J Gordon. 2008. Relational learning via collective matrix factorization. In Proceedings of the 14th ACM SIGKDD international conference on Knowledge discovery and data mining. 650–658.
+[37] Xiang Wang, Xiangnan He, Meng Wang, Fuli Feng, and Tat-Seng Chua. 2019. Neural graph collaborative fltering. In Proceedings of the 42nd international ACM SIGIR conference on Research and development in Information Retrieval. 165–174. [38] Xin Xia, Hongzhi Yin, Junliang Yu, Qinyong Wang, Lizhen Cui, and Xiangliang Zhang. 2021. Self-supervised hypergraph convolutional networks for sessionbased recommendation. In Proceedings of the AAAI Conference on Artifcial Intelligence, Vol. 35. 4503–4511. [39] Junliang Yu, Hongzhi Yin, Jundong Li, Qinyong Wang, Nguyen Quoc Viet Hung, and Xiangliang Zhang. 2021. Self-supervised multi-channel hypergraph convolutional network for social recommendation. In Proceedings of the Web Conference 2021. 413–424. [40] Feng Yuan, Lina Yao, and Boualem Benatallah. 2019. DARec: Deep domain adaptation for cross-domain recommendation via transferring rating patterns. arXiv preprint arXiv:1905.10760 (2019).
+[41] Cheng Zhao, Chenliang Li, and Cong Fu. 2019. Cross-domain recommendation via preference propagation graphnet. In Proceedings of the 28th ACM International Conference on Information and Knowledge Management. 2165–2168.
+[42] Dengyong Zhou, Jiayuan Huang, and Bernhard Schölkopf. 2006. Learning with hypergraphs: Clustering, classifcation, and embedding. Advances in neural information processing systems 19 (2006).
+[43] Feng Zhu, Yan Wang, Jun Zhou, Chaochao Chen, Longfei Li, and Guanfeng Liu. 2023. A Unifed Framework for Cross-Domain and Cross-System Recommendations. IEEE Transactions on Knowledge and Data Engineering 35, 2 (2023), 1171–1184. https://doi.org/10.1109/TKDE.2021.3104873
+457
+
+
+WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+(a) example of intra-domain layer (b) example of inter-domain layer
+Figure 4: (a) and (b) show examples of the hypergraph construction in the intra-domain layer and the inter-domain layer
+Table 3: Notations of this paper
+Notation Description
+Notations throughout the entire process U
+A and A I
+A and IA
+A A A
+R
+A and RA
+G = (V, E) H
+the user set in domain A and domain A two diferent domains the item sets in domain A and domain A the number of users the number of items in domain A the number of items in domain A the user-item interaction matrices in domain A and domain
+A
+the representation of a hypergraph the adjacency matrix of a hypergraph Notations throughout the intra-domain process E
+A
+U and EI
+A
+H
+A
+U and HA
+I HU and HI D
+A
+U and DA
+I
+DUA and DUA
+DIA and DIA
+and EIA
+EUA
+and EIA
+EUA
+E
+A
+U and EA
+I
+the A-order reachable user set and item set the A-order user hypergroup and item hypergroup the user hypergraph and item hypergraph the hyperdegree matrices of hyperedges in A-order hypergroups for users and items the vertex degrees matrix and the hyperedge degrees matrix of the user hypergraph the vertex degrees matrix and the hyperedge degrees matrix of the item hypergraph embeddings of users and items generated from the input layer for domain A. embeddings of users and items generated from the input layer for domain A. the output user embeddings and item embeddings from the A-th layer of the hypergraph convolution network Notations throughout the inter-domain process S
+A and SA
+H
+A
+S and HA
+S
+P
+A and PA
+IA IA
+E ̃ A EA
+and  ̃
+UA UA
+E ̃ A EA
+and  ̃
+IA IA
+ ̃ and  ̃
+EUA EUA
+ ̃ and  ̃
+EIA EIA
+the hypersimilarity matrices for items in domain A and domain A the hypergraphs constructed for items in domain A and domain A the aggregated embeddings for items in domain A and domain A obtained from hypergraph convolutional network in the inter-domain process the A-th layer combined embeddings of users obtained by element-wise mechanism. the A-th layer combined embeddings of items obtained by element-wise mechanism. the fnal combined embeddings of users in domain A and domain A the fnal combined embeddings of items in domain A and domain A
+Table 4: The statistics of experimental datasets
+Dataset Users Domain Items Interactions Density Movie & Book 29,476 Movie 24,091 591,258 0.08%
+Book 41,884 579,131 0.05% Movie & Music 15,914 Movie 17,794 416,228 0.14%
+Music 20,058 280,398 0.09% Music & Book 16,267 Music 18,467 233,251 0.08%
+Book 23,988 291,325 0.07%
+Zhongxuan Han, Xiaolin Zheng, Chaochao Chen, Wenjie Cheng, and Yao Yang
+A NOTATIONS
+For clearly describe the details of II-HGCN, we list the notations throughout the entire process, the intra-domain process and the inter-domain process in Table 3.
+B MORE MODELING DETAILS
+B.1 Example of The Hypergraph Construction in The Intra-Domain Layer
+We give an example of the hypergraph construction in the intradomain layer in Figure 4(a). Each column in H1 and H2 represents
+UU
+a hyperedge containing several users. A2 and A4 are 1-order reachable users for AA , thus their values are set to 1 in the A-th column
+of H1 . Note that (A − 1)-order reachable users are also included
+U
+in the A-order reachable user set for an item, and thus the values of A2 and A4 are also set to 1 in addition to A1 and A5 in the A-th
+column of H2U .
+B.2 Modeling Process of Items in The Intra-Domain Layer
+HyperGraph Construction for Items. Firstly we give the defnition of User’s A-order Reachable Items as follows:
+Defnition B.1 (User’s A-order Reachable Items). In a user-item bipartite graph, A A is A-order reachable from AA if at least one of the direct paths between A A and AA exist A or less than A items.
+Then the A-order item hypergroup HA ∈ {0, 1}A ×A can be
+I formulated as:
+H
+A = RA · AAA(1, AAA (R · RA , A − 1)). (13)
+I
+Finally, the item hypergraph can be constructed as:
+HI = H1 ||H2 · F2 || . . . ||HAAAAAA · FAAAAAA , (14)
+III I I
+where FA ∈ {0, 1}A ×A can be calculated in the same way as which
+I of users.
+HyperGraph Convolution. Embeddings of items can be updated based on the hypergraph constructed above:
+E
+A
+I
++1 = A (D−
+I
+A
+1/2HI DIA HA
+I D−
+I
+A
+1/2EA
+I WA + EA
+I ). (15)
+B.3 Modeling Process of Domain B in The Inter-Domain Layer
+Combine Embeddings of Users. We also use the element-wise attention mechanism to transfer knowledge of users from domain A to domain A:
+E ̃ A = EA ⊙ WA + EA ⊙ (1 − WA ). (16)
+U
+A UA UA UA UA
+Combine Embeddings of Items. For domain A, we frstly construct the hypersimilarity matrix SA ∈ RA ×A as SA = Í(RA ⊛RA ).
+A A ∗A ∗A ∈ RA ×A
+Then we can calculate the hypergraph HA as (HA)∗A =
+AA
+AAAA (SA , A). Based on the hypergraph, we use an adjusted hyper
+∗A
+graph convolution network to transfer knowledge of items from domain A to domain A:
+P
+A = A (DH
+−1
+A
+/2HA DH
+−1
+A
+/2EA ). (17)
+I
+A A IA AA AA
+458
+
+
+Intra and Inter Domain HyperGraph Convolutional Network for Cross-Domain Recommendation WWW ’23, April 30–May 04, 2023, Austin, TX, USA
+Table 5: Experiment on Movie & Music and Music & Book datasets
+Movie & Music topK topK = 5 topK = 10 Domain Movie Music Movie Music Metrics HR NDCG MRR HR NDCG MRR HR NDCG MRR HR NDCG MRR PMF 0.3797 0.2771 0.2433 0.3611 0.2677 0.2369 0.4991 0.3144 0.2586 0.4672 0.3020 0.2510 NCF 0.4171 0.3012 0.2630 0.4354 0.3210 0.2835 0.5482 0.3335 0.2803 0.5433 0.3587 0.2990 NGCF 0.4177 0.3089 0.2664 0.4234 0.3042 0.2651 0.5576 0.3443 0.2852 0.5557 0.3464 0.2826 CoNet 0.3763 0.2618 0.2241 0.3736 0.2576 0.2194 0.5185 0.3077 0.2430 0.5173 0.3039 0.2385 DDTCDR 0.3943 0.2736 0.2405 0.3975 0.2703 0.2216 0.5104 0.3141 0.2571 0.4969 0.2956 0.2261 DARec 0.4468 0.3199 0.2786 0.4521 0.3446 0.2867 0.5559 0.3351 0.2672 0.5879 0.3874 0.3238 ETL 0.4844* 0.3629* 0.3217* 0.5183* 0.3992* 0.3596* 0.6247* 0.4066* 0.3398* 0.6479* 0.4410* 0.3769* II-HGCN-S 0.4303 0.3283 0.2789 0.4502 0.3381 0.2979 0.5542 0.3639 0.2977 0.6092 0.3926 0.3163 II-HGCN-I 0.4790 0.3584 0.3050 0.5187 0.3889 0.3564 0.6018 0.3835 0.3236 0.6473 0.4332 0.3645 II-HGCN-U 0.4906 0.3694 0.3161 0.5300 0.4032 0.3650 0.6173 0.3961 0.3254 0.6559 0.4497 0.3701 II-HGCN 0.5104 0.3737 0.3271 0.5528 0.4214 0.3776 0.6519 0.4171 0.3458 0.6828 0.4675 0.3996 Improv. 5.37% 2.98% 1.68% 6.66% 5.56% 5.01% 4.35% 2.58% 1.77% 5.39% 6.01% 6.02%
+topK topK = 5 topK = 10 Domain Music Book Music Book Metrics HR NDCG MRR HR NDCG MRR HR NDCG MRR HR NDCG MRR PMF 0.3035 0.2216 0.1947 0.2949 0.2135 0.1867 0.4119 0.2566 0.2091 0.3937 0.2448 0.1996 NCF 0.4062 0.3007 0.2658 0.3494 0.2579 0.2281 0.5236 0.3386 0.2814 0.4564 0.2926 0.2423 NGCF 0.3665 0.2618 0.2278 0.3343 0.2374 0.2058 0.4954 0.3031 0.2448 0.4538 0.2762 0.2217 CoNet 0.3259 0.2124 0.2016 0.3171 0.1910 0.2026 0.4517 0.2597 0.2379 0.4432 0.2317 0.2325 DDTCDR 0.4017 0.3162 0.2781 0.3748 0.2907 0.2864 0.4969 0.3333 0.2834 0.4768 0.3268 0.2812 DARec 0.4630* 0.3497 0.3251* 0.4438 0.3391 0.2984 0.5727 0.3807 0.3219 0.5538 0.3776 0.3243 ETL 0.4628 0.3572* 0.3225 0.4594* 0.3587* 0.3203* 0.5867* 0.3972* 0.3390* 0.5728* 0.3954* 0.3357* II-HGCN-S 0.4379 0.3255 0.2900 0.4050 0.3020 0.2682 0.5618 0.3600 0.2978 0.5293 0.3424 0.2750 II-HGCN-I 0.4754 0.3548 0.3151 0.4486 0.3470 0.3070 0.6166 0.4075 0.3357 0.5671 0.3948 0.3324 II-HGCN-U 0.4806 0.3662 0.3284 0.4639 0.3474 0.3154 0.6235 0.4159 0.3448 0.5773 0.4031 0.3407 II-HGCN 0.5008 0.3839 0.3457 0.4762 0.3771 0.3435 0.6190 0.4239 0.3629 0.5955 0.4221 0.3581 Improv. 8.16% 7.47% 6.33% 3.66% 5.13% 7.24% 5.51% 6.72% 7.05% 3.96% 6.75% 6.67%
+Music & Book
+Note that the results marked with * are the best performing baselines.
+(a) The original dataset. (b) The dataset after sparsifying.
+Figure 5: (a) and (b) show examples of the correlations among users and items before and afer a dataset becomes sparser.
+The embeddings learned from the intra-domain layer and the interdomain layer are also combined by the element-wise attention mechanism:
+E
+A = EA ⊙ WA + PA
+ ̃ ⊙ (1 − WA ). (18)
+I
+A IA IA IA IA
+Finally, we can generate the fnal embeddings of users and items of domain A:
+ ̃ = E ̃ 1 ||E ̃ 2 || . . . ||E ̃ A ,  ̃ = E ̃ 1 ||E ̃ 2 || . . . ||E ̃ A . (19)
+EUA UA UA UA
+EIA IA IA IA
+B.4 Example of The Hypergraph Construction in The Inter-Domain Layer
+Figure 4(b) shows the construction example of HA, where we as
+A
+sume AAAAAA = 3. For example, there are three users who interact with both AA
+A and A2
+A, thus the hypersimilarity of A2
+A and AA
+A is 3.
+By extracting top3 most similar items A2
+A, A3
+A, and A5
+A, we can con
+struct the A-th hyperedge in HA. Then the embedding of AA will be
+AA
+updated based on this hyperedge.
+C MORE EXPERIMENTAL DETAILS
+C.1 The Statistics of Experimental Datasets
+We list the statistics of experimental datasets in Table 4.
+C.2 Experimental Results on Movie & Music and Music & Book Dataset
+We list the experiment results on Movie & Music and Music & Book datasets in Table 5.
+C.3 Example of Why II-HGCN Can Deal with The Data Sparsity Problem Better
+We give an example in Figure 5 to show why II-HGCN can perform better than other methods in a sparse dataset. Solid lines indicate the pairwise user-item interactions and the dotted line indicates the hyperedge. In this example, when the dataset becomes sparser, the degree of message passing between A1 and A4 becomes so high that the correlation between these two users is nearly destroyed in conventional pairwise relationships. However, the high-order correlations among A1, A2, A3, and A4 can still be maintained since they are included in 2-order reachable user set of A2. Thus, when the dataset becomes sparser, II-HGCN can maintain more correlations among users and items, compared with traditional CDR methods which based on pairwise user-item interactions.
+459

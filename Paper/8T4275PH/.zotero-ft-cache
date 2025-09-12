@@ -1,0 +1,361 @@
+U-KAN Makes Strong Backbone for Medical Image Segmentation and Generation
+Chenxin Li1*, Xinyu Liu1*, Wuyang Li1*, Cheng Wang1*, Hengyu Liu1, Yifan Liu1, Zhen Chen2, Yixuan Yuan1,
+1The Chinese University of Hong Kong, 2CAIR, HKISI-CAS
+Abstract
+U-Net has become a cornerstone in various visual applications such as image segmentation and diffusion probability models. While numerous innovative designs and improvements have been introduced by incorporating transformers or MLPs, the networks are still limited to linearly modeling patterns as well as the deficient interpretability. To address these challenges, our intuition is inspired by the impressive results of the Kolmogorov-Arnold Networks (KANs) in terms of accuracy and interpretability, which reshape the neural network learning via the stack of non-linear learnable activation functions derived from the Kolmogorov-Anold representation theorem. Specifically, in this paper, we explore the untapped potential of KANs in improving backbones for vision tasks. We investigate, modify and re-design the established U-Net pipeline by integrating the dedicated KAN layers on the tokenized intermediate representation, termed U-KAN. Rigorous medical image segmentation benchmarks verify the superiority of UKAN by higher accuracy even with less computation cost. We further delved into the potential of U-KAN as an alternative U-Net noise predictor in diffusion models, demonstrating its applicability in generating task-oriented model architectures. Project page: https://yes-u-kan.github.io/.
+Introduction
+Over the past decade, numerous works have focused on developing efficient and robust segmentation methods for medical imaging (Shen, Wu, and Suk 2017; Sun et al. 2022; Li et al. 2022c, 2021b), driven by the need for computer-aided diagnosis and image-guided surgical systems (Liu et al. 2024b,a; Li et al. 2024a; Liu and Yuan 2022; Liu et al. 2021; Ali et al. 2024). Among these, U-Net (Ronneberger, Fischer, and Brox 2015) is a landmark work that initially demonstrated the effectiveness of encoder-decoder convolutional networks with skip connections for medical image segmentation (Wang et al. 2022a; Li et al. 2021a; Ding et al. 2022; Xu et al. 2022), and has also shown promising results in many image translation tasks (Torbunov et al. 2023; Kalantar et al. 2021). Additionally, recent diffusion models have utilized U-Net, training it to iteratively predict the noise to be removed in each denoising step (Ho, Jain, and Abbeel 2020; Rombach et al. 2022; Saharia et al. 2022b).
+*These authors contributed equally. Copyright © 2025, Association for the Advancement of Artificial Intelligence (www.aaai.org). All rights reserved.
+Since the inception of U-Net (Ronneberger, Fischer, and Brox 2015), a series of crucial modifications have been introduced, especially in the subfield of medical imaging, including U-Net++(Zhou et al. 2018), 3D U-Net(Çiçek et al. 2016), V-Net (Milletari, Navab, and Ahmadi 2016), and YNet (Mehta et al. 2018). U-NeXt (Valanarasu and Patel 2022) and Rolling U-Net(Liu et al. 2024d) integrate hybrid approaches involving convolutional operations and MLP to optimize the efficacy of segmentation networks, enabling their deployment at point-of-care settings with limited resources. Recently, numerous transformer-based networks have been utilized to enhance the U-Net backbone for medical image segmentation. These networks have demonstrated effectiveness in addressing global context and long-range dependencies(Raghu et al. 2021; Hatamizadeh et al. 2023; Li, Liu, and Yuan 2022; Li, Guo, and Yuan 2023). Examples include Trans-UNet (Chen et al. 2021), which adopts ViT architecture(Dosovitskiy et al. 2021) for 2D medical image segmentation using U-Net, and other transformer-based networks like MedT (Valanarasu et al. 2021) and UNETR(Hatamizadeh et al. 2022). Although showing great scaling capacity due to the sophisticated designs, transformers tend to overfit when dealing with limited datasets, indicating their data-hungry nature (Touvron et al. 2021; Liu et al. 2023). In contrast, structured state-space sequence models (SSMs) (Fu et al. 2022; Peng et al. 2023; Gu and Dao 2023) have recently shown high efficiency and effectiveness in long-sequence modeling. For medical image segmentation, U-Mamba (Ma, Li, and Wang 2024) and SegMamba (Xing et al. 2024) have proposed task-specific architectures with Mamba blocks respectively based on nn-UNet (Isensee et al. 2021) and Swin UNETR (Hatamizadeh et al. 2021), achieving promising results in various vision tasks. While existing U-shape variations have been advanced in fine-trained medical scenarios, e.g., medical image segmentation, they still have fundamental challenges due to their sub-optimal kernel design and the unexplainable nature. Concretely, first, they typically employ conventional kernels1 to capture the spatial dependence between local pixels, which are limited to linearly modeling patterns and relationships across different channels in latent space. This makes it chal
+1Such operations include convolution, Transformers, and MLPs, etc.
+arXiv:2406.02918v3 [eess.IV] 22 Aug 2024
+
+
+lenging to capture complex nonlinear patterns. Such intricate nonlinear patterns among channels are prevalent in visual tasks, such as medical imaging, where images often have intricate diagnostic characteristics. This complexity implies that feature channels might possess varying clinical relevance, representing different anatomical components or pathological indicators. Second, they mostly conduct empirical network search and heuristic model design to find the optimal architecture, ignoring the interpretability and explainability in existing black-box U-shape models. In existing U-shape variations, this unexplainable property poses a significant risk in clinical decision-making, further preventing the truthworth of diagnostic system design. Recently, KolmogorovArnold Networks (KANs) have attempted to open the black box of conventional network structures with superior interpretability, revealing the great potential of white-box network reseach (Yu et al. 2024; Pai et al. 2024). Considering the excellent architecture properties merged in KANs, it makes sense to effectively leverage KAN to bridge the gap between the network’s physical attributes and empirical performance. In this endeavor, we have embarked on the exploration of a universally applicable U-KAN framework, denoted as U-KAN, marking an inaugural attempt to integrate advanced KAN into the pivotal visual backbone of UNet, through a convolutional KAN mixed architectural style. Notably, adhering to the benchmark setup of U-Net, we employ a multilayered deep encoder-decoder architecture with skip connections, incorporating a novel tokenized KAN block at higherlevel representations proximate to the bottleneck. This block projects intermediate features into tokens, subsequently applying the KAN operator to extricate informative patterns. The proposed U-KAN benefits from the alluring attributes of KAN networks in terms of non-linear modeling capabilities and interpretability, distinguishing it prominently within the prevalent U-Net architecture. Empirical evaluations on stringent medical segmentation benchmarks, both quantitative and qualitative, underscore U-KAN’s superior performance, outpacing established U-Net backbones with enhanced accuracy even with lower computation cost. Our investigation further delves into the potentiality of U-KAN as an alternative U-Net noise predictor in diffusion models, substantiating its relevance in generating task-oriented model architectures. In a nutshell, U-KAN signifies a steady step toward the design that incorporates mathematics theory-inspired operators into efficient visual pipelines and foretells its prospects in extensive visual applications. Our contributions can be summarized as follows:
+• We present the first effort to incoporate the advantage of emerging KAN, improving the established U-Net pipeline to be more accurate, efficient, and interpretable.
+• We propose a tokenized KAN block to effectively steer the KAN operators to be compatible with the existing convolution-based designs.
+• We empirically validate U-KAN on a wide range of medical segmentation benchmarks, achieving impressive accuracy and efficiency.
+• The application of U-KAN to existing diffusion models as an improved noise predictor demonstrates its potential
+in backbone generative tasks and broader vision settings.
+Related Work
+U-Net Backbone for Medical Image Segmentation
+Medical image segmentation (Ronneberger, Fischer, and Brox 2015; Myronenko 2019; Li et al. 2024d, 2022b) is a challenging task to which deep learning methods have been extensively applied and achieved breakthrough advancements in recent years (Shen, Wu, and Suk 2017; Liu et al. 2024a; Li et al. 2024a; Yang et al. 2023; Liu, Li, and Yuan 2023; Li et al. 2021c; Chen et al. 2023; Liu, Li, and Yuan 2022; Wuyang et al. 2021). U-Net (Ronneberger, Fischer, and Brox 2015) is a popular network structure for medical image segmentation. Its encoder-decoder architecture effectively captures image features. The CE-Net (Gu et al. 2019) further integrates a contextual information encoding module, enhancing the model’s receptive field and semantic representation capabilities. Unet++ (Zhou et al. 2018) proposes a nested U-Net structure that fuses multi-scale features to improve segmentation accuracy. In addition to convolution-based methods, Transformer-based models have also gained attention. The Vision Transformer (Dosovitskiy et al. 2021) demonstrates the effectiveness of Transformers in image recognition tasks. The Medical Transformer (Valanarasu et al. 2021) and TransUNet (Chen et al. 2021) further incorporate Transformers into medical image segmentation, achieving satisfying performance. Moreover, techniques such as attention mechanism (Schlemper et al. 2019) and multi-scale feature fusion (Huang et al. 2020) are widely used in medical image segmentation tasks. 3D segmentation models like Multi-dimensional Gated Recurrent Units (Andermatt, Pezold, and Cattin 2016) and Efficient Multi-Scale 3D CNN (Kamnitsas et al. 2017) also yield commendable results. In summary, medical image segmentation is an active research field where deep learning methods have made significant progress. Recently, Mamba (Gu and Dao 2023) has achieved a groundbreaking milestone with its linear-time inference and efficient training process by integrating selection mechanism and hardware-aware algorithms into previous works (Gu et al. 2022; Gupta, Gu, and Berant 2022; Mehta et al. 2022). Building on the success of Mamba for visual application, Vision Mamba (Liu et al. 2024c) and VMamba (Zhu et al. 2024) use bidirectional Vim Block and the Cross-Scan Module, respectively, to gain data-dependent global visual context. At the same time, U-Mamba (Ma, Li, and Wang 2024) and other works (Xing et al. 2024; Ruan and Xiang 2024) show superior performance in medical image segmentation. As Kolmogorov–Arnold Network (KAN) (Liu et al. 2024e) has been emerged as a promising alternative for MLP and demonstrates its precision, efficiency, and interpretability, we believe now is the right time to open up the exploration of its broader applications in vision backbones.
+U-Net Diffusion Backbone for Image Generation
+Diffusion Probability Models, a frontier category of generative models, have emerged as a focal point in the research domain, particularly in tasks related to computer vision (Ho, Jain, and Abbeel 2020; Rombach et al. 2022; Ramesh et al. 2022). Unlike other categories of generative models (Kingma
+
+
+and Welling 2013; Wang, Li, and Vasconcelos 2021; Goodfellow et al. 2014; Mirza and Osindero 2014; Brock, Donahue, and Simonyan 2018; Karras et al. 2018), such as Variational Autoencoders (VAE) (Kingma and Welling 2013), Generative Adversarial Networks (GANs) (Goodfellow et al. 2014; Brock, Donahue, and Simonyan 2018; Karras et al. 2018; Zhang et al. 2021), and vector quantization methods (Van Den Oord, Vinyals et al. 2017; Esser, Rombach, and Ommer 2021), diffusion models introduce a novel generative paradigm. These models employ a fixed Markov chain to map the latent space, fostering complex mappings that capture the intricate structure inherent in datasets. Recently, their impressive generative prowess, from high-level detail to diversity in generated samples, has propelled breakthrough progress in various computer vision applications, such as image synthesis (Ho, Jain, and Abbeel 2020; Rombach et al. 2022; Saharia et al. 2022b), image editing (Avrahami, Lischinski, and Fried 2022; Choi et al. 2021; Meng et al. 2022; Li et al. 2024g), image-to-image translation (Choi et al. 2021; Saharia et al. 2022a; Wang et al. 2022b; Li et al. 2024f), and video generation (Hong et al. 2022; Blattmann et al. 2023; He et al. 2022; Li et al. 2024c). Diffusion models consist of a diffusion process and a denoising process. In the diffusion process, Gaussian noise is gradually added to the input data, eventually corroding it to approximate pure Gaussian noise. In the denoising process, the original input data is recovered from its noisy state through a learned sequence of inverse diffusion operations. Typically, convolutional U-Nets (Ronneberger, Fischer, and Brox 2015), the de-facto choice of backbone architecture, are trained to iteratively predict the noise to be removed at each denoising step. Diverging from previous work that focuses on utilizing pre-trained diffusion U-Nets for downstream applications, recent work has committed to exploring the intrinsic features and structural properties of diffusion U-Nets. Free-U investigates strategically reassessing the contribution of U-Net’s skip connections and backbone feature maps to leverage the strengths of the two components of the U-Net architecture. RINs (Jabri, Fleet, and Chen 2022) introduced a novel, efficient architecture based on attention for DDPMs. DiT (Peebles and Xie 2023) proposed the combination of pure transformer with diffusion, showcasing its scalable nature. In this paper, we demonstrate the potential of a backbone scheme integrating U-Net and KAN for generation, pushing the boundaries and options for generation backbone.
+Kolmogorov–Arnold Networks (KANs)
+The Kolmogorov-Arnold theorem (Kolmogorov 1957) postulates that any continuous function can be expressed as a composition of continuous unary functions of finite variables, providing a theoretical basis for the construction of universal neural network models. This was further substantiated by Hornik et al. (Hornik, Stinchcombe, and White 1989), who demonstrated that feed-forward neural networks possess universal approximation capabilities, paving the way for the development of deep learning. Drawing from the Kolmogorov-Arnold theorem, scholars proposed a novel neural network architecture known as Kolmogorov-Arnold Networks (KANs) (Huang, Zhao, and Song 2014). KANs consist
+of a series of concatenated Kolmogorov-Arnold layers, each containing a set of learnable one-dimensional activation functions. This network structure has proven effective in approximating high-dimensional complex functions, demonstrating robust performance across various applications. KANs are characterized by strong theoretical interpretability and explainability. Huang et al. (Huang, Zhao, and Xing 2017) analyzed the optimization characteristics and convergence of KANs, validating their excellent approximation capacity and generalization performance. Liang et al. (Liang, Zhao, and Huang 2018) further introduced a deep KAN model and applied it to tasks such as image classification. Xing et al. (Xing, Zhao, and Huang 2018) deployed KANs for time series prediction and control problems. Despite these advancements, there has been a lack of practical implementations to broadly incorporate the novel neural network model of KAN, which has strong theoretical foundations, into general-purpose vision networks. In contrast, this paper undertakes an initial exploration, attempting to design a universal visual network architecture that integrates KAN and validates it on a wide range of segmentation and generative tasks.
+Method
+Overview Fig. 1 illustrates the overall architecture of the proposed U-KAN, following a two-phase encoder-decoder architecture comprising a Convolution Phrase and a Tokenized Kolmogorov–Arnold Network (Tok-KAN) Phrase. The input image traverses the encoder, where the initial three blocks utilize convolution operations, followed by two tokenized MLP blocks. The decoder comprises two tokenized KAN blocks followed by three convolution blocks. Each encoder block halves the feature resolution, while each decoder block doubles it. Additionally, skip connections are integrated between the encoder and decoder. The channel count for each block in Convolution Phrase and Tok-KAN Phrase is respectively determined by hyperparameters as C1 to C3 and D1 to D3.
+KAN as Efficient Embedder
+This research aims to incorporate Kolmogorov–Arnold Networks (KANs) into the U-Net framework. The basis of this approach is the proven high efficiency and interpretability of KANs as outlined in (Liu et al. 2024e). A Multi-Layer Perceptron (MLP) comprising K layers can be described as an interplay of transformation matrices W and activation functions σ. This can be mathematically expressed as:
+MLP(Z) = (WK−1 ◦ σ ◦ WK−2 ◦ σ ◦ · · · ◦ W1 ◦ σ ◦ W0) Z, (1) where it strives to mimic complex functional mappings through a sequence of nonlinear transformations over multiple layers. Despite its potential, the inherent obscurity within this structure significantly hampers the model’s interpretability, thus posing considerable challenges to intuitively understanding the underlying decision-making mechanisms. In an effort to mitigate the issues of low parameter efficiency and limited interpretability inherent in MLPs, Liu et al. (Liu et al. 2024e) proposed the Kolmogorov-Arnold Network (KAN), drawing inspiration from the Kolmogorov-Arnold representation theorem (Kolmogorov 1961).
+
+
+Input Image H × W × C0
+H
+2 ×W
+2 × C1
+H
+4 ×W
+4 × C2
+H
+8 ×W
+8 × C3
+Tok-KAN
+Tok-KAN Tok-KAN
+H
+16 × W
+16 × D1
+H
+32 × W
+32 × D2
+H
+32 × W
+32 × D2
+Tok-KAN
+H
+16 × W
+16 × D1
+H
+8 ×W
+8 × C3
+H
+4 ×W
+4 × C2
+H
+2 ×W
+2 × C1
+Tokenized KAN Block
+Tokenization
+KAN Layer
+DwConv
+Layer Norm
+Down/Up sample
+Skip Connection
+KAN Layer
+Z KAN(Z)
+Φ1 Φ3
+Φ2
+Φk
+Nonlinear Learnable Params
+Convolution Block
+Time Embedding (Only for Diff. U-KAN)
+tt
+t
+Seg U-KAN
+Diff. U-KAN
+Prediction H × W × C0
+Seg U-KAN
+Diff. U-KAN
+Figure 1: Overview of U-KAN pipeline. After feature extraction by several convolution blocks in Convolution Phrase, the intermediate maps are tokenized and processed by stacked Tok-KAN blocks in Tokenized KAN Phrase. The time embedding is only injected into the KAN blocks when applied for Diffusion U-KAN.
+Similar to an MLP, a K-layer KAN can be characterized as a nesting of multiple KAN layers:
+KAN(Z) = (ΦK−1 ◦ ΦK−2 ◦ · · · ◦ Φ1 ◦ Φ0) Z, (2)
+where Φi signifies the i-th layer of the entire KAN network. Each KAN layer, with nin -dimensional input and nout dimensional output, Φ comprises nin × nout learnable activation functions φ:
+Φ = {φq,p} , p = 1, 2, · · · , nin , q = 1, 2 · · · , nout , (3) The computation result of the KAN network from layer k to layer k+1 can be expressed in matrix form Zk+1 = ΦkZk, where:
+Φk =
+
+  
+φk,1,1(·) φk,1,2(·) · · · φk,1,nk (·) φk,2,1(·) φk,2,2(·) · · · φk,2,nk (·)
+... ... ...
+φk,nk+1,1(·) φk,nk+1,2(·) · · · φk,nk+1,nk (·)
+
+  
+(4) In conclusion, KANs differentiate themselves from traditional MLPs by using learnable activation functions on the edges and parametrized activation functions as weights, eliminating the need for linear weight matrices. This design allows KANs to achieve comparable or superior performance with smaller model sizes. Moreover, their structure enhances model interpretability without compromising performance, making them suitable for various applications.
+U-KAN Architecture
+Convolution Phrase Each convolution block is constructed of the components as follows: a convolutional layer (Conv), a batch normalization layer (BN), and a ReLU activation function. We apply a kernel size of 3x3, a stride length of 1, and a padding quantity of 1. The convolution blocks within the encoder integrate a max-pooling layer with a size of 2x2. Formally, given an image X0 = I ∈ RH0×W0×C0 , the output of each convolution block can be elaborated as:
+Xl = Pool Conv(Xl−1) , (5)
+where Xl ∈ RHl×Wl×Cl represents the output feature maps at l-th layer. Given the configuration that there are L blocks in the Convolution Phrase, the final output is derived as XL.
+Tokenized KAN Phrase
+Tokenization In the tokenized KAN block, we first perform tokenization (Dosovitskiy et al. 2021; Chen et al. 2024) by reshaping the output feature of convolution phrase XL into a sequence of flattened 2D patches {Xi
+L ∈ RP 2·CL |i =
+1, .., N }, where each patch is of size P ×P and N = HL×WL
+P2
+is the number of feature patches. We then map the vectorized patches into a latent D-dimensional embedding space using a trainable linear projection E ∈ R(P 2·CL)×D, as:
+Z0 = [X1
+LE; X2
+LE; · · · ; XN
+L E], (6)
+
+
+The linear projection E ∈ R(P 2·CL)×D is implemented by a convolution layer with a kernel size of 3, as it is shown in (Xie et al. 2021) that a convolution layer in is enough to encode the positional information and it actually performs better than the standard positional encoding techniques. Positional encoding techniques like the ones in ViT need to be interpolated when the test and training resolutions are not the same often leading to reduced performance.
+Embedding by KAN Layer Given the obtained tokens, we pass them into a series of KAN layers (N = 3). Followed each KAN layers, the features are passed through a efficient depth-wise convolutional layer (DwConv) (Cao et al. 2022) and a bacth normalization layer (BN) and a ReLU activation. We use a residual connection here and add the original tokens as residuals. We then apply a layer normalization (LN) (Ba, Kiros, and Hinton 2016) and pass the output features to the next block. Formally, the output of k-th Tokenized KAN block can be elaborated as:
+Zk = LN(Zk−1 + DwConv(KAN(Zk−1))), (7)
+where Zk ∈ RHk×Wk×Dk is the output feature maps at k-th layer. Given the setup that there are K blocks in the Tokenized KAN Phrase, the final output is derived as ZK. In our implementation, we set L = 3 and K = 2.
+U-KAN Decoder We follow the commonly used U-shaped architecture with dense skip connections to construct U-KAN. U-Net and its variations have demonstrated remarkable efficiency in medical image segmentation tasks (Yang et al. 2024; Li et al. 2022a; Xu et al. 2024). This architecture leverages skip connections for the recovery of low-level details and employs an encoder-decoder structure for high-level information extraction. Given skip-connected feature Zk from layer-k in KAN
+Phrase and feature Z′
+k+1 from the last up-sample block, the
+output feature Z′
+k of k-th up-sample block is:
+Z′
+k = Cat Z′
+k+1, (Zk) , (8)
+where Cat(·) denotes the feature concatenation operation. Likewise, given skip-connected feature Xl from layer-l
+in Convolution Phrase and feature X′
+l+1 from the last up
+sample block, the output feature X′
+l of l-th up-sample block is:
+X′
+l = Cat X′
+l+1, (Xl) , (9)
+In the context of semantic segmentation tasks, the final segmentation map can be derived from the output feature maps X′0 ∈ RH0×W0×CY at layer-0, where CY is the number of semantic categories and Y denotes the ground-truth segmentation and. As a result, the segmentation loss can be:
+LSeg = CE Y , U-KAN(I) . (10)
+where CE denotes the pixel-wise cross-entropy loss.
+Extending U-KAN to Diffusion Models
+The above discussion focuses on generating segmentation masks given input image I through the U-KAN. In this section, we further extend U-KAN to a diffusion version, coined
+Diffusion U-KAN, which unleashes the generative capacity of KANs. Following Denosing Diffusion Probabilistic Models (DDPM) (Ho, Jain, and Abbeel 2020), Diffusion UKAN is able to generate an image from a random Gaussian noise ε ∼ N (0, 1) by gradually removing the noise. This process can be achieved by predicting the noise given a noisy input: εt = U-KAN(It, t), where It is image I corrupted by Gaussian noise εt, t = [1, T ], T = 1000 is the time-step controlling the noise intensity, and IT ∼ N (0, 1). To this end, we conduct two modifications based on the Segmentation U-KAN to lift it to the diffusion version. First, different from only propagating features among different hidden layers, we inject learnable time embedding into each block to enable the network time-aware (see the dashedline “Time Embedding” in Fig 1) and remove the DwConv and residual connections, thereby changing Eq. 7 into the following format for the goal of generative tasks:
+Zk = LN(KAN(Zk−1)) + F (TE(t)), (11)
+where F is the linear projection, TE(t) indicates the time embedding for the given time step t (Ho, Jain, and Abbeel 2020). Second, we modify the predicted objective to enable diffusion-based image generation. Instead of predicting segmented masks given images, Diffusion U-KAN aims to predict the noise εt given the noise-corrupted image It and a random time-step t = Uniform(1, T ), which is optimized via MSE loss as follows:
+LDiff = ||εt − U-KAN(It, t)||2. (12)
+After optimization via the above loss function, the DDPM sampling algorithm (Ho, Jain, and Abbeel 2020) is used to generate images, which leverages the well-trained Diffusion U-KAN for denoising.
+Experiments
+Datasets
+We conducted a thorough evaluation of our proposed method on three distinct and heterogeneous datasets, each exhibiting unique characteristics, varying data sizes, and disparate image resolutions. These datasets are commonly utilized for tasks such as image segmentation and generation, providing a robust testing ground for the efficacy and adaptability of our method.
+BUSI The BUSI dataset (Al-Dhabyani et al. 2020) is made up of ultrasound images depicting normal, benign, and malignant breast cancer cases along with their corresponding segmentation maps. For our study, we utilized 647 ultrasound images representing both benign and malignant breast tumors. All these images were consistently resized to the dimensions of 256 × 256. The dataset offers a comprehensive collection of images that aid in the detection and differentiation of various types of breast tumors, providing valuable insights for medical professionals and researchers.
+GlaS The GlaS dataset (Valanarasu et al. 2021) is comprised of 612 Standard Definition (SD) frames from 31 sequences. Each frame possesses a resolution of 384 × 288
+
+
+and was collected from 23 patients. This dataset is associated with the Hospital Clinic located in Barcelona, Spain. The sequences within this dataset were recorded using devices such as Olympus Q160AL and Q165L, coupled with an Extra II video processor. Following common practice (Liu et al. 2024d), we specifically used 165 images from the GlaS dataset, all of which were adjusted to the dimensions of 512 × 512.
+CVC-ClinicDB The CVC-ClinicDB dataset (Bernal et al. 2015), often abbreviated simply as "CVC," serves as a publicly accessible resource for polyp diagnosis within colonoscopy videos. It encompasses a total of 612 images, each having a resolution of 384×288, meticulously extracted from 31 distinct colonoscopy sequences. These frames provide a diverse array of polyp instances, making them particularly useful for the development and evaluation of polyp detection algorithms. To ensure consistency across different datasets used in our study, all images from the CVCClinicDB dataset were uniformly resized to 256 × 256.
+Implementation Details
+Segmentation U-KAN We implemented U-KAN using Pytorch on a NVIDIA RTX 4090 GPU. For the BUSI, GlaS and CVC datasets, the batch size was set to 8 and the learning rate was 1e-4. We used the Adam optimizer to train the model, and used a cosine annealing learning rate scheduler with a minimum learning rate of 1e-5. The loss function was a combination of binary cross entropy (BCE) and dice loss. We randomly split each dataset into 80% training and 20% validation subsets. All the results among these datasets are reported over three random runs. Only vanilla data augmentations including random rotation and flipping is applied. We trained the model for 400 epochs in total. We compare the output segmentation images both qualitatively and quantitatively using various metrics such as IoU and F1 Score. We also report the metrics related to computation cost such as Gflops and number of parameters (Params).
+Diffusion U-KAN The image was cropped and resized into 64 × 64 for unconditional generation. We benchmark all the methods with the same training setting: 1e-4 learning rate, 1000 epochs, Adam optimizer, and cosine annealing learning rate scheduler. To evaluate the generation capacity of each method, we generate 2048 image samples using random Gaussian noise as input. We then compare the generated images qualitatively and quantitatively using various metrics such as Fréchet Inception Distance (FID) (Parmar, Zhang, and Zhu 2021) and Inception Score (IS) (Saito, Matsumoto, and Saito 2017). These metrics provide insights into the diversity and quality of the generated images.
+Performance Comparison on Image Segmentation
+Tab. 1 presents the results of the proposed U-KAN against all the compared methods over all the benchmarking datasets. Comparisons between our U-KAN and recently favored frameworks for medical image segmentation were conducted, benchmarking against convolutional baseline models such as U-Net (Ronneberger, Fischer, and Brox 2015), UNet++ (Zhou et al. 2018). We also evaluated performance
+against attention-based counterparts including Att-UNet (Oktay et al. 2018) and the state-of-the-art efficient transformer variant, U-Mamba (Ma, Li, and Wang 2024). Furthermore, as KAN emerges as a promising alternative of MLP, we further perform comparison against the advanced MLP-based segmentation networks, including U-NeXt (Valanarasu and Patel 2022) and Rolling-UNet (Liu et al. 2024d). In terms of the performance metrics, two standard metrics including Intersection over Union (IoU) and F1 scores are used for evaluating image segmentation tasks. The results demonstrate that across all datasets, our U-KAN surpasses the performance of all other methodologies. In addition to the accuracy benefits, this paper further demonstrates the efficiency of our method when used as a network baseline. As shown in Tab. 2, we report the model’s parameter volume (M) and Gflops on various datasets, as well as segmentation accuracy. The results indicate that our method not only surpasses most segmentation methods in terms of segmentation accuracy, but also exhibits significant advantages or comparable levels in terms of efficiency, with the exception of UNext. Overall, in the trade-off between segmentation accuracy and efficiency, our method exhibits the best performance. We further present a comprehensive qualitative comparison across all datasets, as depicted in Fig. 2. Firstly, it is evident from the results that pure CNN-based approaches such as U-Net and U-Net++ are more prone to over- or undersegmentation of organs, suggesting the limitation of these models in encoding global context and discriminating semantics. In contrast, our proposed U-KAN yields fewer false positives compared to other methods, indicating its superiority in suppressing noisy predictions. When juxtaposed with models based on Transformers, and efficient MLP-based architectures, the predictions of U-KAN often exhibit finer details in terms of boundaries and shapes. These observations underscore U-KAN’s capability for refined segmentation while preserving intricate shape information. This further corroborates our initial intuition, highlighting the advantages introduced by incorporating the KAN layer.
+Performance Comparison on Image Generation
+We investigated the potential of our proposed U-KAN as a backbone for genertive tasks. We compared our U-KAN with various diffusion variant models, all based on conventional U-Nets, in order to evaluate the efficacy of this architecture for different generative tasks. The results were presented in Tab. 3, where we reported FID (Parmar, Zhang, and Zhu 2021) (Fréchet Inception Distance) and IS (Saito, Matsumoto, and Saito 2017) (Inception Score) metrics across three datasets. The Fréchet Inception Distance (FID) measures the distance between distributions of generated and real images. Lower FID indicates better resemblance to real images. The Inception Score (IS) evaluates image quality by classification accuracy into categories, with higher IS indicating better classification. The results from our experiments clearly indicate that our method exhibits superior generative performance compared to other state-of-the-art models in the field. This suggests that the architecture of our U-KAN is particularly suitable for generative tasks, providing an effective
+
+
+Table 1: Comparison with state-of-the-art segmentation models on three heterogeneous medical scenarios. The average results with standard deviation over three random runs are reported.
+Methods
+BUSI (Al-Dhabyani et al. 2020) GlaS (Valanarasu et al. 2021) CVC (Bernal et al. 2015)
+IoU↑ F1↑ IoU↑ F1↑ IoU↑ F1↑
+U-Net (Ronneberger, Fischer, and Brox 2015) 57.22±4.74 71.91±3.54 86.66±0.91 92.79±0.56 83.79±0.77 91.06±0.47 Att-Unet (Oktay et al. 2018) 55.18±3.61 70.22±2.88 86.84±1.19 92.89±0.65 84.52±0.51 91.46±0.25 U-Net++ (Zhou et al. 2018) 57.41±4.77 72.11±3.90 87.07±0.76 92.96±0.44 84.61±1.47 91.53±0.88 U-NeXt (Valanarasu and Patel 2022) 59.06±1.03 73.08±1.32 84.51±0.37 91.55±0.23 74.83±0.24 85.36±0.17 Rolling-UNet (Liu et al. 2024d) 61.00±0.64 74.67±1.24 86.42±0.96 92.63±0.62 82.87±1.42 90.48±0.83 U-Mamba (Ma, Li, and Wang 2024) 61.81±3.24 75.55±3.01 87.01±0.39 93.02±0.24 84.79±0.58 91.63±0.39
+Seg. U-KAN (Ours) 63.38±2.83 76.40±2.90 87.64±0.32 93.37±0.16 85.05±0.53 91.88±0.29
+Table 2: Overall comparison with state-of-the-art segmentation models w.r.t. efficiency and segmentation metrics.
+Methods
+Average Seg. Efficiency
+IoU↑ F1↑ Gflops Params (M)
+U-Net (Ronneberger, Fischer, and Brox 2015) 75.89±2.14 85.25±1.52 524.2 34.53 Att-Unet (Oktay et al. 2018) 75.51±1.77 84.85±1.26 533.1 34.9 U-Net++ (Zhou et al. 2018) 76.36±2.33 85.53±1.74 1109 36.6 U-NeXt (Valanarasu and Patel 2022) 72.80±0.54 83.33±0.57 4.58 1.47 Rolling-UNet (Liu et al. 2024d) 76.76±1.01 85.92±0.89 16.82 1.78 U-Mamba (Ma, Li, and Wang 2024) 77.87±1.47 86.73±1.25 2087 86.3
+Seg. U-KAN (Ours) 78.69±1.27 87.22±1.15 14.02 6.35
+U-Net
+CVC
+BUSI
+GlaS
+U-Net++ Roll-UNet U-Mamba U-KAN (Ours) GT
+Figure 2: Visualized segmentation results of the proposed U-KAN against other state-of-the-arts over three heterogeneous medical scenarios.
+and efficient approach to generating high-quality images.
+Fig. 3 displays visualizations of some of our generated results. It is observed that our method can produce realistic and diverse content across multiple distinct datasets, demonstrat
+ing its versatility and effectiveness in generating high-quality images. This further supports the claim that U-KAN has a significant advantage when it comes to generative tasks, making it a strong candidate for future research and development
+
+
+Table 3: Comparison with standard U-Net based diffusion models on three heterogeneous medical scenarios. Results by different variants of Diffusion U-Net is provided for comprehensive evaluation.
+Methods Middle Blocks
+BUSI (Al-Dhabyani et al. 2020) GlaS (Valanarasu et al. 2021) CVC (Bernal et al. 2015)
+FID↓ IS↑ FID↓ IS↑ FID↓ IS↑
+Diffusion U-Net
+ResBlock+Attn 116.52 2.54 42.65 2.45 49.30 2.65 Identity 124.46 2.71 42.63 2.41 50.42 2.49 MLP 104.95 2.59 44.21 2.43 51.16 2.69
+Diffusion U-KAN (Ours) KANBlock 101.93 2.76 41.55 2.46 46.34 2.75
+CVC BUSI GlaS
+KAN (Ours) Identity MLP Res+Attn
+Figure 3: Generated images by proposed Diffusion U-KAN in three heterogeneous medical scenarios.
+in this area.
+Ablation Studies
+To thoroughly evaluate the proposed TransUNet framework and validate the performance under different settings, a variety of ablation studies were performed as follows. =
+The Number of KAN Layer As previously stated, the inclusion of KAN Layers in U-KAN has proven beneficial by facilitating the modeling of more refined segmentation details through the explicit incorporation of highly efficient embeddings. The objective of this ablation study was to assess the impact of incorporating varying quantities of KAN Layers. We modified the number of KAN Layers from one to five, as depicted in Tab. 4. It is observed that the configuration with
+three KAN Layers yielded the most superior performance. These outcomes demonstrate that the strategic integration of an adequate number of KAN Layers within the U-KAN can effectively capture intricate segmentation-related nuances.
+Impact on Using KAN Layer v.s. MLP To further substantiate the role of KAN layers in enhancing model performance, we conducted an array of ablation experiments, as shown in Tab. 5. In these experiments, we replaced the introduced KAN layers with traditional multilayer perceptrons (MLPs) to observe if such modifications would result in a decrease in performance. This methodology allowed us to more tangibly comprehend the significance of KAN layers in improving the model’s overall performance. Initially, we modified a model that already incorporated KAN layers, replacing one or sev
+
+
+Table 4: Ablation studies on number of used KAN layers. The default setup is denoted.
+#KAN IoU↑ F1↑ Gflops
+1 Layer 64.20 77.81 13.97 2 Layer 64.56 78.01 14.00 3 Layer 65.26 78.75 14.02 4 Layer 64.72 78.35 14.05 5 Layer 64.86 78.42 14.07
+Table 5: Ablation studies on using KAN layers against MLPs. The default setup is denoted.
+KAN vs. MLP IoU↑ F1↑ Gflops
+KAN×3 65.26 78.75 14.02 MLP+KAN+KAN 64.12 77.86 14.29 KAN+MLP+KAN 63.82 77.58 14.29 KAN+KAN+MLP 64.30 77.95 14.29 MLP×3 63.49 77.07 14.84
+Table 6: Ablation studies on model scaling by using different channel settings in U-KAN. The default setup is denoted.
+Model Scale C1 C2 C3 IoU↑ F1↑ Gflops
+U-KAN-S 64 96 128 64.62 78.28 3.740 U-KAN 128 160 256 65.26 78.75 14.02 U-KAN-L 256 320 512 66.01 79.09 55.11
+eral KAN layers with standard MLPs. Subsequently, using identical datasets and training parameters, we retrained the modified model and documented its performance across various tasks. The outcomes demonstrated a noticeable decline in performance across multiple tasks when KAN layers were replaced with MLPs, particularly in intricate tasks requiring robust feature extraction and representational capacities. These findings underscore the crucial role of KAN layers in augmenting the model’s expressive capabilities and bolstering its overall performance.
+Model Scaling We conducted an ablation study on various model sizes of the U-KAN. Specifically, we examined alternative configurations of the U-KAN, termed as Small and Large models. The primary distinction between these variants lies in their channel settings, denoted as the varied channel number from first to third KAN layer (C1-C3), as detailed in Tab. 6. The Small model features channel settings of 64-96-128, while the Large model’s channel counts are set to 256-320512. In contrast, our default model’s channel numbers are configured at 128-160-256. We observed that larger models correlate with enhanced performance, which aligns with the scaling law characteristics exhibited by models integrating KAN. Ultimately, to strike a balance between performance and computational expenses, we opted to employ the default base model in our experiments.
+Explainability We further explore the interpretability of KAN layers by analyzing activated patterns, as depicted in Fig. 4. When utilizing MLP layers (1th column), the model struggles to identify appropriate activation regions essential with an unsatisfactory Plausibility IoU, which is a metric provided in (Cambrin et al. 2024) that calculates IoU between thresholded activation maps and GT masks (higher is better). In contrast, with integrating KAN layer (2nd column), there is a marked improvement in the ability to precisely locate the region of interest and activate the boundaries that align closely with the ground truth (3rd column). This underscores the pivotal role of KAN layers in enhancing the explainable decision-making of deep models, especially for mask predic
+Ours w/o KAN Ours w/ KAN GT
+Plausibility IOU: 48.15 Plausibility IOU: 60.25
+Plausibility IOU: 36.71 Plausibility IOU: 61.70
+Figure 4: Explainability of U-KAN with channel activation.
+tion, which is also aligned with the observation in KAN (Liu et al. 2024e).
+Conclusion
+This paper introduces U-KAN and demonstrates the significant potential of Kolmogorov-Arnold Networks (KANs) in enhancing backbones like U-Net for various visual applications. By integrating KAN layers into the U-Net architecture, you can make a strong network for vision tasks in terms of impressive accuracy, efficiency and interpretability. We perform empirical evaluations of our method under several medical image segmentation tasks. Moreover, the adaptability and effectiveness of U-KAN also highlight its potential as a superior alternative to U-Net for noise prediction in diffusion models. These findings underscore the importance of exploring non-traditional network structures like KANs for advancing a broader range of vision applications.
+Future Work Future endeavors will involve extending these advanced network operators to more extensive of set
+
+
+tings and higher-dimensional data formats, such as temporal data (Genet and Inzirillo 2024; Wang, Cao, and Philip 2020), genomic data (Waqas et al. 2024; Poirion et al. 2021; Li et al. 2024e) and 3D representations (Moryossef 2024; Mildenhall et al. 2021; Pan et al. 2023; Li et al. 2023, 2024b).
+References
+Al-Dhabyani, W.; Gomaa, M.; Khaled, H.; and Fahmy, A. 2020. Dataset of breast ultrasound images. Data in brief, 28: 104863. Ali, S.; Ghatwary, N.; Jha, D.; Isik-Polat, E.; Polat, G.; Yang, C.; Li, W.; Galdran, A.; Ballester, M.-Á. G.; Thambawita, V.; et al. 2024. Assessing generalisability of deep learningbased polyp detection and segmentation methods through a computer vision challenge. Scientific Reports, 14(1): 2032. Andermatt, S.; Pezold, S.; and Cattin, P. C. 2016. Multidimensional Gated Recurrent Units for the Segmentation of Biomedical 3D-Data. In Deep Learning and Data Labeling for Medical Applications, 142–151. Springer, Cham.
+Avrahami, O.; Lischinski, D.; and Fried, O. 2022. Blended diffusion for text-driven editing of natural images. In Proc. of IEEE Intl. Conf. on Computer Vision and Pattern Recognition.
+Ba, J. L.; Kiros, J. R.; and Hinton, G. E. 2016. Layer normalization. arXiv preprint arXiv:1607.06450.
+Bernal, J.; Sánchez, F. J.; Fernández-Esparrach, G.; Gil, D.; Rodríguez, C.; and Vilariño, F. 2015. WM-DOVA maps for accurate polyp highlighting in colonoscopy: Validation vs. saliency maps from physicians. Computerized medical imaging and graphics, 43: 99–111.
+Blattmann, A.; Rombach, R.; Ling, H.; Dockhorn, T.; Kim, S. W.; Fidler, S.; and Kreis, K. 2023. Align your Latents: High-Resolution Video Synthesis with Latent Diffusion Models. In Proc. of IEEE Intl. Conf. on Computer Vision and Pattern Recognition.
+Brock, A.; Donahue, J.; and Simonyan, K. 2018. Large scale GAN training for high fidelity natural image synthesis. arXiv preprint arXiv:1809.11096.
+Cambrin, D. R.; Poeta, E.; Pastor, E.; Cerquitelli, T.; Baralis, E.; and Garza, P. 2024. KAN You See It? KANs and Sentinel for Effective and Explainable Crop Field Segmentation. arXiv:2408.07040. Cao, J.; Li, Y.; Sun, M.; Chen, Y.; Lischinski, D.; Cohen-Or, D.; Chen, B.; and Tu, C. 2022. Do-conv: Depthwise overparameterized convolutional layer. IEEE Transactions on Image Processing, 31: 3726–3736.
+Chen, J.; Lu, Y.; Yu, Q.; Luo, X.; Adeli, E.; Wang, Y.; Lu, L.; Yuille, A. L.; and Zhou, Y. 2021. Transunet: Transformers Make Strong Encoders for Medical Image Segmentation. arXiv preprint arXiv:2102.04306.
+Chen, Y.; Shi, H.; Liu, X.; Shi, T.; Zhang, R.; Liu, D.; Xiong, Z.; and Wu, F. 2024. TokenUnify: Scalable Autoregressive Visual Pre-training with Mixture Token Prediction. arXiv preprint arXiv:2405.16847.
+Chen, Z.; Li, W.; Xing, X.; and Yuan, Y. 2023. Medical federated learning with joint graph purification for noisy label learning. Medical Image Analysis, 90: 102976.
+Choi, J.; Kim, S.; Jeong, Y.; Gwon, Y.; and Yoon, S. 2021. Ilvr: Conditioning method for denoising diffusion probabilistic models. arXiv preprint arXiv:2108.02938.
+Çiçek, Ö.; Abdulkadir, A.; Lienkamp, S. S.; Brox, T.; and Ronneberger, O. 2016. 3D U-Net: learning dense volumetric segmentation from sparse annotation. In Medical Image Computing and Computer-Assisted Intervention–MICCAI 2016: 19th International Conference, Athens, Greece, October 1721, 2016, Proceedings, Part II 19, 424–432. Springer.
+Ding, Z.; Dong, Q.; Xu, H.; Li, C.; Ding, X.; and Huang, Y. 2022. Unsupervised Anomaly Segmentation for Brain Lesions Using Dual Semantic-Manifold Reconstruction. In International Conference on Neural Information Processing, 133–144. Springer.
+Dosovitskiy, A.; Beyer, L.; Kolesnikov, A.; Weissenborn, D.; Zhai, X.; Unterthiner, T.; Dehghani, M.; Minderer, M.; Heigold, G.; Gelly, S.; et al. 2021. An image is worth 16x16 words: Transformers for image recognition at scale. In Proc. of Intl. Conf. on Learning Representations.
+Esser, P.; Rombach, R.; and Ommer, B. 2021. Taming transformers for high-resolution image synthesis. In Proc. of IEEE Intl. Conf. on Computer Vision and Pattern Recognition.
+Fu, D. Y.; Dao, T.; Saab, K. K.; Thomas, A. W.; Rudra, A.; and Ré, C. 2022. Hungry hungry hippos: Towards language modeling with state space models. arXiv preprint arXiv:2212.14052.
+Genet, R.; and Inzirillo, H. 2024. TKAN: Temporal Kolmogorov-Arnold Networks. arXiv preprint arXiv:2405.07344.
+Goodfellow, I. J.; Pouget-Abadie, J.; Mirza, M.; Xu, B.; Warde-Farley, D.; Ozair, S.; Courville, A. C.; and Bengio, Y. 2014. Generative Adversarial Nets. In Proc. of Advances in Neural Information Processing Systems.
+Gu, A.; and Dao, T. 2023. Mamba: Linear-time sequence modeling with selective state spaces. arXiv preprint arXiv:2312.00752.
+Gu, A.; Goel, K.; Gupta, A.; and Ré, C. 2022. On the parameterization and initialization of diagonal state space models. In Proc. of Advances in Neural Information Processing Systems.
+Gu, Z.; Cheng, J.; Fu, H.; Zhou, K.; Hao, H.; Zhao, Y.; Zhang, T.; Gao, S.; and Liu, J. 2019. CE-Net: Context Encoder Network for 2D Medical Image Segmentation. IEEE transactions on medical imaging, 38(10): 2281–2292.
+Gupta, A.; Gu, A.; and Berant, J. 2022. Diagonal state spaces are as effective as structured state spaces. In Proc. of Advances in Neural Information Processing Systems.
+Hatamizadeh, A.; Nath, V.; Tang, Y.; Yang, D.; Roth, H. R.; and Xu, D. 2021. Swin unetr: Swin transformers for semantic segmentation of brain tumors in mri images. In International MICCAI Brainlesion Workshop, 272–284. Springer.
+Hatamizadeh, A.; Tang, Y.; Nath, V.; Yang, D.; Myronenko, A.; Landman, B.; Roth, H. R.; and Xu, D. 2022. Unetr: Transformers for 3d medical image segmentation. In Proceedings of the IEEE/CVF winter conference on applications of computer vision, 574–584.
+
+
+Hatamizadeh, A.; Yin, H.; Heinrich, G.; Kautz, J.; and Molchanov, P. 2023. Global context vision transformers. In International Conference on Machine Learning, 1263312646. PMLR.
+He, Y.; Yang, T.; Zhang, Y.; Shan, Y.; and Chen, Q. 2022. Latent video diffusion models for high-fidelity video generation with arbitrary lengths. arXiv preprint arXiv:2211.13221.
+Ho, J.; Jain, A.; and Abbeel, P. 2020. Denoising diffusion probabilistic models. In Proc. of Advances in Neural Information Processing Systems.
+Hong, W.; Ding, M.; Zheng, W.; Liu, X.; and Tang, J. 2022. CogVideo: Large-scale Pretraining for Text-to-Video Generation via Transformers. arXiv preprint arXiv:2205.15868.
+Hornik, K.; Stinchcombe, M.; and White, H. 1989. Multilayer feedforward networks are universal approximators. Neural networks, 2(5): 359–366.
+Huang, G.-B.; Zhao, L.; and Song, Y. 2014. Deep architecture of Kolmogorov-Arnold representation. In 2014 International Joint Conference on Neural Networks (IJCNN), 1001–1008. IEEE.
+Huang, G.-B.; Zhao, L.; and Xing, Y. 2017. Towards theory of deep learning on graphs: Optimization landscape and train ability of Kolmogorov-Arnold representation. Neurocomputing, 251: 10–21.
+Huang, H.; Lin, L.; Tong, R.; Hu, H.; Zhang, Q.; Iwamoto, Y.; Han, X.; Chen, Y.-L.; and Xu, W. 2020. UNet 3+: A Full-Scale Connected UNet for Medical Image Segmentation. In 2020 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP), 1055–1059. IEEE.
+Isensee, F.; Jaeger, P. F.; Kohl, S. A.; Petersen, J.; and MaierHein, K. H. 2021. nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation. Nature methods, 18(2): 203–211.
+Jabri, A.; Fleet, D. J.; and Chen, T. 2022. Scalable Adaptive Computation for Iterative Generation. arXiv preprint arXiv:2212.11972.
+Kalantar, R.; Messiou, C.; Winfield, J. M.; Renn, A.; Latifoltojar, A.; Downey, K.; Sohaib, A.; Lalondrelle, S.; Koh, D.-M.; and Blackledge, M. D. 2021. CT-based pelvic T1-weighted MR image synthesis using UNet, UNet++ and cycle-consistent generative adversarial network (CycleGAN). Frontiers in Oncology, 11: 665807.
+Kamnitsas, K.; Ledig, C.; Newcombe, V. F.; Simpson, J. P.; Kane, A. D.; Menon, D. K.; Rueckert, D.; and Glocker, B. 2017. Efficient Multi-Scale 3D CNN with Fully Connected CRF for Accurate Brain Lesion Segmentation. Medical image analysis, 36: 61–78.
+Karras, T.; Aila, T.; Laine, S.; and Lehtinen, J. 2018. Progressive growing of GANs for improved quality, stability, and variation. In Proc. of Intl. Conf. on Learning Representations.
+Kingma, D. P.; and Welling, M. 2013. Auto-encoding variational bayes. arXiv preprint arXiv:1312.6114.
+Kolmogorov, A. N. 1957. On the representation of continuous functions of many variables by superposition of continuous functions of one variable and addition. American Mathematical Society Translations, 28: 55–59.
+Kolmogorov, A. N. 1961. On the representation of continuous functions of several variables by superpositions of continuous functions of a smaller number of variables. American Mathematical Society.
+Li, C.; Feng, B. Y.; Fan, Z.; Pan, P.; and Wang, Z. 2023. Steganerf: Embedding invisible information within neural radiance fields. In Proceedings of the IEEE/CVF International Conference on Computer Vision, 441–453.
+Li, C.; Feng, B. Y.; Liu, Y.; Liu, H.; Wang, C.; Yu, W.; and Yuan, Y. 2024a. EndoSparse: Real-Time Sparse View Synthesis of Endoscopic Scenes using Gaussian Splatting. arXiv preprint arXiv:2407.01029.
+Li, C.; Lin, M.; Ding, Z.; Lin, N.; Zhuang, Y.; Huang, Y.; Ding, X.; and Cao, L. 2022a. Knowledge condensation distillation. In European Conference on Computer Vision, 19–35. Springer.
+Li, C.; Lin, X.; Mao, Y.; Lin, W.; Qi, Q.; Ding, X.; Huang, Y.; Liang, D.; and Yu, Y. 2022b. Domain generalization on medical imaging classification using episodic training with task augmentation. Computers in biology and medicine, 141: 105144.
+Li, C.; Liu, H.; Fan, Z.; Li, W.; Liu, Y.; Pan, P.; and Yuan, Y. 2024b. GaussianStego: A Generalizable Stenography Pipeline for Generative 3D Gaussians Splatting. arXiv preprint arXiv:2407.01301.
+Li, C.; Liu, H.; Liu, Y.; Feng, B. Y.; Li, W.; Liu, X.; Chen, Z.; Shao, J.; and Yuan, Y. 2024c. Endora: Video Generation Models as Endoscopy Simulators. arXiv preprint arXiv:2403.11050.
+Li, C.; Liu, X.; Li, W.; Wang, C.; Liu, H.; and Yuan, Y. 2024d. U-KAN Makes Strong Backbone for Medical Image Segmentation and Generation. arXiv preprint arXiv:2406.02918.
+Li, C.; Liu, X.; Wang, C.; Liu, Y.; Yu, W.; Shao, J.; and Yuan, Y. 2024e. GTP-4o: Modality-prompted Heterogeneous Graph Learning for Omni-modal Biomedical Representation. arXiv preprint arXiv:2407.05540.
+Li, C.; Ma, W.; Sun, L.; Ding, X.; Huang, Y.; Wang, G.; and Yu, Y. 2022c. Hierarchical deep network with uncertaintyaware semi-supervised learning for vessel segmentation. Neural Computing and Applications, 1–14.
+Li, C.; Zhang, Y.; Li, J.; Huang, Y.; and Ding, X. 2021a. Unsupervised anomaly segmentation using image-semantic cycle translation. arXiv preprint arXiv:2103.09094.
+Li, C.; Zhang, Y.; Liang, Z.; Ma, W.; Huang, Y.; and Ding, X. 2021b. Consistent posterior distributions under vesselmixing: a regularization for cross-domain retinal artery/vein classification. In 2021 IEEE International Conference on Image Processing (ICIP), 61–65. IEEE.
+Li, W.; Chen, Z.; Li, B.; Zhang, D.; and Yuan, Y. 2021c. Htd: Heterogeneous task decoupling for two-stage object detection. IEEE Transactions on Image Processing, 30: 94569469.
+Li, W.; Guo, X.; and Yuan, Y. 2023. Novel Scenes & Classes: Towards Adaptive Open-set Object Detection. In Proceedings of the IEEE/CVF International Conference on Computer Vision, 15780–15790.
+
+
+Li, W.; Liu, X.; and Yuan, Y. 2022. Sigma: Semanticcomplete graph matching for domain adaptive object detection. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, 5291–5300.
+Li, Z.; Guan, B.; Wei, Y.; Zhou, Y.; Zhang, J.; and Xu, J. 2024f. Mapping New Realities: Ground Truth Image Creation with Pix2Pix Image-to-Image Translation. arXiv preprint arXiv:2404.19265.
+Li, Z.; Huang, Y.; Zhu, M.; Zhang, J.; Chang, J.; and Liu, H. 2024g. Feature manipulation for ddpm based change detection. arXiv preprint arXiv:2403.15943.
+Liang, X.; Zhao, L.; and Huang, G.-B. 2018. Deep Kolmogorov-Arnold representation for learning dynamics. IEEE Access, 6: 49436–49446.
+Liu, H.; Liu, Y.; Li, C.; Li, W.; and Yuan, Y. 2024a. LGS: A Light-weight 4D Gaussian Splatting for Efficient Surgical Scene Reconstruction. arXiv preprint arXiv:2406.16073.
+Liu, X.; Guo, X.; Liu, Y.; and Yuan, Y. 2021. Consolidated domain adaptive detection and localization framework for cross-device colonoscopic images. Medical image analysis, 71: 102052.
+Liu, X.; Li, W.; and Yuan, Y. 2022. Intervention & interaction federated abnormality detection with noisy clients. In International Conference on Medical Image Computing and Computer-Assisted Intervention, 309–319. Springer.
+Liu, X.; Li, W.; and Yuan, Y. 2023. Decoupled Unbiased Teacher for Source-Free Domain Adaptive Medical Object Detection. IEEE Transactions on Neural Networks and Learning Systems.
+Liu, X.; Peng, H.; Zheng, N.; Yang, Y.; Hu, H.; and Yuan, Y. 2023. Efficientvit: Memory efficient vision transformer with cascaded group attention. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, 14420–14430.
+Liu, X.; and Yuan, Y. 2022. A source-free domain adaptive polyp detection framework with style diversification flow. IEEE Transactions on Medical Imaging, 41(7): 1897–1908.
+Liu, Y.; Li, C.; Yang, C.; and Yuan, Y. 2024b. EndoGaussian: Gaussian Splatting for Deformable Surgical Scene Reconstruction. arXiv preprint arXiv:2401.12561.
+Liu, Y.; Tian, Y.; Zhao, Y.; Yu, H.; Xie, L.; Wang, Y.; Ye, Q.; and Liu, Y. 2024c. Vmamba: Visual state space model. arXiv preprint arXiv:2401.10166.
+Liu, Y.; Zhu, H.; Liu, M.; Yu, H.; Chen, Z.; and Gao, J. 2024d. Rolling-Unet: Revitalizing MLP’s Ability to Efficiently Extract Long-Distance Dependencies for Medical Image Segmentation. In Proceedings of the AAAI Conference on Artificial Intelligence, volume 38, 3819–3827.
+Liu, Z.; Wang, Y.; Vaidya, S.; Ruehle, F.; Halverson, J.; Soljaˇci ́c, M.; Hou, T. Y.; and Tegmark, M. 2024e. Kan: Kolmogorov-arnold networks. arXiv preprint arXiv:2404.19756.
+Ma, J.; Li, F.; and Wang, B. 2024. U-mamba: Enhancing long-range dependency for biomedical image segmentation. arXiv preprint arXiv:2401.04722.
+Mehta, H.; Gupta, A.; Cutkosky, A.; and Neyshabur, B. 2022. Long Range Language Modeling via Gated State Spaces. In Proc. of Intl. Conf. on Learning Representations.
+Mehta, S.; Mercan, E.; Bartlett, J.; Weaver, D.; Elmore, J. G.; and Shapiro, L. 2018. Y-Net: joint segmentation and classification for diagnosis of breast biopsy images. In Medical Image Computing and Computer Assisted InterventionMICCAI 2018: 21st International Conference, Granada, Spain, September 16-20, 2018, Proceedings, Part II 11, 893901. Springer.
+Meng, C.; He, Y.; Song, Y.; Song, J.; Wu, J.; Zhu, J.-Y.; and Ermon, S. 2022. SDEdit: Guided image synthesis and editing with stochastic differential equations. In Proc. of Intl. Conf. on Learning Representations.
+Mildenhall, B.; Srinivasan, P. P.; Tancik, M.; Barron, J. T.; Ramamoorthi, R.; and Ng, R. 2021. Nerf: Representing scenes as neural radiance fields for view synthesis. Communications of the ACM, 65(1): 99–106.
+Milletari, F.; Navab, N.; and Ahmadi, S.-A. 2016. V-net: Fully convolutional neural networks for volumetric medical image segmentation. In 2016 fourth international conference on 3D vision (3DV), 565–571. Ieee.
+Mirza, M.; and Osindero, S. 2014. Conditional generative adversarial nets. arXiv preprint arXiv:1411.1784.
+Moryossef, A. 2024. Optimizing Hand Region Detection in MediaPipe Holistic Full-Body Pose Estimation to Improve Accuracy and Avoid Downstream Errors. arXiv preprint arXiv:2405.03545.
+Myronenko, A. 2019. 3D MRI brain tumor segmentation using autoencoder regularization. In Brainlesion: Glioma, Multiple Sclerosis, Stroke and Traumatic Brain Injuries: 4th International Workshop, BrainLes 2018, Held in Conjunction with MICCAI 2018, Granada, Spain, September 16, 2018, Revised Selected Papers, Part II 4, 311–320. Springer.
+Oktay, O.; Schlemper, J.; Folgoc, L. L.; Lee, M.; Heinrich, M.; Misawa, K.; Mori, K.; McDonagh, S.; Hammerla, N. Y.; Kainz, B.; et al. 2018. Attention u-net: Learning where to look for the pancreas. arXiv preprint arXiv:1804.03999.
+Pai, D.; Buchanan, S.; Wu, Z.; Yu, Y.; and Ma, Y. 2024. Masked Completion via Structured Diffusion with WhiteBox Transformers. In The Twelfth International Conference on Learning Representations.
+Pan, P.; Fan, Z.; Feng, B. Y.; Wang, P.; Li, C.; and Wang, Z. 2023. Learning to estimate 6dof pose from limited data: A few-shot, generalizable approach using rgb images. arXiv preprint arXiv:2306.07598.
+Parmar, G.; Zhang, R.; and Zhu, J.-Y. 2021. On buggy resizing libraries and surprising subtleties in fid calculation. arXiv preprint arXiv:2104.11222, 5: 14.
+Peebles, W.; and Xie, S. 2023. Scalable diffusion models with transformers. In Proceedings of the IEEE/CVF International Conference on Computer Vision, 4195–4205.
+Peng, B.; Alcaide, E.; Anthony, Q.; Albalak, A.; Arcadinho, S.; Biderman, S.; Cao, H.; Cheng, X.; Chung, M.; Grella, M.; et al. 2023. Rwkv: Reinventing rnns for the transformer era. arXiv preprint arXiv:2305.13048.
+
+
+Poirion, O. B.; Jing, Z.; Chaudhary, K.; Huang, S.; and Garmire, L. X. 2021. DeepProg: an ensemble of deeplearning and machine-learning models for prognosis prediction using multi-omics data. Genome medicine, 13: 1–15.
+Raghu, M.; Unterthiner, T.; Kornblith, S.; Zhang, C.; and Dosovitskiy, A. 2021. Do vision transformers see like convolutional neural networks? Advances in Neural Information Processing Systems, 34: 12116–12128.
+Ramesh, A.; Dhariwal, P.; Nichol, A.; Chu, C.; and Chen, M. 2022. Hierarchical text-conditional image generation with CLIP latents. arXiv preprint arXiv:2204.06125.
+Rombach, R.; Blattmann, A.; Lorenz, D.; Esser, P.; and Ommer, B. 2022. High-resolution image synthesis with latent diffusion models. In Proc. of IEEE Intl. Conf. on Computer Vision and Pattern Recognition.
+Ronneberger, O.; Fischer, P.; and Brox, T. 2015. U-Net: Convolutional Networks for Biomedical Image Segmentation. International Conference on Medical image computing and computer-assisted intervention, 234–241.
+Ruan, J.; and Xiang, S. 2024. VM-UNet: Vision Mamba UNet for Medical Image Segmentation. arXiv preprint arXiv:2402.02491.
+Saharia, C.; Chan, W.; Chang, H.; Lee, C.; Ho, J.; Salimans, T.; Fleet, D.; and Norouzi, M. 2022a. Palette: Image-to-image diffusion models.
+Saharia, C.; Chan, W.; Saxena, S.; Li, L.; Whang, J.; Denton, E.; Ghasemipour, S. K. S.; Ayan, B. K.; Mahdavi, S. S.; Lopes, R. G.; et al. 2022b. Photorealistic Text-to-Image Diffusion Models with Deep Language Understanding. arXiv preprint arXiv:2205.11487.
+Saito, M.; Matsumoto, E.; and Saito, S. 2017. Temporal generative adversarial nets with singular value clipping. In Proceedings of the IEEE international conference on computer vision, 2830–2839.
+Schlemper, J.; Oktay, O.; Schaap, M.; Heinrich, M.; Kainz, B.; Glocker, B.; and Rueckert, D. 2019. Attention Gated Networks: Learning to Leverage Salient Regions in Medical Images. Medical image analysis, 53: 197–207.
+Shen, D.; Wu, G.; and Suk, H.-I. 2017. Deep learning in medical image analysis. Annual review of biomedical engineering, 19: 221–248.
+Sun, L.; Li, C.; Ding, X.; Huang, Y.; Chen, Z.; Wang, G.; Yu, Y.; and Paisley, J. 2022. Few-shot medical image segmentation using a global correlation network with discriminative embedding. Computers in biology and medicine, 140: 105067.
+Torbunov, D.; Huang, Y.; Yu, H.; Huang, J.; Yoo, S.; Lin, M.; Viren, B.; and Ren, Y. 2023. Uvcgan: Unet vision transformer cycle-consistent gan for unpaired image-to-image translation. In Proceedings of the IEEE/CVF winter conference on applications of computer vision, 702–712.
+Touvron, H.; Cord, M.; Douze, M.; Massa, F.; Sablayrolles, A.; and Jégou, H. 2021. Training data-efficient image transformers & distillation through attention. In International conference on machine learning, 10347–10357. PMLR.
+Valanarasu, J. M. J.; Oza, P.; Hacihaliloglu, I.; and Patel, V. M. 2021. Medical transformer: Gated axial-attention for medical image segmentation. In Medical Image Computing and Computer Assisted Intervention–MICCAI 2021: 24th International Conference, Strasbourg, France, September 27–October 1, 2021, Proceedings, Part I 24, 36–46. Springer.
+Valanarasu, J. M. J.; and Patel, V. M. 2022. Unext: Mlpbased rapid medical image segmentation network. In International conference on medical image computing and computerassisted intervention, 23–33. Springer.
+Van Den Oord, A.; Vinyals, O.; et al. 2017. Neural discrete representation learning. In Proc. of Advances in Neural Information Processing Systems.
+Wang, P.; Li, Y.; and Vasconcelos, N. 2021. Rethinking and improving the robustness of image style transfer. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, 124–133.
+Wang, R.; Lei, T.; Cui, R.; Zhang, B.; Meng, H.; and Nandi, A. K. 2022a. Medical image segmentation using deep learning: A survey. IET Image Processing, 16(5): 1243–1267.
+Wang, S.; Cao, J.; and Philip, S. Y. 2020. Deep learning for spatio-temporal data mining: A survey. IEEE transactions on knowledge and data engineering, 34(8): 3681–3700.
+Wang, T.; Zhang, T.; Zhang, B.; Ouyang, H.; Chen, D.; Chen, Q.; and Wen, F. 2022b. Pretraining is all you need for imageto-image translation. arXiv preprint arXiv:2205.12952.
+Waqas, A.; Tripathi, A.; Ahmed, S.; Mukund, A.; Farooq, H.; Schabath, M. B.; Stewart, P.; Naeini, M.; and Rasool, G. 2024. SeNMo: A self-normalizing deep learning model for enhanced multi-omics data analysis in oncology. arXiv preprint arXiv:2405.08226.
+Wuyang, L.; Chen, Y.; Jie, L.; Xinyu, L.; Xiaoqing, G.; and Yixuan, Y. 2021. Joint polyp detection and segmentation with heterogeneous endoscopic data. In 3rd International Workshop and Challenge on Computer Vision in Endoscopy (EndoCV 2021): co-located with with the 17th IEEE International Symposium on Biomedical Imaging (ISBI 2021), 69–79. CEUR-WS Team.
+Xie, E.; Wang, W.; Yu, Z.; Anandkumar, A.; Alvarez, J. M.; and Luo, P. 2021. SegFormer: Simple and efficient design for semantic segmentation with transformers. Advances in neural information processing systems, 34: 12077–12090.
+Xing, Y.; Zhao, L.; and Huang, G.-B. 2018. KolmogorovArnold representation based deep learning for time series forecasting. In 2018 IEEE Symposium Series on Computational Intelligence (SSCI), 1483–1490. IEEE.
+Xing, Z.; Ye, T.; Yang, Y.; Liu, G.; and Zhu, L. 2024. Segmamba: Long-range sequential modeling mamba for 3d medical image segmentation. arXiv preprint arXiv:2401.13560.
+Xu, H.; Li, C.; Zhang, L.; Ding, Z.; Lu, T.; and Hu, H. 2024. Immunotherapy efficacy prediction through a feature re-calibrated 2.5 D neural network. Computer Methods and Programs in Biomedicine, 249: 108135.
+Xu, H.; Zhang, Y.; Sun, L.; Li, C.; Huang, Y.; and Ding, X. 2022. AFSC: Adaptive Fourier Space Compression for Anomaly Detection. arXiv preprint arXiv:2204.07963.
+
+
+Yang, Q.; Li, W.; Li, B.; and Yuan, Y. 2023. MRM: Masked Relation Modeling for Medical Image Pre-Training with Genetics. In Proceedings of the IEEE/CVF International Conference on Computer Vision, 21452–21462.
+Yang, R.; Chen, Y.; Zhang, Z.; Liu, X.; Li, Z.; He, K.; Xiong, Z.; Suo, J.; and Dai, Q. 2024. UniCompress: Enhancing Multi-Data Medical Image Compression with Knowledge Distillation. arXiv preprint arXiv:2405.16850.
+Yu, Y.; Buchanan, S.; Pai, D.; Chu, T.; Wu, Z.; Tong, S.; Haeffele, B.; and Ma, Y. 2024. White-Box Transformers via Sparse Rate Reduction. Advances in Neural Information Processing Systems, 36.
+Zhang, Y.; Li, C.; Lin, X.; Sun, L.; Zhuang, Y.; Huang, Y.; Ding, X.; Liu, X.; and Yu, Y. 2021. Generator versus segmentor: Pseudo-healthy synthesis. In Medical Image Computing and Computer Assisted Intervention–MICCAI 2021: 24th International Conference, Strasbourg, France, September 27October 1, 2021, Proceedings, Part VI 24, 150–160. Springer.
+Zhou, Z.; Siddiquee, M. M. R.; Tajbakhsh, N.; and Liang, J. 2018. Unet++: A Nested U-Net Architecture for Medical Image Segmentation. In Deep learning in medical image analysis and multimodal learning for clinical decision support, 3–11. Springer, Cham.
+Zhu, L.; Liao, B.; Zhang, Q.; Wang, X.; Liu, W.; and Wang, X. 2024. Vision mamba: Efficient visual representation learning with bidirectional state space model. arXiv preprint arXiv:2401.09417.

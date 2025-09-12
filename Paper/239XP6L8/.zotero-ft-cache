@@ -1,0 +1,436 @@
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291 https://doi.org/10.1186/s12911-023-02384-0
+RESEARCH Open Access
+© The Author(s) 2023. Open Access This article is licensed under a Creative Commons Attribution 4.0 International License, which permits use, sharing, adaptation, distribution and reproduction in any medium or format, as long as you give appropriate credit to the original author(s) and the source, provide a link to the Creative Commons licence, and indicate if changes were made. The images or other third party material in this article are included in the article’s Creative Commons licence, unless indicated otherwise in a credit line to the material. If material is not included in the article’s Creative Commons licence and your intended use is not permitted by statutory regulation or exceeds the permitted use, you will need to obtain permission directly from the copyright holder. To view a copy of this licence, visit http://creativecommons.org/licenses/by/4.0/. The Creative Commons Public Domain Dedication waiver (http://creativecommons.org/publicdomain/zero/1.0/) applies to the data made available in this article, unless otherwise stated in a credit line to the data.
+BMC Medical Informatics and Decision Making
+MNCLCDA: predicting circRNA-drug sensitivity associations by using mixed neighbourhood information and contrastive learning
+Guanghui Li1*, Feifan Zeng1, Jiawei Luo2*, Cheng Liang3 and Qiu Xiao4
+Abstract
+Background circRNAs play an important role in drug resistance and cancer development. Recently, many studies have shown that the expressions of circRNAs in human cells can affect the sensitivity of cells to therapeutic drugs, thus significantly influencing the therapeutic effects of these drugs. Traditional biomedical experiments required to verify this sensitivity relationship are not only time-consuming but also expensive. Hence, the development of an efficient computational approach that can accurately predict the novel associations between drug sensitivities and circRNAs is a crucial and pressing need.
+Methods In this research, we present a novel computational framework called MNCLCDA, which aims to predict the potential associations between drug sensitivities and circRNAs to assist with medical research. First, MNCLCDA quantifies the similarity between the given drug and circRNA using drug structure information, circRNA gene sequence information, and GIP kernel information. Due to the existence of noise in similarity information, we employ a preprocessing approach based on random walk with restart for similarity networks to efficiently capture the useful features of circRNAs and drugs. Second, we use a mixed neighbourhood graph convolutional network to obtain the neighbourhood information of nodes. Then, a graph-based contrastive learning method is used to enhance the robustness of the model, and finally, a double Laplace-regularized least-squares method is used to predict potential circRNA-drug associations through the kernel matrices in the circRNA and drug spaces.
+Results Numerous experimental results show that MNCLCDA outperforms six other advanced methods. In addition, the excellent performance of our proposed model in case studies illustrates that MNCLCDA also has the ability to predict the associations between drug sensitivity and circRNA in practical situations.
+Conclusions After a large number of experiments, it is illustrated that MNCLCDA is an efficient tool for predicting the potential associations between drug sensitivities and circRNAs, thereby can provide some guidance for clinical trials.
+Keywords circRNA-drug sensitivity associations, Random walk with restart, Contrastive learning, Graph convolutional network
+*Correspondence: Guanghui Li ghli16@hnu.edu.cn Jiawei Luo luojiawei@hnu.edu.cn Full list of author information is available at the end of the article
+
+
+Page 2 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+Background
+Circular RNAs (circRNAs) are novel noncoding RNA molecules with continuous circular structures that belong to the noncoding cancer genome family [1, 2]. circRNAs include four categories: intergenic circRNAs [3], exon–intron circRNAs [4], intronic circRNAs [5], and exonic circRNAs [6]. In recent years, with the development of high-throughput sequencing technology, it has been found that circRNAs can be implicated in many important biological processes [7]. For example, circRNAs, as the "sponges" of miRNAs or competitive endogenous RNAs, competitively bind to miRNAs to influence the regulation of target genes by miRNAs [8]. A single circRNA has the ability to bind to multiple units of RNAbinding proteins, thus serving as a reservoir for these RNA-binding proteins [9]. At present, much evidence [10, 11] suggests that some circRNAs are translated into proteins through the rolling circle amplification mechanism [12]. These experimentally verified biological functions indicate that circRNAs can become a class of potential medical diagnostic markers in clinical settings. Recent research has shown that the expressions of circRNAs can have significant impacts on cellular drug sensitivity. For example, Joseph et al. [13] found that CircCCDC66 was highly expressed in lung adenocarcinoma cells, thereby reducing the sensitivity of the cells to cisplatin. Jin et al. [14] found that CircPAN3 increased in the acute myeloid leukaemia (AML) cells and bone marrow cells of relapsed patients, while some target miRNAs decreased. Without affecting the apoptosis of basal cells, the knockout of CircPAN3 restored the sensitivity of the AML cells to chemotherapy drugs. Zhang et al. [15] found that a circRNA (Hsa_circ_0005379) was downregulated in oral cancer tissues, while its elevation reduced cell proliferation, induced apoptosis, and increased the sensitivity of cancer cells to cetuximab. It is crucial to identify the relationships between circRNAs and drug sensitivities, which have value for both disease treatment and drug discovery. To explore the influences of circRNAs expression on drug sensitivities, Ruan et al. [16] utilized several circRNA recognition methods to judge the circRNA expressions in approximately 1000 human cancer cell lines, and they discovered that the expressions of these circRNAs are significantly related to some drug responses. It is worth noting that thus far, our understanding of the relationships between drug sensitivities and circRNAs is still incomplete. Verifying the relationships between drug sensitivities and circRNAs through traditional biomedical experiments can be both costly and time-consuming. Therefore, developing an effective and precise computational approach for predicting the associations of circRNAs with drug sensitivities could significantly reduce the cost
+of biomedical experiments. As a pioneer study, Deng et al. [17] first presented a computational deep learning model called GATECDA for excavating the associations between drug sensitivities and circRNAs, which uses a graph attention autoencoder (GATE) to learn lowdimensional representations from drug and circRNA networks and finally uses deep neural networks for classification to predict the novel associations between drug sensitivities and circRNAs. Subsequently, Chen et al. [18] developed a new model called MNGACDA, which utilizes multiple types of data from drugs and circRNAs to create a multimodal network. Then, a node-level attention graph autoencoder is used to extract the low-dimensional embeddings of drugs and circRNAs from the multimodal network. Finally, using the circRNA and drug embeddings, an inner product decoder is used to infer the potential associations between the drug sensitivities and circRNAs. Comprehensive experiments performed on the above two computational methods demonstrate that correlation-based computational methods are effective in terms of predicting the associations between drug sensitivities and circRNAs. As described in the aforementioned research, there are still very few computational methods in this area. To the best of our knowledge, only GATECDA and MNGACDA are currently used for predicting the associations between circular RNAs and drug sensitivities. It is important to note that the known circRNA-drug sensitivity associations validated through biomedical experiments are incomplete, and many associations remain undiscovered. Consequently, the development of more accurate computational methods is necessary to make more reliable predictions regarding the sensitivity associations between circRNAs and drugs, thus improving the efficiency of developing related drugs. In this paper, we advance a new computational framework, called MNCLCDA, for predicting the potential associations of circRNAs with drug sensitivities. First, we use host gene sequence information, drug structure information and GIP kernel information to obtain the comprehensive similarity between circRNAs and drugs. Due to the existence of noise in similarity information, we design a preprocessing method based on random walks with restarts for the circRNA and drug similarity networks to efficiently capture the useful features of circRNAs and drugs, respectively. Then, we use mixedneighbourhood graph convolution on the circRNA-drug sensitivity bipartite network to obtain node embeddings. At the same time, we design a contrastive learning task to make the encoder more discriminative and enhance the robustness of our model. Finally, the double-Laplacian graph-regularized least-squares method is used to infer potential associations between drug sensitivities and circRNAs through the kernel matrices in the circRNA and
+
+
+Page 3 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+drug spaces. To assess the performance of MNCLCDA, we perform cross-validation experiments using a benchmark dataset and compare it with six relevant state-ofthe-art methods. Our experimental results indicate that MNCLCDA performs better than the existing related methods. Furthermore, we conduct an ablation study on the model. Finally, we perform a case study involving four drugs, which shows that MNCLCDA can effectively screen for circRNAs that are related to drug sensitivities. Therefore, the above experimental results indicate that MNCLCDA can infer the sensitivity associations between circRNAs and drugs, thereby providing guidance for clinical trials.
+Methods
+circRNA‐drug sensitivity associations
+We download the circRNA-drug sensitivity association dataset from reference [17], where Deng et al. [17] collected and organized the association data between circRNA and drug sensitivity from the circRic database [16]. Here, the drug sensitivity and circRNA data come from the GDSC database [19], which provides 80,076 circRNA-drug sensitivity association data consisting of 250 drugs and 404 circRNAs. After using the Wilcoxon test to identify the relationship between each circRNA and drug sensitivity pair, correlations with false discovery rates < 0.05 are defined as significant associations. In our research method, we use these significant associations as our benchmark dataset of circRNAs and drug sensitivities, including a total of 4134 associations, 218 drugs and 271 circRNAs. On the basis these significant associations, we finally construct the association matrix Y ∈ R271×218 between the circRNAs and drugs. In the association matrix Y , rows represent circRNAs, and columns represent drugs. If an element Y (i, j) = 1, it means that the corresponding drug and the circRNA are sensitive; otherwise, Y (i, j) = 0. Therefore, we can use the circRNA-drug sensitivity associations to construct a bipartite network A, and we define the adjacency matrix A ∈ R(nc+nd)×(nc+nd) of the bipartite network as follows:
+Furthermore, we access the host gene sequence data of circRNAs from the NCBI Gene Database [20] and obtain the structural information of drugs from the PubChem database [21]. We subsequently compute their respective similarities using appropriate methods.
+Sequence similarity between the host genes of circRNAs
+We use the circRNA host gene sequence information to calculate the similarity between the circRNAs. The
+(1)
+A= 0 Y
+Y T 0 ∈ R(Nc+Nd)×(Nc+Nd)
+similarity between two circRNA fragments is measured using the Levenshtein distance measure [22], which is a tool for calculating the difference between two strings. We denote the similarity between circRNAs by SC ∈ R271×271. The procedure of circRNA sequence similarity determination is calculated as follows:
+where trans represents the lowest cost of conversion between circRNAs and len(•) represents the size of the circRNA sequence.
+Structural similarity of drugs
+The functions of drugs are largely determined by their chemical structures; therefore, we can obtain the similarity between drugs by comparing their chemical structures. After obtaining the chemical structure information of the drugs from the PubChem database, we first utilize the RDKit [23] to compute the topological fingerprint of each drug, and then compute their structural similarities using the Tanimoto method [24]. Therefore, we can obtain a structural similarity matrix between drugs, which is expressed as SD ∈ R218×218.
+Gaussian interaction profile kernel similarity
+To discover additional useful similarity data, we apply the Gaussian interaction profile kernel function to compute the Gaussian kernel similarities between drugs and circRNAs. The GIP kernel similarity measure is extensively employed to calculate similarity in the field of bioinformatic association prediction [25–27]. Therefore, we can calculate the GIP kernel similarities of circRNAs using the following equation:
+where Y (i,:) represents the i-th row of the association matrix Y. The parameter rc represents the bandwidth, while nc represents the total count of circRNAs. Similarly, the GIP kernel similarity between drug i and drug j can be computed using the following equation:
+(2)
+SC leven
+(ci, cj
+) = 1 − trans
+len(ci) + len(cj
+)
+(3)
+GC(i, j) = exp
+(
+−rc � Y (i, :) − Y (i, :) �2)
+(4)
+rc = 1/
+( 1
+nc
+n ∑c
+i=1
+�Y (i, :)�2
+)
+(5)
+GD (i, j) = exp
+(
+−rd � Y (:, i) − Y (:, j) �2)
+(6)
+rd = 1/
+(1
+nd
+∑nd
+i=1�Y (:, i)�2
+)
+
+
+Page 4 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+where Y (: i) represents the i-th column in the association matrix Y, and rd is similar to rc.
+Integrated similarity for circRNAs and drugs
+Above, we calculate two similarity matrices for circRNAs and drugs. To supplement the biological information and improve the similarity between the drugs and circRNAs, we construct a comprehensive circRNA similarity matrix by integrating the circRNA sequence and Gaussian kernel similarities. If sequence similarity is observed between two circRNAs, the comprehensive similarity of the circRNAs is defined as the average of the sequence similarity and Gaussian kernel similarity; otherwise, it is the Gaussian kernel similarity. We define the comprehensive similarity CS between circRNAs as follows:
+Similarly, the comprehensive similarity matrix of the drugs can be computed as follows:
+MNCLCDA algorithm
+In this work, we propose a model called MNCLCDA to explore the relationships between circRNAs and drug sensitivities. As shown in Fig. 1, MNCLCDA mainly consists of the following steps. First, in the data
+(7)
+CSij =
+{ (SCij+GCij)
+2 , ifSC(i, j) �= 0
+GCij , otherwise
+(8)
+DSij =
+{ (SDij+GDij)
+2 , ifSD(i, j) �= 0
+GDij , otherwise
+preprocessing part, we use the sensitivity associations between drugs and circRNAs to construct a bipartite network and then use the comprehensive similarity data of the circRNAs and drugs as RWR inputs to learn potential features from the information possessed by the low-order and high-order neighbours. Next, we combine the above features and association matrix to generate new feature representations for the circRNAs and drugs. In the second step, we use a mixed neighbourhood graph convolution to learn the potential embeddings of the circRNAs and drugs. Third, we separately compute the Gaussian kernel similarity based on the circRNA and drug embeddings. Fourth, we predict the potential associations of the circRNAs and drugs using the double Laplacian-regularized least-squares method in the circRNA and drug kernel spaces. Finally, we use contrastive learning as an auxiliary task to make the model more discriminative and enhance its robustness.
+Feature processing for circRNAs and drugs
+As previously described, DS and CS are comprehensive similarity matrices for drugs and circRNAs, respectively. In the comprehensive similarity matrix, each row or column represents the similarity distribution of circRNAs (or drugs), which can be regarded as a feature vector for these circRNAs (or drugs). However, the calculated similarity matrix may generate some noise due to the presence of false positives or the limitations of the calculation approach. To decrease the effect of this noise, we use a random walk with restarts (RWR)-based method to obtain features from the similarity matrix. RWR is a
+Fig. 1 Flowchart of the MNCLCDA model
+
+
+Page 5 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+network embedding algorithm that extracts the similarity between nodes through random walks; it can capture not only local information but also the global information of the network. In previous studies, random walks were often used to denoise images [28] and preserve neighbour information in feature engineering tasks [29], and they have also been widely applied in the field of bioinformatics [30, 31]. Therefore, we apply RWR to our problem as well. The RWR calculation method [32] is defined as follows:
+where W ̃ denotes the transition probability matrix
+obtained after normalization and −e→l denotes the row vector of the similarity matrix. c is the probability of restarting. In the following experiments, we set c = 0.3,
+and −r→l is the score vector obtained after multiple rounds of RWR computations. After separately performing RWR on the drug and circRNA similarity matrices, we obtain a probability distribution vector for each drug and circRNA. Therefore, we recombine the probability distribution vectors into a new drug feature matrix Fd ∈ RNd×Nd and a new
+circRNA feature matrix Fc ∈ RNc×Nc. Finally, we combine the circRNA-drug sensitivity association matrix Y with Fd and Fc to form the initial feature matrix
+X ∈ R(Nc+Nd)×(Nc+Nd) of the model, which is described as follows:
+Mixed‐neighbourhood graph convolutional network
+A graph convolutional network (GCN) [33] is a kind of deep learning model that can extract low-dimensional representations and is applicable to graph structures. A GCN is cleverly designed to extract features from graphs so that we can obtain graph embeddings to solve downstream problems such as graph classification, link prediction, and node classification. GCNs are extensively employed in bioinformatics field [34–36]. In a normal GCN, each node representation is updated by aggregating the information acquired from its direct neighbours because the network only pays attention to the firstorder neighbourhood information of the nodes every time without considering other order information, which makes it poor at capturing higher-order domain information and can easily cause node oversmoothing. Many studies have shown that fusing mixed neighbourhood information from neighbours can enable GCNs to learn better node representations, which can help improve the resulting predictions for downstream tasks [37, 38].
+(9)
+−r→l = cW ̃−r→l + (1 − c)−e→l
+(10)
+X=
+[ Fc Y Y T Fd
+]
+∈ R(Nc+Nd)×(Nc+Nd)
+Therefore, we design a mixed-neighbourhood graph convolutional network that aggregates information not only from direct neighbours but also from multiorder neighbours directly. In the constructed bipartite network, the direct neighbours of each node are heterogeneous nodes, and its second-order neighbour nodes are homogeneous nodes. The mixed-neighbourhood graph convolutional network can gather information about circRNAs and drugs simultaneously, and the use of multiple mixedneighbourhood graph convolutional networks can also broaden the information obtained by nodes and reduce oversmoothing. Specifically, we construct adjacency matrices with different orders based on the bipartite network, then use the GCN for feature extraction, and finally concatenate these features. The computation process is as follows:
+where A ̃i = D ̃− 1
+2 i
+(
+Ai + I
+)D ̃ − 1
+2
+i is a symmetric normalized
+adjacency matrix with self-connection, H (0) = X , I is the
+identity matrix with the same shape as Ai, and D ̃i is the
+degree matrix of Ai + I , which is also a diagonal matrix. σ is the ReLU nonlinear activation function, and Wil is a trainable matrix.
+Kernel matrices of graph embeddings
+After applying the mixed-neighbourhood graph convolutional network, we obtain the final embeddings H of the nodes, which contain information from the mixed neighbourhood. We use the final embeddings H as feature vectors to compute the kernel matrices. We can divide the obtained embeddings H =
+[ Hc
+Hd
+]
+∈ R(Nc+Nd)×k into two
+parts, where H c ∈ RNc×k denotes the embeddings belonging to circRNAs and H d ∈ RNd×k denotes the embeddings belonging to drugs. We separately compute the Gaussian kernel matrices for the circRNA and drug embeddings by using GIP. The computational procedure is as follows:
+where H c(i) and H d(i) represent the contours of row i in the circRNA and drug embeddings, respectively, and γh represents the bandwidth of the Gaussian kernel.
+(11)
+An
+ij =
+{ π 1 , if Ainj �= 0 0 , otherwise , n ∈ {1, 2, . . . , N }
+(12)
+H (l+1) = �i∈nσ
+( ̃AiH lWil
+)
+(13)
+Kc = exp
+(
+−γh� H c(i) − H c(j) �2)
+(14)
+Kd = exp
+(
+−γh� H d(i) − H d(j) �2)
+
+
+Page 6 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+Double Laplacian‐regularized least‐squares method for prediction
+We utilize the double Laplacian-regularized least-squares method [39] to infer the potential associations between drugs and circRNAs through the kernel matrices of the drugs and circRNAs. The loss function is defined as follows:
+where ||·||F is the Frobenius norm, Ytrain ∈ RNc×Nd is the adjacency matrix of the circRNA-drug sensitivity associations in the training set, Wc and W T
+d ∈ RNc×Nd are
+trainable matrices, Kc ∈ RNc×Nc and Kd ∈ RNd×Nd are the kernel matrices of the embeddings in the two feature spaces and the parameters c and d are the coefficients of
+the regularization terms. Lc ∈ RNc×Nc and Ld ∈ RNd×Nd are Laplacian regularization matrices defined as follows:
+where Dc(k, k) =
+∑Nc
+t=1 Kc(k, t) and Dd (k, k) =
+∑Nd
+t=1 Kd (k, t) are diagonal matrices. The final circRNA-drug sensitivity associations derived from the two feature spaces are combined as follows:
+Contrastive learning module
+In recent years, contrastive learning has become a successful method for unsupervised representation learning and has also been successfully applied in the field of bioinformatics [40, 41]. We design a contrastive learning task inspired by deep graph Infomax (DGI) [42], which performs contrastive learning on the original bipartite
+graph G and the corrupted graph G ̃ by maximizing the mutual information to enhance the robustness of the model. The process of the contrastive learning task can be outlined as follows. First, we randomly shuffle the feature matrix X after feature extraction to obtain the perturbed feature matrix
+X ̃ . For the adjacency matrix of the bipartite graph is kept unchanged, and thus we construct a corrupted graph
+G ̃ = (A, X ̃). DGI is capable of optimizing the learned embeddings from graph G by maximizing the difference between the embeddings learned from the original graph G and the embeddings learned from the corrupted graph
+(15)
+L1 = � KcWc + (Kd Wd )T − 2Ytrain �2
+F
++ ctr(WcTLcWc
+) + dtr(WT
+d Ld Wd
+)
+(16)
+Lc = D−1/2
+c �cDc1/2, �c = Dc − Kc
+(17)
+Ld = D−1/2
+d �d D1/2
+d , �d = Dd − Kd
+(18)
+A∗ =
+KcWc + (Kd Wd)T 2
+G ̃ . The essential purpose of this approach is to train a GNN encoder so that our prediction model learns node representations in a more discriminative manner. We
+encode the corrupted graph G ̃ by using the same GCN encoder as that used for the original graph G and then
+obtain the embedding H ̃ ∈ R(Nc+Nd)×k of the corrupted
+graph from the damaged graph G ̃ . Our goal for the contrastive learning task is as follows:
+where V represents the number of nodes in the graph,V = (Nc + Nd), s = R(H ) = σ
+(1 v
+∑v i=1
+−H→i
+)
+, which
+is the graph-level embedding obtained through the readout functionR, R: H ∈ R(Nc+Nd)×k→s ∈ R1×k, and
+Ŵ(−H→, s) is a contrastive evaluator composed of bilinear
+functionsσ (−H→T Ws), which is used to evaluate the nodelevel embeddings and the graph similarity between the embeddings. Here, W is a trainable matrix, and σ is the sigmoid nonlinear activation function. Furthermore, we also extend the contrastive learning task from another perspective: by maximizing the dif
+ference s ̃ = R(H ̃ ) between the original graph node-level embedding H and the corrupted graph-level embedding, the contrastive loss function is as follows:
+Optimization
+To simultaneously perform the prediction and contrastive learning tasks, we optimize the objective loss function below, and the final loss function is represented as follows:
+where the parameters α and β are used to balance the contributions of various tasks. During the training process, we compute the partial derivatives of the parameters in the double Laplace-regularized least-squares method to directly obtain the iterative function, while the other parameters are optimized by Adam [43]. When optimizing the parameter Wc, we regard the parameter Wd as a constant and compute the partial derivative of the loss function with respect to Wc as follows:
+By letting ∂J
+Wc = 0, we can obtain:
+(19)
+L2 = − 1
+2|V |
+(∑
+v∈V
+logŴ(−H→, s) +
+∑
+v∈V
+log(1 − Ŵ(−H ̃ →, s))
+)
+(20)
+L3 = − 1
+2|V |
+(∑
+v∈V
+logŴ(−H ̃ →, s ̃) +
+∑
+v∈V
+log(1 − Ŵ(−H→, s ̃))
+)
+(21)
+L = L1 + αL2 + βL3
+(22)
+∂J
+Wc = 2Kc
+(KcWc + WT
+d KT
+d − 2YtrTain
+) + 2 C LC Wc
+
+
+Page 7 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+Similarly, the partial derivative of Wd is calculated as follows:
+By letting ∂J
+Wd = 0, we can obtain:
+The pseudocode of MNCLCDA is shown in Algorithm 1:
+(23)
+(KC KC + C LC )WC = KC
+[2YtrTain − WT
+d KT
+d
+]
+WC = (KC KC + C LC )−1KC
+[
+2YtrTain − WT
+d KT
+d
+]
+(24)
+∂J
+Wd = 2Kd
+(Kd Wd + WcTKcT − 2YtrTain
+) + 2 dLd Wd
+(25)
+(Kd Kd + d Ld )Wd = Kd
+[2YtrTain − WcTKcT
+]
+Wd = (Kd Kd + d Ld )−1Kd
+[
+2YtrTain − WcTKT
+c
+]
+Algorithm 1. MNCLCDA Algorithm
+Results
+Evaluation metrics
+Cross-validation is a typical method for evaluating the accuracy of a model. To fully assess the predictive performance of MNCLCDA, we perform fivefold and tenfold cross-validation experiments on circRNA and drug sensitivity datasets. Taking 5-CV as an example, we randomly
+select the same number of negative and positive samples and then split these samples into five identical sets. We sequentially use one of these five sets as the test set, and the other sets are used as the training set across five iterations to obtain accurate results. Similar to the 5-CV experiment, in the 10-CV experiment, we divide the samples into 10 subsets, one for testing and nine for training. In the cross-validation experiments, we employ seven commonly used evaluation metrics to evaluate the predictive performance of MNCLCDA: the area under the precision-recall curve (AUPR), the area under the ROC curve (AUC), accuracy, recall, precision, specificity and the F1 score. These evaluation metrics are defined by Eqs. (26–30). In the equations, TP and TN represent the numbers of correctly identified unassociated and associated circRNA-drug pairs, respectively; FP and FN refer
+to the numbers of misidentified associated and unassociated circRNA-drug pairs, respectively. In addition, we plot receiver operating characteristic (ROC) curves and precision-recall (P-R) curves to visually display the performance of our model. The larger the AUC and AUPR value are, the better the predictive performance of the model. The ROC curve for the 5-CV case is shown in
+
+
+Page 8 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+Fig. 2. The mean AUC of MNCLCDA is 0.9084, and the other metrics are shown in Table 1. The correlation averages of the AUPR, ACC, F1 score, precision, recall and specificity metrics are 0.9224, 0.8465, 0.8455, 0.8510, 0.8401 and 0.8523, respectively. The ROC curve for the 10-CV case is shown in Fig. 3, with an average AUC of 0.9113, and the other metrics are shown in Table 2.
+(26)
+TPR = TP
+TP + FN , FPR = FP
+TN + FP
+(27)
+Precison = TP
+TP + FP , Recall = TP
+TP + FN
+Fig. 2 ROC curves and PR curves in fivefold cross validation
+Table 1 Comparison with other methods base on 5-CV
+The bold result indicates the best result in each column
+Method F1‐score Accuracy Recall Specificity Precision
+MNCLCDA 0.8455 0.8465 0.8401 0.8523 0.8510 GATECDA 0.8237 0.8196 0.8361 0.8037 0.8125 MNGACDA 0.8416 0.8389 0.8537 0.8286 0.8308 VGAELDA 0.8197 0.8075 0.8278 0.8015 0.8123 MKGCN 0.8023 0.7985 0.8186 0.7889 0.7857 LAGCN 0.8084 0.8019 0.8265 0.7539 0.7912 CRPGCN 0.7965 0.7874 0.7978 0.8137 0.7954
+Fig. 3 ROC curves and PR curves in tenfold cross validation
+
+
+Page 9 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+Parameter settings
+Since some parameters in the model influence its predictive performance, we use 5-CV to evaluate the main model parameters. These main parameters include the following: (1) the restart probability c in the RWR method, (2) the order n of the mixed neighbourhood during graph convolution, (3) the Gaussian kernel bandwidth γ of the kernel matrices, and (4) the Laplacian regularization coefficients c and d. We perform experiments using a benchmark dataset and analyse the prediction performance achieved under the fivefold cross-validation setting.
+(28)
+Specificity = TN
+TN + FP
+(29)
+F 1 − Score = 2 × Precision · Recall
+Precision + Recall
+(30)
+Accuracy = TP + TN
+TP + TN + FP + FN
+The restart probability c in the RWR method impacts the effectiveness of the feature extraction process, and the value of this parameter ranges from (0, 1). Therefore, we set c ∈ {0.1, 0.3, 0.5, 0.7, 0.9}. As shown in Fig. 4, when the restart probability c = 0.3, the AUC value is maximized. In graph convolution, the order n of a mixed neighbourhood indicates the farthest distance at which it can receive mixed information from its neighbours. As shown in Fig. 5, the model performance reaches the optimal state when n = 3. The Gaussian kernel bandwidth of γ has a significant impact on the resulting prediction performance. For γ, we set the value range as γ ∈ {2−5, 2−4, 2−3, 2−2, 2−1}. As shown in Fig. 6, when the Gaussian kernel bandwidth γ =2−5, the model performance is best. c and d denote the weights of the graph regularization items in the double Laplacian-regularized least-squares method, which are important parameters. As shown in Fig. 7, when c = 2−2, 2−1, and d = 2−3, the model has better predictive power. Therefore, our model performs best when c = 2−1 and d = 2−3 under the 5-CV setting. In addition, we use Xavier [44] to initialize the parameters of the model and use the Adam optimizer [43] when training the MNCLCDA approach. The learning rate and weight decay are set to 0.005 and 10−5, respectively.
+Comparison with other methods
+To the best of our knowledge, very few computational methods are available for predicting the relationships between circRNAs and drug sensitivities. Therefore, to assess the predictive performance of MNCLCDA, we compare our model with six other advanced models in the field of bioinformatics. These include GATECDA [17], MNGACDA [18], LAGCN [45], MKGCN
+Table 2 Comparison with other methods base on 10-CV
+The bold result indicates the best result in each column
+Method F1‐score Accuracy Recall Specificity Precision
+MNCLCDA 0.8494 0.8492 0.8469 0.8519 0.8553 GATECDA 0.8267 0.8271 0.8312 0.8135 0.8225 MNGACDA 0.8473 0.8427 0.8436 0.8323 0.8517 VGAELDA 0.8256 0.8173 0.8332 0.8027 0.8176 MKGCN 0.8047 0.8026 0.8173 0.7973 0.7937 LAGCN 0.8133 0.8076 0.8312 0.7486 0.7956 CRPGCN 0.7977 0.7963 0.8021 0.8122 0.7927
+Fig. 4 Effect of parameter c on the AUC
+
+
+Page 10 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+[46], CRPGCN [47] and VGAELDA [48]. In addition, the hyperparameters used in the experiment were set according to the hyperparameters recommended in the author’s paper. It should be noted that in addition to GATECDA and MNGACDA, which are used in the field of circRNA-drug sensitivity association prediction, the other four known models have also been applied to other bioinformatics association prediction areas, for example, disease-circRNA and microbe–drug associations. A brief introduction to each model is given as follows.
+• GATECDA [17]: a computational model for predicting the sensitivity associations between circRNAs and drugs; it uses a graph-based attentional autoencoder to extract features and finally uses a deep neural network to predict associations. • MNGACDA [18]: a model for predicting the sensitivity associations between circRNAs and drugs;
+it uses a node-level graph attention-based autoencoder to extract low-dimensional representations of drugs and circRNAs from the constructed multimodal network. The final prediction process is performed using an inner product decoder. • LAGCN [45]: a model for excavating the associations between diseases and drugs by performing graph convolution operations on heterogeneous networks and then using an attention coefficient to obtain the weights of each layer’s embeddings. • MKGCN [46]: a method for inferring microbe-drug associations using double Laplacian-regularized leastsquares predictions with multiple kernel matrices. • CRPGCN [47]: a GCN-based model that uses the RWR method and principal component analysis to extract features for predicting circRNA-disease associations.
+Fig. 5 Effect of parameter n on the AUC
+Fig. 6 Effect of parameter γ on the AUC
+
+
+Page 11 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+• VGAELDA [48]: a model that integrates variational graph autoencoders and graph autoencoders for predicting lncRNA-disease associations.
+We use the above models separately to perform cross-validation experiments on a dataset for evaluating their predictive performance. As shown in Fig. 8(A), the average AUC of MNCLCDA is 0.9084 in the 5-CV setting, which is 2.07% (GATECDA), 0.49%
+(MNGACDA), 4.42% (LAGCN), 4.2% (MKGCN), 5.25% (CRPGCN), and 3.66% (VGAELDA) higher than those of the competing methods. The AUPR results are shown in Fig. 8(B). The mean AUPR score of MNCLCDA is 0.9224, which is 3.14% (GATECDA), 0.78% (MNGACDA), 4.86% (LAGCN), 5.62% (MKGCN), 4.93% (CRPGCN), and 4.05% (VGAELDA) higher than those of the other methods. Furthermore,
+Fig. 7 Effect of parameter c and d on the AUC
+Fig. 8 ROC and PR curves with other models on fivefold cross validation
+
+
+Page 12 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+the other predictive performance indicators are shown in Table 1. In the 10-CV experiment, as shown in Fig. 9(A), the mean AUC score of MNCLCDA is 0.9113, which is 1.62% (GATECDA), 0.19% (MNGACDA), 4.03% (LAGCN), 4.30% (MKGCN), 5.75% (CRPGCN) and 3.84% (VGAELDA) higher than those of the other methods. The AUPR results are shown in Fig. 9(B), and the mean AUPR score of MNCLCDA is 0.9244, which is 2.08% (GATECDA), 0.39% (MNGACDA), 4.26% (LAGCN), 4.75% (MKGCN), 5.91% (CRPGCN) and 4.18% (VGAELDA) higher than those of the other methods. The other performance metrics are shown in Table 2. Overall, the above experiments show that MNCLCDA is a valid computational model for inferring circRNA-drug sensitivity associations.
+Ablation Study
+This section presents a quantitative analysis of the contribution of each module in the model. Our MNCLCDA is roughly composed of four parts, including (I) the RWR-based feature processing module, (II) the mixedneighbourhood graph convolution module, (III) the contrastive learning module and (IV) the double Laplacian-regularized prediction module. Here, we conduct an ablation experiment using 5-CV to assess the influence of each component on the predictive power of the model. Specifically, we construct the following four model variants for ablation studies. They are MNCLCDA w/o RWR, MNCLCDA w/o MN, MNCLCDA w/o CL, and MNCLCDA w/o LR, which are described as follows.
+MNCLCDA w/o RWR: RWR is removed and features are extracted using another feature extraction method (2D) PCA [49]. MNCLCDA w/o MN: This variant uses multiple ordinary GCN layers for encoding instead of the mixed-neighbourhood GCN. MNCLCDA w/o CL: This version retains the other modules but does not use the contrastive learning module. MNCLCDA w/o LR: This version retains the other modules and uses the inner product decoder instead of the Laplacian regularized least squares for prediction.
+In Fig. 10, comparisons between MNCLCDA and the four model variants in terms of performance metrics such as the AUC are shown. We note that the performance results of MNCLCDA w/o RWR show that using RWR to extract features from similar nodes can improve the predictive power of our model. Furthermore, the results of MNCLCDA w/o MN show that the embedding effect obtained by using mixed neighbourhood information is better than that obtained by using the multilayer GCN. The results of MNCLCDA w/o CL indicate that the use of the contrastive learning module also contributes to the predictive performance of the model. Finally, the results of MNCLCDA w/o LR show that the Laplace regularized least squares model is also beneficial to the predictive performance of MNCLCDA. Therefore, MNCLCDA effectively integrates the benefits of the RWR, mixed neighbourhood information, contrastive learning modules and Laplace regularized least squares model and has relatively superior performance in terms
+Fig. 9 ROC and PR curves with other models on tenfold cross validation
+
+
+Page 13 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+of predicting the novel associations between circRNAs and drug sensitivities.
+Case studies
+The expressions of circRNA molecules impact the effects of therapeutic drugs, and they exhibit significant correlations with the effects of clinical medications [16]. To verify the effect of the MNCLCDA model in terms of predicting potential drug-related circRNA sensitivities, we conduct case studies based on the final prediction score matrix derived from the model. Specifically, we generate predictive scores by using 271 circRNAs and 218 drugs from the GDSC database as the training set. Subsequently, we randomly choose two representative cancer treatment drugs, piperlongumine and sunitinib, and rank the top 20 predicted circRNAs for the selected drugs in decreasing order based on their association scores. Since the associations between the circRNAs and drug sensitivities are obtained from the GDSC database [19], we validate the new associations predicted by the model by searching another independent database, CTRP [50]. Piperlongumine is a natural product derived from the bioactive alkaloid/amide of capsicum and capsicum longum. The pharmacological activities of piperlongumine include genotoxicity, cytotoxicity, antiangiogenic, antitumour, antiplatelet aggregation, antimetastatic, anxiolytic, antidepressant, antifungal, antibacterial, and antidiabetic activities. Among the various pharmacological effects of piperlongumine, its anticancer properties are most valuable [51, 52]. Table 3 lists the top 20 circRNAs associated with piperlongumine. After verification
+through the circRic (CTRP) database, 15 circRNAs have been confirmed to be associated with piperlongumine. Sunitinib is a small oral tyrosine kinase inhibitor molecule associated with tumour angiogenesis, and it exhibits potent antiangiogenic and antitumour activity [53, 54]. Its clinical activity was demonstrated in phase II studies involving neuroendocrine, colon, and breast cancers, while its clear efficacy was shown in advanced renal cell carcinoma and imatinib-refractory gastrointestinal mesenchymal tumours, so the FDA approved sunitinib for both diseases [54]. Table 4 lists the top 20 circRNAs associated with sunitinib. After verification through the
+Fig. 10 The results of MNCLCDA and its variants in the ablation study
+Table 3 The Top 20 circRNAs associated with the drug piperlongumine
+CircRNAs marked with ’a’ have been verified
+Ranking cricRNA Evidence Ranking cricRNA Evidence
+1 PEA15 + a CTRP 11 FBN1a CTRP 2 POLR2Aa CTRP 12 MUC1a CTRP 3 EFEMP1a CTRP 13 AHNAKa CTRP 4 ASPHa CTRP 14 COL6A1a CTRP 5 PTMSa CTRP 15 MGAT4Ba CTRP
+6 FBLN1a CTRP 16 GFUS Nonsignificant
+7 COL3A1 Nonsignificant
+17 ZNF609 Nonsignificant 8 MUC16a CTRP 18 LINC01089a CTRP
+9 LTBP3a CTRP 19 HSPA4 Nonsignificant
+10 CTTNa CTRP 20 TSPYL2 Nonsignificant
+
+
+Page 14 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+circRic (CTRP) database, 15 circRNAs have been confirmed to be associated with sunitinib. To assess the predictive performance of MNCLCDA with respect to identifying potential circRNA-drug sensitivity associations for new drugs, we select two drugs from the dataset that are associated with only one circRNA in terms of sensitivity for retesting. They are bortezomib and erlotinib. Bortezomib is the first proteasome inhibitor approved by the U.S. Food and Drug Administration (FDA) for the treatment of
+newly diagnosed multiple myeloma, relapsed myeloma, refractory multiple myeloma, and mantle cell lymphoma [55]. Erlotinib is a quinazoline derivative that is used to treat patients with advanced non-small-cell lung cancer (NSCLC) after the failure of platinum-containing chemotherapy [56]. In our experiments, we delete the only associations between these two drugs and their corresponding circRNAs, which are considered new drugs, while the other associations are input into the model as training set. We rank the relevant circRNAs based on the final prediction score matrix. Table 5 lists the top 10 circRNAs associated with bortezomib and erlotinib. After validation through the circRic (CTRP) database, 7 circRNAs have been validated to be associated with bortezomib, and 5 circRNAs have been validated to be associated with erlotinib.
+Discussion and conclusions
+With the deepening of the research conducted on cancer and diseases, many studies have found that the expressions of circRNAs in human cells can affect the sensitivity of drugs that treat diseases, thus impacting the therapeutic effects of these drugs. Therefore, predicting the relationships between circRNAs and drug sensitivities can not only assist with the development of new drugs but also help to overcome cellular resistance to drugs, thus enhancing the therapeutic effects of these drugs for diseases. However, the use of traditional biomedical methods to identify the relationships between drugs and circRNAs is both time-consuming and laborious, so it is necessary to develop an efficient computational method for identifying potential circRNA-drug sensitivity associations, thereby reducing the cost of traditional medical experiments. In our article, we present a new computational framework, called MNCLCDA, to predict the potential associations of circRNAs with drug sensitivities. First, we construct a bipartite network based on the observed association information and then quantify the similarity between drugs and circRNAs using drug structure information, circRNA gene sequence information and Gaussian interaction features. We also use an RWR-based preprocessing mechanism to conduct feature extraction in similarity networks. Next, we obtain the embedding of the nodes by using mixedneighbourhood graph convolution on the bipartite network. At the same time, we also design a contrastive learning task to make the model more robust. Finally, we use the double Laplacian-regularized-least squares method through the kernel matrices of the circRNA and drug spaces to infer the novel associations between the circRNAs and drug sensitivities. To verify the effectiveness of MNCLCDA, we perform cross-validation experiments on a dataset and compare our model with
+Table 4 The Top 20 circRNAs associated with the drug Sunitinib
+CircRNAs marked with ’a’ have been verified
+Ranking cricRNA Evidence Ranking cricRNA Evidence
+1 KRT19a CTRP 11 CRIM1a CTRP 2 CTTNa CTRP 12 KRT7a CTRP
+3 ASPHa Nonsignificant
+13 EVPLa CTRP
+4 POLR2Aa CTRP 14 ANXA2a CTRP 5 MAL2a CTRP 15 MGAT4Ba CTRP
+6 MUC1a CTRP 16 COL1A1 Nonsignificant 7 JUPa CTRP 17 LTBP3a CTRP
+8 MUC16a CTRP 18 COL1A2 Nonsignificant 9 THBS1a CTRP 19 GJB3a CTRP
+10 ESRP2 Nonsignificant
+20 COL6A2 Nonsignificant
+Table 5 The Top 10 predicted circRNAs associated with the two new drugs: bortezomib and erlotinib
+CircRNAs marked with ’a’ have been verified
+Bortezomib Erlotinib
+Ranking cricRNA Evidence Ranking cricRNA Evidence
+1 SPINT2 + a CTRP 1 THBS1 Nonsignificant
+2 COL6A2 Nonsignificant
+2 SPARCa CTRP
+3 DBN1a CTRP 3 ASPH Nonsignificant
+4 COL1A2 Nonsignificant
+4 POLR2Aa CTRP
+5 COL1A1a CTRP 5 ANXA2 Nonsignificant
+6 EVPLa Nonsignificant
+6 PTMS Nonsignificant 7 KRT19a CTRP 7 FLNAa CTRP 8 MAL2a CTRP 8 FBLN1a CTRP 9 COL3A1a CTRP 9 COL1A1a CTRP
+10 MUC1 CTRP 10 EFEMP1 Nonsignificant
+
+
+Page 15 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+six related state-of-the-art computational methods. The experimental results show that our MNCLCDA model achieves the best performance. Additionally, we conduct a case study on four drugs using the proposed model and validate its results on another database, indicating that MNCLCDA is a useful tool for predicting the novel associations between drug sensitivities and circRNAs. However, the number of circRNA-drug sensitivity associates identified through biomedical experiments is still relatively small, and some bias may be present in the prediction results of the model. Collecting more circRNA-drug sensitivity associations validated by biomedical experiments can make the prediction results more reliable. In the future, we intend to collect more associations between drug sensitivities and circRNAs, as well as those involving other biological information, such as the diseases-drugs associations as well as the diseasescircRNAs associations, to enhance the predictive performance of the proposed model by using multiple sources of data. To date, the methods for predicting the associations between drug sensitivities and circRNAs are still limited, so further efforts are needed in this area.
+Abbreviations
+circRNAs Circular RNAs RWR Random walk with restart GCN Graph convolutional network TPR True positive rate FPR False positive rate ROC Receiver operating characteristic AUC Area under ROC curve CV Cross validation
+Acknowledgements Not applicable.
+Authors’ contributions
+GL and JL conceived the study. GL and FZ designed the experiments and drafted the manuscript. CL revised the paper. QX analyzed the results. All authors read and approved the final manuscript.
+Funding
+This work is supported by the National Natural Science Foundation of China (Grant Nos. 62362034, 61862025, 61873089, and 62002116) and the Natural Science Foundation of Jiangxi Province of China (Grant Nos. 20232ACB202010, 20212BAB202009, 20181BAB211016).
+Availability of data and materials
+The datasets and source code are available at: https://github.com/ghli16/ MNCLCDA.
+Declarations
+Ethics approval and consent to participate Not applicable.
+Consent for publication Not applicable.
+Competing interests
+The authors declare no competing interests.
+Author details
+1School of Information Engineering, East China Jiaotong University, Nanchang, China. 2College of Computer Science and Electronic Engineering, Hunan University, Changsha, China. 3School of Information Science and Engineering, Shandong Normal University, Jinan, China. 4College of Information Science and Engineering, Hunan Normal University, Changsha, China.
+Received: 12 July 2023 Accepted: 1 December 2023
+References
+1. Kristensen LS, Hansen TB, Venø MT, et al. Circular RNAs in cancer: opportunities and challenges in the field. Oncogene. 2018;37(5):555–65. 2. Wang L, Wong L, You ZH, et al. NSECDA: natural semantic enhancement for circRNA-disease association prediction. IEEE J Biomed Health Inform. 2022;26(10):5075–84. 3. Fanale D, Taverna S, Russo A, et al. Circular RNA in exosomes. Circular RNAs: biogenesis and functions, 2018: 109–117. 4. Xu S, Zhou LY, Ponnusamy M, et al. A comprehensive review of circRNA: from purification and identification to disease marker potential. PeerJ. 2018;6: e5503. 5. Panda AC, De S, Grammatikakis I, et al. High-purity circular RNA isolation method (RPAD) reveals vast collection of intronic circRNAs. Nucleic Acids Res. 2017;45(12):e116–e116. 6. Lu WY. Roles of the circular RNA circ-Foxo3 in breast cancer progression. Cell Cycle. 2017;16(7):589–90. 7. Memczak S, Jens M, Elefsinioti A, et al. Circular RNAs are a large class of animal RNAs with regulatory potency. Nature. 2013;495(7441):333–8. 8. Syvänen AC. Accessing genetic variation: genotyping single nucleotide polymorphisms. Nat Rev Genet. 2001;2(12):930–42. 9. Eddy SR. Non–coding RNA genes and the modern RNA world. Nat Rev Genet. 2001;2(12):919–29. 10. Jeck WR, Sorrentino JA, Wang K, et al. Circular RNAs are abundant, conserved, and associated with ALU repeats. RNA. 2013;19(2):141–57. 11. Bahn JH, Zhang Q, Li F, et al. The landscape of microRNA, Piwiinteracting RNA, and circular RNA in human saliva. Clin Chem. 2015;61(1):221–30. 12. Abe N, Matsumoto K, Nishihara M, et al. Rolling circle translation of circular RNA in living human cells. Sci Rep. 2015;5(1):16435. 13. Joseph NA, Chiou SH, Lung Z, et al. The role of HGF-MET pathway and CCDC66 cirRNA expression in EGFR resistance and epithelial-to-mesenchymal transition of lung adenocarcinoma cells. J Hematol Oncol. 2018;11(1):1–14. 14. Shang J, Chen WM, Liu S, et al. CircPAN3 contributes to drug resistance in acute myeloid leukemia through regulation of autophagy. Leuk Res. 2019;85: 106198. 15. Zhang H, Yan J, Lang X, et al. Expression of circ_001569 is upregulated in osteosarcoma and promotes cell proliferation and cisplatin resistance by activating the Wnt/β-catenin signaling pathway. Oncol Lett. 2018;16(5):5856–62. 16. Ruan H, Xiang Y, Ko J, et al. Comprehensive characterization of circular RNAs in~ 1000 human cancer cell lines. Genome Med. 2019;11:1–14. 17. Deng L, Liu Z, Qian Y, et al. Predicting circRNA-drug sensitivity associations via graph attention auto-encoder. BMC Bioinformatics. 2022;23(1):1–15. 18. Yang B, Chen H. Predicting circRNA-drug sensitivity associations by learning multimodal networks using graph auto-encoders and attention mechanism. Brief Bioinform. 2023; 24(1): bbac596. 19. Yang W, Soares J, Greninger P, et al. Genomics of Drug Sensitivity in Cancer (GDSC): a resource for therapeutic biomarker discovery in cancer cells. Nucleic Acids Res. 2012;41(D1):D955–61. 20. Rangwala SH, Kuznetsov A, Ananiev V, et al. Accessing NCBI data using the NCBI sequence viewer and genome data viewer (GDV). Genome Res. 2021;31(1):159–69. 21. Wang Y, Bryant SH, Cheng T, et al. Pubchem bioassay: 2017 update. Nucleic Acids Res. 2017;45(D1):D955–63. 22. Levenshtein V I. Binary codes capable of correcting deletions, insertions, and reversals[C]//Soviet physics doklady. 1966; 10(8): 707–710.
+
+
+Page 16 of 16
+Li et al. BMC Medical Informatics and Decision Making (2023) 23:291
+• fast, convenient online submission
+• thorough peer review by experienced researchers in your field
+• rapid publication on acceptance
+• support for research data, including large and complex data types
+• gold Open Access which fosters wider collaboration and increased citations
+maximum visibility for your research: over 100M website views per year
+•
+At BMC, research is always in progress.
+Learn more biomedcentral.com/submissions
+Ready to submit your research? Choose BMC and benefit from:
+23. Landrum G. RDKit: A software suite for cheminformatics, computational chemistry, and predictive modeling. Greg Landrum. 2013;8:1–31. 24. Shen L, Liu F, Huang L, et al. VDA-RWLRLS: An anti-SARS-CoV-2 drug prioritizing framework combining an unbalanced bi-random walk and Laplacian regularized least squares. Comput Biol Med. 2022;140:105119. 25. Niu M, Zou Q, Wang C. GMNN2CD: identification of circRNA–disease associations based on variational inference and graph Markov neural networks. Bioinformatics. 2022;38(8):2246–53. 26. Li Z, Li J, Nie R, et al. A graph auto-encoder model for miRNA-disease associations prediction. Brief Bioinform. 2021;22(4):bbaa240. 27. Zhang Y, Lei X, Fang Z, et al. CircRNA-disease associations prediction based on metapath2vec++ and matrix factorization. Big Data Min Anal. 2020;3(4):280–91. 28. Jain DK, Zhang Z, Huang K. Random walk-based feature learning for micro-expression recognition. Pattern Recogn Lett. 2018;115:92–100. 29. Grover A, Leskovec J. node2vec: Scalable feature learning for networks[C]//Proceedings of the 22nd ACM SIGKDD international conference on Knowledge discovery and data mining. 2016: 855–864. 30. Long Y, Wu M, Kwoh CK, et al. Predicting human microbe–drug associations via graph convolutional network with conditional random field. Bioinformatics. 2020;36(19):4918–27. 31. Li G, Lin Y, Luo J, et al. GGAECDA: Predicting circRNA-disease associations using graph autoencoder based on graph representation learning. Comput Biol Chem. 2022;99. 32. Köhler S, Bauer S, Horn D, et al. Walking the interactome for prioritization of candidate disease genes. Am J Human Genetics. 2008;82(4):949–58. 33. Kipf T N, Welling M. Semi-supervised classification with graph convolutional networks. arXiv preprint arXiv:1609.02907, 2016. 34. Mudiyanselage TB, Lei X, Senanayake N, et al. Predicting CircRNA disease associations using novel node classification and link prediction models on graph convolutional networks. Methods. 2022;198:32–44. 35. Tang X, Luo J, Shen C, et al. Multi-view multichannel attention graph convolutional network for miRNA–disease association prediction. Brief Bioinform. 2021; 22(6): bbab174. 36. Pan X, Shen HB. Inferring disease-associated microRNAs using semi-supervised multi-label graph convolutional networks. Iscience. 2019;20:265–77. 37. Abu-El-Haija S, Perozzi B, Kapoor A, et al. Mixhop: Higher-order graph convolutional architectures via sparsified neighborhood mixing[C]//international conference on machine learning. PMLR. 2019: 21–29. 38. Wang J, Liang J, Cui J, et al. Semi-supervised learning with mixed-order graph convolutional networks. Inf Sci. 2021;573:171–81. 39. Belkin M, Niyogi P, Sindhwani V. Manifold regularization: A geometric framework for learning from labeled and unlabeled examples. J Machine Learn Res. 2006;7(11):2399–34. 40. Zhao C, Liu S, Huang F, et al. CSGNN: Contrastive Self-Supervised Graph Neural Network for Molecular Interaction Prediction[C]//IJCAI. 2021: 3756–3763. 41. Ruan X, Jiang C, Lin P, et al. MSGCL: inferring miRNA–disease associations based on multi-view self-supervised graph structure contrastive learning. Briefings in Bioinformatics. 2023; 24(2): bbac623. 42. Velickovic P, Fedus W, Hamilton WL, et al. Deep graph infomax. ICLR (Poster). 2019;2(3):4. 43. Kingma D P, Ba J. Adam: A method for stochastic optimization. arXiv preprint arXiv:1412.6980, 2014. 44. Glorot X, Bengio Y. Understanding the difficulty of training deep feedforward neural networks[C]//Proceedings of the thirteenth international conference on artificial intelligence and statistics. JMLR Workshop and Conference Proceedings, 2010: 249–256. 45. Yu Z, Huang F, Zhao X, et al. Predicting drug–disease associations through layer attention graph convolutional network. Brief Bioinform. 2021; 22(4): bbaa243. 46. Yang H, Ding Y, Tang J, et al. Inferring human microbe–drug associations via multiple kernel fusion on graph neural network. Knowl-Based Syst. 2022;238. 47. Ma Z, Kuang Z, Deng L. CRPGCN: predicting circRNA-disease associations using graph convolutional network based on heterogeneous network. BMC Bioinformatics. 2021;22(1):1–23.
+48. Shi Z, Zhang H, Jin C, et al. A representation learning model based on variational inference and graph autoencoder for predicting lncRNAdisease associations. BMC Bioinformatics. 2021;22(1):1–20. 49. Wang L, Wong L, Li Z, et al. A machine learning framework based on multi-source feature fusion for circRNA-disease association prediction. Brief Bioinform. 2022; 23(5): bbac388. 50. Rees MG, Seashore-Ludlow B, Cheah JH, et al. Correlating chemical sensitivity and basal gene expression reveals mechanism of action. Nat Chem Biol. 2016;12(2):109–16. 51. Wang Y, Chang J, Liu X, et al. Discovery of piperlongumine as a potential novel lead for the development of senolytic agents. Aging (Albany NY). 2016;8(11):2915. 52. Bezerra DP, Pessoa C, de Moraes MO, et al. Overview of the therapeutic potential of piplartine (piperlongumine). Eur J Pharm Sci. 2013;48(3):453–63. 53. Rini BI. Sunitinib[J]. Expert Opin Pharmacother. 2007;8(14):2359–69. 54. Chow LQM, Eckhardt SG. Sunitinib: from rational design to clinical efficacy. J Clin Oncol. 2007;25(7):884–96. 55. Mujtaba T, Dou QP. Advances in the understanding of mechanisms and therapeutic use of bortezomib. Discov Med. 2011;12(67):471. 56. Bareschino M A, Schettino C, Troiani T, et al. Erlotinib in cancer treatment. Ann Oncology. 2007; 18: vi35-vi41.
+Publisher’s Note
+Springer Nature remains neutral with regard to jurisdictional claims in published maps and institutional affiliations.

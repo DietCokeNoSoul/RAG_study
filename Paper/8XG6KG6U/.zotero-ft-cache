@@ -1,0 +1,622 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. XX, NO. XX, XXXX 2025 1
+A multi-scale neighbor topology guided
+transformer and Kolmogorov-Arnold network
+enhanced feature learning model for
+disease-related circRNA prediction
+Ping Xuan, Haoyuan Li, Hui Cui, Zelong Xu, Toshiya Nakaguchi and Tiangang Zhang ∗
+Abstract— As circular non-coding RNA (circRNA) is closely associated with various human diseases, identifying disease-related circRNAs can provide a deeper understanding of the mechanisms underlying disease pathogenesis. Advanced circRNA-disease association prediction methods mainly focus on graph learning techniques such as graph convolutional networks and graph attention networks. However, these methods do not fully encode the multi-scale neighbor topologies of each node, and the dependencies among the pairwise attributes. We propose a multi-scale neighbor topology-guided transformer with Kolmogorov-Arnold network (KAN) enhanced feature learning for circRNA and disease association prediction, termed MKCD. The model integrates multi-scale neighbor topology, complex relationships among multiple nodes, and the global and local dependencies of pairwise attributes. First, MKCD incorporates an adaptive multi-scale neighbor topology embedding construction strategy (AMNE), which generates neighbor topologies covering varying scopes of neighbors by performing random walks on a circRNAdisease-miRNA heterogeneous graph. Second, we design a dynamic multi-scale neighbor topology-guided transformer (DMTT) that leverages the multi-scale neighbor topologies to guide the learning of relationships among circRNA, miRNA, and disease nodes. The multi-scale neighbor topology is dynamically evolved, providing adaptive guidance to the transformer’s learning process. Third, we establish a feature-gated network (FGN) to evaluate the importance of topological features derived from DMTT and the original node attributes. Finally, we propose an adaptive joint convolutional neural networks and KAN learning strategy (ACK) to learn the global and local dependencies of circRNA and disease node pair features. Comprehensive
+This work was supported by Natural Science Foundation of China (62172143, 62372282); Natural Science Foundation of Heilongjiang Province (LH2023F044); Guangdong Basic and Applied Basic Research Foundation (2024A1515010176); STU Scientific Research Initiation Grant (NTF22032). Ping Xuan is with the Department of Computer Science and Technology, Shantou University, Shantou, 515063, China. Haoyuan Li is with the Department of Computer Science and Technology, Shantou University, Shantou, 515063, China. Hui Cui is with the Department of Computer Science and Information Technology, La Trobe University, Melbourne, 3083, Australia. Zelong Xu is with the School of Information Science and Engineering, Yanshan University, Qinhuangdao, 066004, China. Toshiya Nakaguchi is with the Center for Frontier Medical Engineering, Chiba University, Chiba, 2638522, Japan. Tiangang Zhang is the corresponding author and he is with the School of Cyberspace Security, Hainan University, Haikou, 570228, China (email: zhang@hlju.edu.cn).
+comparison experiments demonstrate the superior performance of our method over six state-of-the-art methods, and ablation experiments further validate the effectiveness of AMNE, DMTT, FGN and ACK innovations. Case studies on three diseases further validate the application value of our method in discovering reliable circRNA candidates for diseases of focus.
+Index Terms— Multi-scale neighbor topology, neighbor topology-guided transformer, KAN enhanced feature learning, local and global dependencies of pairwise attributes, disease-related circRNA prediction.
+I. INTRODUCTION
+C
+IRCRNA is a class of single-stranded circular noncoding RNA that lacks 5’ and 3’ polyadenylated tails [1]. Increasing evidence suggests that the abnormal expression of circRNAs is associated with the occurrence of various diseases [2], including cancers [3]–[5], immune system disorders [6], and cardiovascular diseases [7]–[9]. Therefore, identifying the associations between specific diseases and circRNAs can aid in the diagnosis and treatment of these diseases. Computational prediction methods can discover associations between circRNAs and diseases, which can then be used to provide reliable disease-related circRNA candidates for subsequent biological experiments [10], [11]. Existing computational prediction methods can be categorized into three main types. The first type involves establishing network-based models to predict associations between circRNAs and diseases. KATZHCDA and PWCDA models calculate the association scores for each circRNA-disease pair based on the paths connecting them in heterogeneous networks [12], [13]. iCircDA-MF model proposed by Wei et al. incorporates gene information to construct a circRNAgene-disease relationship network and predicts associations using matrix factorization [14]. However, these models suffer from limited association information. The second category of prediction models is based on machine learning techniques to predict the associations between circRNAs and diseases. A couple of methods combine k-nearest neighbors to predict disease-associated circRNA candidates [15]–[17]. MLCDA model proposed by Wang et al. performs predictions using inductive matrix completion
+
+
+2 IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. XX, NO. XX, XXXX 2025
+[18]. GBDTCDA and AE-RF are both decision tree-based prediction methods [19], [20], whereas CD-LNLP and RNMFLP calculate the association scores between circRNAs and diseases through label propagation [21], [22]. However, these methods establish superficial prediction models, making it difficult to capture the deep relationships between circRNAs and diseases. The third category focuses on developing models based on deep learning strategies, improving prediction performance by extracting complex and representative features. Several methods establish convolutional neural network-based models [23]–[25] or attention mechanism-based models [26] to predict disease-related circRNAs, yet they overlook the neighbor topology structure between multiple circRNA and disease nodes. Bi-SGTAR proposed by Li et al. employs an encoder with sparse gating to predict the propensity of all circRNAdisease associations [27]. This method also neglects the topology formed by circRNA and disease nodes. Other methods are based on graph convolutional networks [28]–[31] and graph attention networks [32], and combinations of both [33], to learn deep relationships among nodes. However, these methods learn the features of each node from the entire graph, ignoring the global dependency learning of features between individual circRNA and disease node pairs. We propose a novel association prediction model, multi-scale neighbor topology-guided transformer with Kolmogorov-Arnold network enhanced feature learning for circRNA and disease association prediction (MKCD), to learn multi-scale neighbor topologies, the relationships among circRNA, miRNA, and disease nodes, as well as the global and local dependencies between node pair features. The main contributions of this work are summarized as follows. • We construct a circRNA-disease-miRNA heterogeneous graph that incorporates circRNA, disease, and miRNA nodes, along with their association, interaction, and similarity relationships. Each circRNA (disease, miRNA) node in this graph has multi-scale neighbors, with varying degrees of closeness to the target node. To effectively differentiate the contributions of neighbor topologies at different scales to node feature learning, we propose an adaptive multi-scale neighbor topology embedding construction strategy (AMNE). This strategy can adaptively determine the importance of each scale-specific neighbor topology and generate multi-scale neighbor topology embeddings. • Most existing transformer-based models primarily focus on feature similarities between nodes while neglecting the topological structure among them. To address this limitation, we introduce dynamic multi-scale neighbor topology-guided transformer (DMTT), which encodes relationships among multiple circRNA, miRNA, and disease nodes. DMTT dynamically constructs an evolving neighbor topology and utilizes it to assess the importance of all circRNA, miRNA, and disease nodes in the heterogeneous graph. • Multi-scale neighbor topology-introduced node features capture structural information, whereas the original features of circRNA, miRNA, and disease nodes provide
+rich biological details. To effectively integrate these complementary feature representations, we design a featuregated network (FGN), which selectively determines the importance of topological and original features for downstream predictions. • The features of circRNA and disease node pairs exhibit both local and global dependencies. To capture these dependencies, we propose a feature learning strategy for node pairs, ACK, which leverages Kolmogorov-Arnold network (KAN) [34] to learn global feature relationships and a multi-layer convolutional neural networks (CNNs) to extract local feature dependencies. Comparative experiments demonstrate that MKCD outperforms state-of-theart methods in predicting circRNA-disease associations. Case studies validate that our method can effectively screen potential disease-related circRNA candidates.
+II. MATERIALS AND METHODS
+We propose a novel prediction model, MKCD (Figure 1), for predicting disease-related circRNA candidates. A circRNAdisease-miRNA heterogeneous graph is constructed to integrate the similarities, interactions, and associations among circRNA, disease, and miRNA (Figure 1(a)). MKCD consists of four components, each learning distinct information from the heterogeneous graph. The proposed DMTT encodes the complex relationships among multiple circRNA, disease, and miRNA nodes (Figure 1(c)). It further guides the transformer model’s learning process through dynamically constructed multi-scale neighbor topology embeddings via AMNE (Figure 1(b)). To preserve more detailed information from node features, we introduce FGN (Figure 1(d)). The designed ACK is used to learn and fuse both global and local dependencies between the features of circRNA and disease node pairs (Figure 1(e)). These components work together to improve the capability of MKCD in predicting circRNA-disease associations.
+A. Dataset
+The dataset utilized in this study is derived from previous work [35], which comprises two datasets containing circRNA, disease and miRNA information. The first dataset covers 514 circRNAs, 62 diseases, and 564 miRNAs. The second dataset contains associations and interactions among 330 circRNAs, 79 diseases, and 245 miRNAs. We integrated these two datasets to form a new, larger dataset. This merged dataset consists of 989 circRNA-disease associations, 837 miRNAdisease associations, and 902 circRNA-miRNA interactions, covering a total of 834 circRNAs, 138 diseases, and 555 miRNAs. The original associations between circRNAs and diseases are obtained from the circR2Cancer database [36], the circad database [37], and the circRNADisease database [38].
+B. CircRNA-disease-miRNA heterogeneous graph
+We constructed a three-layer heterogeneous graph G = (V, E) using associations, interactions, and similarities among
+
+
+LI et al.: NEIGHBOR TOPOLOGY GUIDED TRANSFORMER AND KAN FOR PREDICTING CIRCRNA-DISEASE ASSOCIATIONS 3
+CircRNA Disease MiRNA
+CircRNA-circRNA similarity Disease-disease similarity MiRNA-miRNA similarity
+CircRNA-disease association
+CircRNA-miRNA interaction
+MiRNA-disease association
+Vi
+0.3
+0.04
+0.09
+0.05
+0.2 0.5
+0.17
+0.21
+0.13
+Multi-scale neighbor topology embedding
+Adaptive fusion Stack
+(b) Construction of multi-scale neighbor topology embedding
+circR2Cancer
+circad
+circRNADisease
+(a) Construction of circRNA-disease-miRNA heterogeneous graph
+1
+1
+2 3 4 1 2 1 2 3
+234121 23
+Concat
+||
+1
+(c) Node feature learning by DMTT
+(e) Adaptive KAN and CNN combination for enhanced pairwise feature learning
+Multi-scale neighbor topology embedding matrix
+Graph feature matrix
+Head 1
+Head h Head 1
+Head h Head 1
+Head h
+Multi-scale neighbor topology-introduced node feature matrix
+Flatten
+Convolutional layer Max pooling layer
+12
+Fully-connected layer
+Association score
+(f) Association score evaluation
+Adaptive fusion
+(d) Fusion of topological and original feature by FGN
+CircRNA-disease-miRNA heterogeneous graph
+()
+() ()
+()
+()
+()
+() Database
+Feature matrix of heterogeneous graph
+G
+Value
+Value
+Key
+Guided by multi-scale neighbor topologies
+R
+Softmax
+Value
+Value
+Value
+Value
+Value
+Query
+Product
+Scale Original
+feature matrix
+Feature gated network
+MLP
+σ
+Pairwise local feature
+Pairwise global feature
+KAN
+()
+()
+()
+()
+()
+Fig. 1. The overall framework of MKCD. (a) Construction of the circRNA-disease-miRNA heterogeneous graph. (b) Adaptive multi-scale neighbor topology embedding construction strategy. (c) Learn the complex relationships among circRNA, miRNA, and disease nodes based on DMTT. (d) Fuse topological features and original node features by FGN. (e) Learn local and global dependencies of features of circRNA and disease node pairs based on ACK. (f) Adaptively fuse two representations and estimate circRNA-disease association scores.
+circRNAs, miRNAs, and diseases (Figure 2). The node set V = {V cir ∪ V dis ∪ V mir} comprises the set of circRNA nodes V cir, disease nodes set V dis, and miRNA nodes set V mir. An edge eij ∈ E connects a pair of nodes vi, vj ∈ V, represented by the association and interaction matrix H and similarity matrix S. The association and interaction matrix H among circRNAs, miRNAs, and diseases is defined as follows,
+H=
+
+ 
+ 
+H cir−dis ∈ RNcir×Ndis , if vi ∈ V cir, vj ∈ V dis;
+H mir−dis ∈ RNmir×Ndis , if vi ∈ V mir, vj ∈ V dis;
+H cir−mir ∈ RNcir×Nmir , if vi ∈ V cir, vj ∈ V mir;
+(1) where Hcir−dis, Hmir−dis, and Hcir−mir denote the circRNA-disease association matrix, miRNA-disease association matrix, and circRNA-miRNA interaction matrix, respectively. Ncir, Ndis, and Nmir represent the number of circRNAs, diseases, and miRNAs in the dataset. Hij ∈ Hcir−dis(Hmir−dis) represents the association between the circRNA (miRNA) node vcir
+i (vmir
+i ) and the disease node vdis
+j.
+For a circRNA (miRNA) node vcir
+i (vmir
+i ) and a disease
+node ddis
+j , if H cir−dis
+ij = 1 (H mir−dis
+ij = 1), it indicates
+the existence of an association between them; conversely,
+H cir−dis
+ij = 0 (H mir−dis
+ij = 0), no association has been
+observed. If Hcir−mir
+ij = 1, an interaction is present between
+the circRNA node vcir
+i and the miRNA node vmir
+j ; otherwise,
+H cir−mir
+ij = 0.
+S represents the similarity matrix related to circRNAs, miRNAs, and diseases,
+S=
+
+ 
+ 
+Scir ∈ RNcir×Ncir , if vi, vj ∈ V cir;
+Sdis ∈ RNdis×Ndis , if vi, vj ∈ V dis;
+Smir ∈ RNmir×Nmir , if vi, vj ∈ V mir;
+(2)
+where Scir, Sdis, and Smir are the similarity matrix for circRNAs, diseases, and miRNAs, respectively. The values in Scir, Sdis, and Smir range from 0 to 1, reflecting similarity between two nodes of the same type, with higher values indicating greater similarity. According to the method proposed by Wang et al. [39], the similarity between two disease nodes [vdis
+i , vdis
+j ] is calculated based on their directed acyclic graph (DAG). The similarities of circRNAs and miRNAs are calculated using the methods proposed by Wang et al. [39] and Chen et al. [40], respectively, where the similarity of a pair of circRNAs (miRNAs) is derived from the similarity between the two sets of diseases associated with them. For instance, suppose the i-th circRNA node vcir
+i is associated with N cir
+i diseases, which forms the
+
+
+4 IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. XX, NO. XX, XXXX 2025
+CircRNA Disease MiRNA
+CircRNA-circRNA similarity matrix
+MiRNA-miRNA similarity matrix
+Disease-disease similarity matrix
+CircRNA-disease association matrix
+MiRNA-disease association matrix
+CircRNA-miRNA interaction matrix
+Associated diseases
+Similarity
+Associated diseases
+Similarity
+CircRNA-disease-miRNA heterogeneous graph
+()
+Fig. 2. Construction of the circRNA-disease-miRNA heterogeneous graph based on multi-source data.
+set Ωcir
+i = {dik|k = 1, . . . , N cir
+i }, and the j-th circRNA
+node vcir
+j is associated with the disease set Ωcir
+j = {djl|l =
+1, . . . , N cir
+j }. The similarity Scir
+ij of [vcir
+i , vcir
+j ] is determined
+by assessing the similarity between Ωcir
+i and Ωcir
+j . Similarly,
+we can calculate the similarity Smir
+ij for [vmir
+i , vmir
+j ].
+Based on the constructed association (interaction) matrix H and the similarity matrix S, the original feature matrix of the heterogeneous graph G(0) ∈ RNv×Nv is defined as follows,
+G(0) =
+
+ 
+Scir H cir−dis H cir−mir
+H cir−disT Sdis H mir−disT
+H cir−mirT H mir−dis Smir
+
+
+ , (3)
+where Nv denotes the total number of circRNAs, miRNAs,
+and diseases, and Hcir−disT represents the transpose of the matrix Hcir−dis. The i-th row gi of the matrix G(0) represents the node embedding of node vi ∈ V, which contains the associations and similarities involving vi and all circRNAs, diseases, and miRNAs. The set {gi|0 ⩽ i < Ncir} denotes the collection of node embeddings for all circRNAs. Furthermore, the sets {gi|Ncir ⩽ i < Ncir + Ndis} and {gi|Ncir + Ndis ⩽ i < Ncir + Ndis + Nmir} represent the collections of node embeddings for all diseases and miRNAs, respectively.
+C. Adaptive multi-scale neighbor topology embedding construction strategy (AMNE)
+In the circRNA-disease-miRNA heterogeneous graph, the node vi has one-scale neighbors that can be reached in one step, or d-scale neighbors that can be reached in d (d > 1) steps. The multi-scale neighbor topological structure formed by these neighboring nodes can provide important auxiliary information for predicting the associations between circRNAs and diseases. The contributions of low-scale (one-scale) neighbors and high-scale (d-scale) neighbors to the features learned for each node are different, thus, we proposed AMNE, which utilizes random walk with restart (RWR) to establish multiscale neighbor topology embeddings (Figure 3). Taking vi as
+an example, the walker starts from vi and performs random walks to travel to other nodes in the circRNA-disease-miRNA heterogeneous graph. The probability distribution of reaching all circRNA, disease, and miRNA nodes at time t is given by θi(t) ∈ R1×Nv ,
+θi(t) = (1 − λ)OT θi(t − 1) + λθi(0), (4)
+where the j-th value of θi(t) denotes the probability that the walker starts from vi reaches node vj (0 ⩽ j < Nv) after t steps. θi(0) is the initial one-hot vector, where the i-th position is 1 and all other positions are 0. λ is the probability that the walker restarts from the starting point; a larger value of λ results in a smaller movement range of the walker within the network. O ∈ RNv×Nv is obtained from the row-normalized matrix of G(0), where oij ∈ O represents the transition probability from vi to vj. θi(t) can be viewed as the probability distribution of reaching various nodes after t steps from vi, thus it serves as the t-scale neighbor topology embedding of vi. According to Eq.(4), we can build neighbor topology embeddings from scale 0 to scale t. These scale neighbor topology embeddings are adaptively fused to obtain the multiscale neighbor topology embedding θi for vi,
+θi = η0θi(0) + η1θi(1) + · · · + ηkθi(k) + · · · + ηtθi(t), (5)
+where ηk ∈ (0, 1) are randomly initialized learnable parame
+ters, and Pt
+k=0 ηk = 1.
+After applying AMNE for each vi(0 ⩽ i < Nv), we can obtain the multi-scale neighbor embedding for all nodes. These embeddings are stacked vertically to form the embedding matrix R ∈ RNv×Nv ,
+R=
+
+   
+θ0 θ1
+...
+θNv −1
+
+   
+. (6)
+
+
+LI et al.: NEIGHBOR TOPOLOGY GUIDED TRANSFORMER AND KAN FOR PREDICTING CIRCRNA-DISEASE ASSOCIATIONS 5
+D. Node feature learning based on DMTT
+Typically, multiple circRNAs and miRNAs form interactions and collaboratively participate in the processes of various diseases. Therefore, there are close relationships among the features of multiple circRNAs, miRNAs, and disease nodes, making it necessary to establish a self-attention mechanism to capture these relationships. Traditional transformer focus solely on the similarities between node features and do not fully exploit the topological structures formed between nodes, especially the multi-scale neighbor topological structures. Inspired by the transformer proposed by Vaswani et al. [41], we introduce a DMTT (dynamic multi-scale neighbor topologyguided transformer) mechanism (Figure 4) that utilizes the multi-scale neighbor topology embeddings established by AMNE to guide the learning of attention scores. We incorporate a multi-head attention mechanism to overcome the problem of single-head attention easily falling into local optima during the training process, thereby reducing bias in the learning process. For the m-th attention head, we first establish the query matrix Q(l)
+m ∈ RNv× Nv
+h , the key matrix
+K (l)
+m ∈ RNv× Nv
+h , and the value matrix V (l)
+m ∈ RNv× Nv
+h as follows,
+Q(l)
+m = G(l−1)W Q(l)
+m K (l)
+m = G(l−1)W K(l)
+m, V (l)
+m = G(l−1)W V (l)
+m
+(7)
+where G(l−1) ∈ RNv×Nv is the feature matrix of the graph nodes that are input at layer l (1 ⩽ l ⩽ L). When l = 1, G(0) represents the original feature matrix, and h is the number of attention heads. Q(l)
+m , K(l)
+m , and V (l)
+m are obtained from G(l−1)
+through different linear projections, with W Q(l)
+m , W K(l)
+m , and
+W V (l)
+m ∈ RNv× Nv
+h being the corresponding weight matrices for the linear projections. Then, we perform a dot product
+operation on Q(l)
+m and K(l)
+m
+T
+to obtain the attention score matrix S(l)
+m ∈ RNv×Nv ,
+S (l)
+m = Q(l)
+m K(l)
+m
+T
+√d , (8)
+where d = Nv
+h and
+√d is a scaling factor used to adjust the magnitude of the attention scores to enhance numerical stability during the training process. The i-th row of S(l)
+m
+records the attention scores from all circRNA, disease, and miRNA nodes to vi. After the (l − 1)-th layer DMTT, the topology among the nodes changes, and a new multi-scale neighbor topology embedding matrix R(l) for each node is reconstructed through AMNE based on G(l−1). The i-th row of R(l) records the neighbor topology of vi with all other circRNA, disease, and miRNA nodes after the (l − 1)-th layer transformer encoding.
+We perform a Hadamard product operation between R(l) and
+S (l)
+m . This approach allows the multi-scale neighbor topology embeddings to guide the learning of attention scores. We establish the multi-scale neighbor topology-introduced attention score matrix Se(l)
+m ∈ RNv×Nv as follows,
+Se(l)
+m = S(l)
+m ⊙ R(l), (9)
+Neighbor topology embedding at 1st scale
+c2's multi-scale neighbor topology embedding
+Neighbor topology embedding at 2nd scale
+(0) (1)
+(2)
+(t)
+Learnable parameter
+Fig. 3. Process of adaptively constructing multi-scale neighbor topology embeddings with RWR, illustrated by node c2.
+where ⊙ denotes the Hadamard product operation. Multiplying
+Se(l)
+m with V (l)
+m produces the node features Z(l)
+m ∈ RNv× Nv
+h
+learned by the m-th attention head,
+Z (l)
+m = sof tmax(Se(l)
+m )V (l)
+m . (10)
+Finally, by concatenating the node features learned by all h attention heads, we obtain the multi-scale neighbor topologyintroduced node feature matrix Gˆ(l) ∈ RNv×Nv for layer l,
+Gˆ(l) =
+m∈[1,h]
+Z (l)
+m , (11)
+where ∥ denotes the concatenation operation. The i-th row of Gˆ(l) records the features of vi learned at layer l.
+E. Fusion of multiple types of features based on FGN
+In DMTT, the feature matrix G(l−1) that is input at layer l contains more detailed information about each node, while the feature matrix Gˆ(l) learned based on DMTT places greater emphasis on the information guided by multi-scale neighbor topology embedding. Therefore, it is necessary to incorporate G(l−1) into the feature learning process at layer l. To integrate the information contained in Gˆ(l) and G(l−1), we establish an FGN (feature gate network) after DMTT at layer l, with the weight matrix denoted as α(l),
+α(l) = σ(W gate(l)(Gˆ(l)∥G(l−1)) + bgate(l)), (12)
+where W gate(l) and bgate(l) are learnable weight matrices and bias, and σ is the Sigmoid activation function. All parameters of the FGN are randomly initialized and are learnable during the training process, allowing it to discern the more significant features in Gˆ(l) and G(l−1). The FGN-enhanced node feature representation is denoted
+as G(l) ∈ RNv×Nv ,
+G(l) = α(l) ⊙ Gˆ(l) + (1 − α(l)) ⊙ G(l−1). (13)
+When l ̸= L, G(l) will serve as the input for the next layer of DMTT, where l = L, G(L) represents the final node feature representation matrix.
+
+
+6 IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. XX, NO. XX, XXXX 2025
+Value
+Query
+Query
+Multi-scale neighbor
+topology Attention score matrix Multi-scale neighbor
+topology-introduced attention score matrix
+Guide
+()
+random walk with restart
+Product&Scale
+Query head 1
+head h
+head h
+head h
+Multi-scale neighbor topology-introduced node feature matrix
+Value
+head 1
+Key head 1
+Concat ( )
+Fig. 4. Illustration of node feature learning process guided by multiscale neighbor topology, using G(0) as an example.
+F. Adaptive joint CNNs and KAN enhanced pairwise feature learning strategy
+If the circRNA node vcir
+i and the disease node ddis
+j have similarities, associations, or interactions with the same circRNAs, diseases, and miRNAs, then the node pair [vcir
+i , ddis
+j ] is more likely to be associated. Based on this biological premise, we vertically stack the feature representations obtained from the FGN-enhanced DMTT for both circRNA and disease
+nodes, forming a node pair-level feature representation Y (0)
+ij ∈ R2×Nv ,
+Y (0)
+ij =
+"
+G(L)
+i
+G(L)
+j
+#
+, (14)
+where the sets {G(L)
+i |0 ⩽ i < Ncir} and {G(L)
+j |Ncir ⩽ j < Ncir + Ndis} represent the node feature representations of all circRNAs and diseases in G(L), respectively. The ACK (adaptive joint CNNs and KAN learning strategy) we designed will further extract the information within the circRNA-disease node pairs. The KAN module we established learns the pairwise node representations from a global perspective, while the CNN module focuses more on extracting local information of the pairwise node representations.
+1) Pairwise global feature learning based on KAN: Compared to the multi-layer perceptron (MLP), KAN replaces weight parameters and activation functions with learnable functions to adaptively learn the weights of the connections between neurons. This learnable function is typically composed of multiple stacked spline functions, enabling the KAN network to better capture the complex relationships among the features in Y (0)
+ij . Through multiple layers of the KAN network, a feature representation of the node pair [vcir
+i , ddis
+j ] is learned from a global perspective. The input feature representation of the node pair at the l-th layer Y (l−1)
+Glo is transformed into
+the pairwise global feature representation Y (l)
+Glo after passing through the l-th layer of the global feature learning module based on the KAN network,
+Y (l)
+Glo = KAN (l)(Y (l−1)
+Glo ) = Ψ (l)(Y (l−1)
+Glo ), (15)
+where KAN (l) denotes the l-th KAN layer. When l = 1, Y (0)
+Glo
+is obtain by flattening the original circRNA-disease node pairlevel feature representation Y (0)
+ij . When l = L, Y (L)
+Glo represents
+the final pairwise global feature representation YGlo ∈ R1×f ,
+where f is the feature dimension. The matrix Ψ (l) is composed of learnable functions for the l-th KAN layer, containing a total of n(l−1) × n(l) learnable functions. Therefore, Ψ (l) is defined as,
+Ψ (l) =
+
+   
+ψ1,1 ψ1,2 · · · ψ1,n(l)
+ψ2,1 ψ2,2 · · · ψ2,n(l)
+... ... . . . ...
+ψn(l−1),1 ψn(l−1),2 · · · ψn(l−1),n(l)
+
+   
+, (16)
+where n(l−1) and n(l) represent the number of neurons in the (l − 1)-th and l-th layers, respectively. The ψi,j corresponds to the learnable function of the edge connecting the i-th neuron in the (l − 1)-th layer to the j-th neuron in the l-th layer. The ψi,j is composed of a basis function and a B-spline function,
+ψi,j = ωbb(x) + ωsspline(x), (17)
+spline(x) =
+ngrid X
+k=1
+ckBk, (18)
+where b(x) is the basis function SiLU , and ωb and ωs are learnable weight parameters. The B-spline function spline(x) is obtained by stacking ngrid B-spline basis functions Bk, where ck is the learnable parameter for each Bk.
+2) Pairwise local feature learning based on CNNs: We have established CNNs to learn the local features of circRNAdisease node pairs. In the CNNs, each block consists of a convolution layer followed by a pooling layer. In the l-th block (1 ⩽ l ⩽ D), given the feature representation of a circRNAdisease node pair Y (l−1)
+Loc , we use the convolution and pooling
+operations to extract its pairwise local features Y (l)
+Loc,
+Y (l)
+Loc = max(τ (W (l)
+conv ∗ Y (l−1)
+Loc + b(l)
+conv)), (19)
+where * denotes the convolution operation, W (l)
+conv and b(l)
+conv
+are the sets of convolution kernels and bias, respectively, τ is the Leaky ReLU activation function, and max represents the max pooling operation. Y (0)
+Loc is the original feature represen
+tation of the circRNA-disease node pair Y (0)
+ij . When l = D,
+the dimension of Y (D)
+Loc is reduced and flattened to obtain the
+final pairwise local feature representation YLoc ∈ R1×f .
+3) Adaptive fusion of pairwise local features and global features: The pairwise local feature representation YLoc and global feature representation YGlo hold varying degrees of importance for the feature representation learning of each circRNA (disease) node. We assign a learnable weight parameter sβ for YGlo and sγ for YLoc, and after normalization, we obtain β and γ,
+β = esβ
+esβ + esγ , γ = esγ
+esβ + esγ . (20)
+The final feature representation of the circRNA-disease node pair is defined as YF ∈ R1×f ,
+YF = β · YGlo + γ · YLoc , (21)
+where · denotes scalar multiplication.
+
+
+LI et al.: NEIGHBOR TOPOLOGY GUIDED TRANSFORMER AND KAN FOR PREDICTING CIRCRNA-DISEASE ASSOCIATIONS 7
+G. Association score evaluation and optimization
+We utilize a fully connected layer to derive the association prediction score vector pij ∈ R1×2 for the node pair
+[vcir
+i , ddis
+j ],
+pij = sof tmax(WF inYF + bF in), (22)
+where WF in and bF in are the weight matrix and bias of the fully connected layer, respectively. The vector pij = [ppos, pneg] represents the probabilities that vcir
+i is associated
+with ddis
+j or not, denoted as ppos and pneg, respectively. During the training process, we employ the AdamW algorithm and back propagation to optimize our model. We use the cross-entropy function to estimate the model’s loss,
+loss = −
+X
+(i,j)∈N
+[yij log(ppos) + (1 − yij) log(pneg)] , (23)
+where N denotes the sample set of all circRNA-disease node pairs. yij represents the true association label between the circRNA node vcir
+i and the disease node ddis
+j . When there is an association between vcir
+i and ddis
+j , yij = 1; otherwise, yij = 0.
+III. EXPERIMENTAL EVALUATIONS AND DISCUSSIONS
+A. Parameter settings
+In the AMNE module, we utilize the 0 to 2-scale neighbor topology to construct multi-scale neighbor topology embeddings, with the restart probability λ for random walk set to 0.7. For the DMTT module, the number of layers L is set to 2, and in each layer of the DMTT, the number of attention heads h is set to 4. In the pairwise local feature learning module, we employ three blocks, where the convolution kernel sizes of the first two blocks are 2 × 2, and the convolution kernel of the third block is 1 × 2. The pooling layer of the first block uses a window size of 2 × 2, while the pooling windows for the remaining two blocks are both set to 1 × 7. In the pairwise global feature learning module, we establish a 2-layer KAN network with the number of neurons set to 1024 and 256, respectively, and the number of ngrid for the B-spline function is set to 5. We train MKCD using an Nvidia GeForce RTX 4060, utilizing the PyTorch framework and optimizing using the AdamW algorithm. The training process consisted of 40 epochs, with a batch size of 32, a learning rate of 0.001, and a weight decay of 0.0001.
+B. Evaluation metrics
+We employ five-fold cross-validation to evaluate the predictive performance of MKCD and other comparative methods. All known circRNA-disease associations are treated as positive samples and randomly divided into five equal parts, while all unobserved circRNA-disease associations are considered as negative samples. In each fold, we use four parts of positive samples and an equal number of randomly selected negative samples as the training set, while the remaining positive samples and all unselected negative samples constitute the test set. We select the area under the receiver operating characteristic curve (AUC) [42] and the area under the precision-recall curve
+TABLE I RESULTS OF ABLATION EXPERIMENTS OF MKCD.
+AMNE DMTT FGN ACK Average AUC
+Average AUPR ✗ ✓ ✓ ✓ 0.913 0.203 ✓ ✗ ✗ ✓ 0.909 0.195 ✓ ✓ ✗ ✓ 0.923 0.221 ✓ ✓ ✓ ✗ 0.931 0.240 ✓ ✓ ✓ ✓ 0.946 0.267
+(AUPR) [43] as evaluation metrics. AUC and AUPR are calculated separately for each fold, and the averages of these five folds result in the final AUC and AUPR scores. Furthermore, considering that biologists typically choose candidates from the top of the ranked list for further validation, we calculate the recall rate of the top k disease-related circRNAs.
+C. Ablation experiments
+To validate the effectiveness of AMNE (adaptive multi-scale neighbor topology embedding construction strategy), DMTT (dynamic multi-scale neighbor topology-guided transformer), FGN (feature gate network), and ACK (adaptive joint CNNs and KAN learning strategy), we conducted a series of ablation experiments (Table I). We sequentially removed the AMNE, DMTT, FGN, and ACK modules from MKCD and calculated the corresponding AUC and AUPR. We observed that when all modules were retained, the complete model MKCD achieved the best predictive performance, with AUC and AUPR values of 0.946 and 0.267, respectively. When the AMNE module was removed, the AUC and AUPR decreased by 3.3% and 6.4%, respectively, indicating that the introduction of multiscale neighbor topology embedding plays a crucial role in enhancing the accuracy of circRNA and disease association predictions. The removal of DMTT and FGN resulted in a 3.7% drop in AUC and a 7.2% drop in AUPR, confirming the necessity of utilizing the multi-scale neighbor topology formed by circRNA, disease, and miRNA nodes to learn node feature representations. The complete model improved AUC and AUPR by 2.3% and 4.6%, respectively, compared to when FGN was ignored, suggesting that the incorporation of detailed features benefits the learning of node features. Finally, the removal of ACK led to a decrease of 1.5% in AUC and 2.7% in AUPR, demonstrating the effectiveness of the adaptive fusion of pairwise local features and global features in enhancing circRNA-disease association prediction performance. The results of the ablation experiments indicate that DMTT contributes the most to circRNA-disease association prediction, primarily because DMTT encodes the relationships among multiple features of circRNA, disease, and miRNA nodes. AMNE contributes the second largest to the prediction results, as AMNE effectively introduces multi-scale neighbor topology embedding into node feature learning.
+D. Comparison with other methods
+We compared MKCD with six advanced methods for predicting circRNA-disease associations, including SGFCCD [28], MLNGCF [32], MDGF-MCEC [30], Bi-SGTAR [27], GraphCDA [33], and MPCLCDA [29]. Each method was
+
+
+8 IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. XX, NO. XX, XXXX 2025
+0.0 0.2 0.4 0.6 0.8 1.0 FPR
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+TPR
+ROC Curve: SGFCCDA vs MKCD
+MKCD (AUC = 0.946) SGFCCDA (AUC = 0.711)
+0.0 0.2 0.4 0.6 0.8 1.0 Recall
+0.0
+0.1
+0.2
+0.3
+0.4
+Precision
+PR Curve: SGFCCDA vs MKCD
+MKCD (AUPR = 0.267) SGFCCDA (AUPR = 0.099)
+0.0 0.2 0.4 0.6 0.8 1.0 FPR
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+TPR
+ROC Curve: MLNGCF vs MKCD
+MKCD (AUC = 0.946) MLNGCF (AUC = 0.805)
+0.0 0.2 0.4 0.6 0.8 1.0 Recall
+0.0
+0.1
+0.2
+0.3
+0.4
+Precision
+PR Curve: MLNGCF vs MKCD
+MKCD (AUPR = 0.267) MLNGCF (AUPR = 0.043)
+0.0 0.2 0.4 0.6 0.8 1.0 FPR
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+TPR
+ROC Curve: MDGF-MCEC vs MKCD
+MKCD (AUC = 0.946) MDGF-MCEC (AUC = 0.713)
+0.0 0.2 0.4 0.6 0.8 1.0 Recall
+0.0
+0.1
+0.2
+0.3
+0.4
+Precision
+PR Curve: MDGF-MCEC vs MKCD
+MKCD (AUPR = 0.267) MDGF-MCEC (AUPR = 0.163)
+0.0 0.2 0.4 0.6 0.8 1.0 FPR
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+TPR
+ROC Curve: Bi-SGTAR vs MKCD
+MKCD (AUC = 0.946) Bi-SGTAR (AUC = 0.804)
+0.0 0.2 0.4 0.6 0.8 1.0 Recall
+0.0
+0.1
+0.2
+0.3
+0.4
+Precision
+PR Curve: Bi-SGTAR vs MKCD
+MKCD (AUPR = 0.267) Bi-SGTAR (AUPR = 0.191)
+0.0 0.2 0.4 0.6 0.8 1.0 FPR
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+TPR
+ROC Curve: GraphCDA vs MKCD
+MKCD (AUC = 0.946) GraphCDA (AUC = 0.729)
+0.0 0.2 0.4 0.6 0.8 1.0 Recall
+0.0
+0.1
+0.2
+0.3
+0.4
+Precision
+PR Curve: GraphCDA vs MKCD
+MKCD (AUPR = 0.267) GraphCDA (AUPR = 0.175)
+0.0 0.2 0.4 0.6 0.8 1.0 FPR
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+TPR
+ROC Curve: MPCLCDA vs MKCD
+MKCD (AUC = 0.946) MPCLCDA (AUC = 0.793)
+0.0 0.2 0.4 0.6 0.8 1.0 Recall
+0.0
+0.1
+0.2
+0.3
+0.4
+Precision
+PR Curve: MPCLCDA vs MKCD
+MKCD (AUPR = 0.267) MPCLCDA (AUPR = 0.051)
+Fig. 5. ROC and PR curves of MKCD and other comparative methods.
+TABLE II RESULTS OF THE PAIRED WILCOXON TEST COMPARING MKCD WITH ALL OTHER METHODS.
+p-value SGFCCDA MLNGCF MDGF-MCEC Bi-SGTAR GraphCDA MPCLCDA AUC 2.71e-111 7.20e-58 2.13e-109 3.27e-60 6.06e-108 1.22e-76 AUPR 6.02e-109 6.60e-115 1.18e-41 1.96e-09 2.86e-26 1.29e-113
+trained using the optimal parameters provided in their original papers, and the same training and testing datasets were utilized in cross-validation to ensure fairness. SGFCCDA: This model constructs a circRNA-disease heterogeneous graph and predicts potential circRNA-disease associations through scale graph convolutional networks and convolutional neural networks. MLNGCF: In this model, various similarities between circRNAs and diseases are utilized to estimate the association scores based on a multilayer attention neural network. MDGF-MCEC: This method establishes relationship graphs for circRNAs and diseases based on their respective similarities and learns node features through a multi-view dual attention graph convolution network. Bi-SGTAR: The adjacency matrix of the circRNA-disease heterogeneous graph is decomposed into two views, and an encoder with sparse gating is employed to identify all circRNA-disease associations. GraphCDA: This approach constructs separate similarity networks for circRNAs and diseases, utilizing a hybrid graph embedding model that combines graph convolutional networks and graph attention networks to simultaneously learn feature
+representations for circRNAs and diseases. MPCLCDA: It automatically selects meta-paths for constructing meta-path graphs and employs graph convolutional networks and contrastive learning to learn node features for circRNAs and diseases. Figure 5 illustrates the ROC and PR curves for MKCD and the other methods. From the figure, it is evident that MKCD achieved the highest average AUC of 0.946, surpassing SGFCCDA by 23.5%, MLNGCF by 14.1%, MDGF-MCEC by 23.3%, Bi-SGTAR by 14.2%, GraphCDA by 21.7%, and MPCLCDA by 15.3%. The average AUPR of MKCD was 0.267, which is higher than SGFCCDA, MLNGCF, MDGFMCEC, Bi-SGTAR, GraphCDA, and MPCLCDA by 16.8%, 22.4%, 10.4%, 7.6%, 9.2%, and 21.6%, respectively. Both MLNGCF and MPCLCDA employ graph neural networks, focusing solely on integrating the topology and node features of the circRNA-disease heterogeneous graph. In contrast to these two methods, SGFCCDA utilizes scale graph convolutional networks to address the issue of feature mixing between different channels caused by the linear layer structure of graph convolutional networks. MDGF-MCEC and GraphCDA primarily focus on learning from multiple similarity views, while
+
+
+LI et al.: NEIGHBOR TOPOLOGY GUIDED TRANSFORMER AND KAN FOR PREDICTING CIRCRNA-DISEASE ASSOCIATIONS 9
+Top30 Top40 Top50 Top60 Top70 Top80 Top90
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+Recall
+MKCD SGFCCDA
+MLNGCF MDGF-MCEC
+Bi-SGTAR GraphCDA
+MPCLCDA
+Fig. 6. Recall rates of diseases at multiple top k cutoffs.
+Bi-SGTAR emphasizes learning from multiple heterogeneous graph views, which contributes to their higher AUPR. Our method outperforms these six methods mainly due to the embedding of multi-scale neighbor topology and the encoding of relationships among multiple features of circRNA, disease, and miRNA nodes. For the prediction results of all 138 diseases, we employed the Paired Wilcoxon test to evaluate whether our method outperforms the other six methods significantly. According to the results in Table II, all p-values are below 0.05, indicating that MKCD significantly outperforms SGFCCDA, MLNGCF, MDGF-MCEC, Bi-SGTAR, GraphCDA, and MPCLCDA with respect to AUC and AUPR. For each disease, we calculated the recall rates of circRNA candidates at various top k values (Figure 6). When k = 30, MKCD achieved a recall rate of 29.3%, surpassing SGFCCDA by 12.1%, MLNGCF by 15.2%, MDGFMCEC by 8.1%, Bi-SGTAR by 8.0%, GraphCDA by 9.1%, and MPCLCDA by 15.1%. When k = 50, 70, and 90, MKCD maintained its leading position with recall rates of 48.5%, 68.6%, and 90.1%, respectively. Bi-SGTAR (41.3%, 65.7%, 89.8%), MDGF-MCEC (41.3%, 63.6%, 87.9%), and GraphCDA (39.4%, 62.5%, 88.8%) also achieved decent performance. In contrast, SGFCCDA (29.3%, 45.5%, 70.6%), MLNGCF (25.2%, 39.4%, 64.6%), and MPCLCDA (25.3%, 40.5%, 66.7%) showed inferior performance.
+E. Case studies on three diseases
+We conducted case studies on glioma, systemic lupus erythematosus, and glioblastoma to further validate MKCD’s ability to mine potential circRNA candidates associated with these diseases. Glioma and glioblastoma are two types of primary brain tumors [44], [45], while systemic lupus erythematosus is a systemic autoimmune disease, primarily affecting women [46]. For each disease, the circRNA candidates were ranked in descending order based on their association scores, and the top 15 circRNAs were selected as candidates. Tables III,
+IV, and V show the top 15 circRNA candidates for glioma, systemic lupus erythematosus, and glioblastoma, respectively. The circRNADisease v2.0 database provides validated associations between circRNAs and various diseases, covering 4246 circRNAs and 330 diseases [47]. This database, along with relevant bioinformatics literature, was used to validate the predictions of circRNA-disease associations. Using glioma as an example (Table III), all 15 circRNAs are validated in the literature, with 14 of them have been identified in circRNADisease v2.0. For instance, the topranked circ 002136 was found by He et al. [48] to inhibit the viability, migration, and tube formation of U87 gliomaexposed endothelial cells (GECs). Li et al. [49] found that the expression levels of hsa circ 0061868 were upregulated in glioma cells. All 15 circRNA candidates associated with systemic lupus erythematosus (SLE) (Table IV) are confirmed in the literature and have been included in circRNADisease v2.0. For example, Li et al. [50] identified hsa circ 0046599 as a potential biomarker for systemic lupus erythematosus. Hsa circ 0000479 was confirmed by Guo et al. [51] to be upregulated in peripheral blood mononuclear cells of patients with SLE. For glioblastoma, 11 of the top 15 circRNA candidates (Table V) are validated in recent literature and documented in circRNADisease v2.0. For example, the study by Wang et al. [52] demonstrated that circNT5E exhibits tumor suppressorlike features in glioblastoma. Additionally, circMMP9 has been shown by Wang et al. [53] to promote the proliferation, migration, and invasion of glioblastoma multiforme cells.
+F. Prediction of novel circRNA-disease associations
+We utilized all known associations between circRNAs and diseases, and randomly selected an equal number of negative examples to train MKCD to predict circRNA candidates for 138 diseases. The top 15 circRNA candidates predicted by MKCD for each disease are listed in Supplementary File SF1.
+
+
+10 IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. XX, NO. XX, XXXX 2025
+TABLE III TOP 15 PREDICTED RESULTS OF GLIOMA-RELATED CIRCRNAS BASED ON MKCD.
+Rank CircRNA name Evidence Rank CircRNA name Evidence 1 circ 002136 La, PMID:30736838 9 hsa circ 0079593 La, PMID:31148222 2 hsa circ 0061868 PMID:30341906 10 circSMO742 La, PMID:31895689 3 circPTN La, PMID:31511040 11 hsa circ 0012129 La, PMID:29686222 4 circ-TTBK2 La, PMID:32196629 12 hsa circ 0088732 La, PMID:32154171 5 circ-EZH2 La, PMID:31669648 13 circNFIX La, PMID:30072869 6 hsa circ 0000594 La, PMID:28219405 14 circ-PTPRZ1 La, PMID:31364003 7 hsa circ 0005198 La, PMID:31038801 15 hsa circ 0014359 La, PMID:30745107 8 hsa circ 0000177 La, PMID:30010402
+La: circRNADisease v2.0.
+TABLE IV TOP 15 PREDICTED RESULTS OF SYSTEMIC LUPUS ERYTHEMATOSUS-RELATED CIRCRNAS BASED ON MKCD.
+Rank CircRNA name Evidence Rank CircRNA name Evidence 1 hsa circ 0046599 La, PMID:29360436 9 hsa circ 0008615 La, PMID:29360436 2 hsa circ 0001866 La, PMID:29360436 10 hsa circ 0021549 La, PMID:29360436 3 hsa circ 0034398 La, PMID:29360436 11 has circ 0049220 La, PMID:29606700 4 hsa circ 0003146 La, PMID:29360436 12 hsa circ 0092374 La, PMID:29360436 5 hsa circ 0000479 La, PMID:31608065 13 hsa circ 0040705 La, PMID:29360436 6 hsa circ 0057762 La, PMID:30628013 14 hsa circ 0012919 La, PMID:30237316 7 circPTPN22 La, PMID:30871426 15 hsa circ 0049224 La, PMID:29606700 8 hsa circ 0045272 La, PMID:29700819
+La: circRNADisease v2.0.
+TABLE V TOP 15 PREDICTED RESULTS OF GLIOBLASTOMA-RELATED CIRCRNAS BASED ON MKCD.
+Rank CircRNA name Evidence Rank CircRNA name Evidence 1 hsa circ 0001801 La, PMID:31858556 9 circMTO1 La, PMID:31456594 2 circNT5E La, PMID:29967262 10 circ-AKT3 La, PMID:31470874 3 circ-PITX1 La, PMID:31493405 11 circPVT1 unknown 4 hsa circ 0043949 La, PMID:31823158 12 circPTN La, PMID:31511040 5 hsa circ 0074027 La, PMID:30738578 13 hsa circ 101996 unknown 6 circMMP9 La, PMID:30470262 14 hsa circ 100242 unknown 7 circ-Foxo3 La, PMID:31802888 15 hsa circ 0003855 unknown 8 hsa circ 0001946 La, PMID:31599076
+La: circRNADisease v2.0.
+IV. CONCLUSIONS
+This paper presents a novel approach for encoding the relationships among circRNA, miRNA, and disease node features, while effectively learning and integrating both global and local features of node pairs to predict disease-related circRNAs. By adjusting the walking range of random walkers in the circRNA-disease-miRNA heterogeneous graph, multiscale neighbor topologies are constructed, and the importance of each scale-specific neighbor topology is adaptively determined. The proposed multi-scale neighbor topology-guided transformer dynamically updates the neighbor topology and captures the evolving relationships between the features of circRNA, miRNA, and disease nodes. The FGN assigns higher weights to topological and original features based on their importance. The ACK encodes the features of circRNAdisease node pairs, facilitating the identification of local and global dependencies among pairwise attributes. The comparison results demonstrate that our model outperform other SOTA methods in terms of AUC and AUPR. The recall rate of top-ranked circRNA candidates and case studies over three diseases further prove that MKCD is capable of providing
+reliable disease-related circRNA candidates.
+REFERENCES
+[1] W.-Y. Zhou, Z.-R. Cai, J. Liu, D.-S. Wang, H.-Q. Ju, and R.-H. Xu, “Circular rna: metabolism, functions and interactions with proteins,” Molecular cancer, vol. 19, pp. 1–19, 2020. [2] K. Abdelmohsen, A. C. Panda, R. Munk, I. Grammatikakis, D. B. Dudekula, S. De, J. Kim, J. H. Noh, K. M. Kim, J. L. Martindale et al., “Identification of hur target circular rnas uncovers suppression of pabpn1 translation by circpabpn1,” RNA biology, vol. 14, no. 3, pp. 361–369, 2017. [3] S. Gao, Y. Yu, L. Liu, J. Meng, and G. Li, “Circular rna hsa circ 0007059 restrains proliferation and epithelial-mesenchymal transition in lung cancer cells via inhibiting microrna-378,” Life sciences, vol. 233, p. 116692, 2019. [4] Z. Li, Y. Ruan, H. Zhang, Y. Shen, T. Li, and B. Xiao, “Tumorsuppressive circular rnas: mechanisms underlying their suppression of tumor occurrence and use as therapeutic targets,” Cancer science, vol. 110, no. 12, pp. 3630–3638, 2019. [5] G. Liang, Y. Ling, M. Mehrpour, P. E. Saw, Z. Liu, W. Tan, Z. Tian, W. Zhong, W. Lin, Q. Luo et al., “Autophagy-associated circrna circcdyl augments autophagy and promotes breast cancer progression,” Molecular cancer, vol. 19, pp. 1–16, 2020. [6] X. Wang, C. Zhang, Z. Wu, Y. Chen, and W. Shi, “Circibtk inhibits dna demethylation and activation of akt signaling pathway via mir-29b in peripheral blood mononuclear cells in systemic lupus erythematosus,” Arthritis Research & Therapy, vol. 20, pp. 1–10, 2018.
+
+
+LI et al.: NEIGHBOR TOPOLOGY GUIDED TRANSFORMER AND KAN FOR PREDICTING CIRCRNA-DISEASE ASSOCIATIONS 11
+[7] M. A. Khan, Y. J. Reckman, S. Aufiero, M. M. van den Hoogenhof, I. van der Made, A. Beqqali, D. R. Koolbergen, T. B. Rasmussen, J. Van Der Velden, E. E. Creemers et al., “Rbm20 regulates circular rna production from the titin gene,” Circulation research, vol. 119, no. 9, pp. 996–1003, 2016. [8] D. Siede, K. Rapti, A. Gorska, H. Katus, J. Altm ̈uller, J. Boeckel, B. Meder, C. Maack, M. V ̈olkers, O. Mu ̈ller et al., “Identification of circular rnas with host gene-independent expression in human model systems for cardiac differentiation and disease,” Journal of molecular and cellular cardiology, vol. 109, pp. 48–56, 2017. [9] C. Jin, W. Zhao, Z. Zhang, and W. Liu, “Silencing circular rna circznf609 restrains growth, migration and invasion by up-regulating microrna-1865p in prostate cancer,” Artificial cells, nanomedicine, and biotechnology, vol. 47, no. 1, pp. 3350–3358, 2019. [10] W. Lan, Y. Dong, H. Zhang, C. Li, Q. Chen, J. Liu, J. Wang, and Y.-P. P. Chen, “Benchmarking of computational methods for predicting circrna-disease associations,” Briefings in Bioinformatics, vol. 24, no. 1, p. bbac613, 2023. [11] J. Yang and X. Lei, “Predicting circrna-disease associations based on autoencoder and graph embedding,” Information Sciences, vol. 571, pp. 323–336, 2021. [12] C. Fan, X. Lei, and F.-X. Wu, “Prediction of circrna-disease associations using katz model based on heterogeneous networks,” International journal of biological sciences, vol. 14, no. 14, p. 1950, 2018.
+[13] X. Lei, Z. Fang, L. Chen, and F.-X. Wu, “Pwcda: path weighted method for predicting circrna-disease associations,” International journal of molecular sciences, vol. 19, no. 11, p. 3410, 2018. [14] H. Wei and B. Liu, “icircda-mf: identification of circrna-disease associations based on matrix factorization,” Briefings in bioinformatics, vol. 21, no. 4, pp. 1356–1367, 2020. [15] M.-N. Wang, X.-J. Xie, Z.-H. You, L. Wong, L.-P. Li, and Z.-H. Chen, “Combining k nearest neighbor with nonnegative matrix factorization for predicting circrna-disease associations,” IEEE/ACM Transactions on Computational Biology and Bioinformatics, vol. 20, no. 5, pp. 26102618, 2022. [16] X. Lei and C. Bian, “Integrating random walk with restart and k-nearest neighbor to identify novel circrna-disease association,” Scientific reports, vol. 10, no. 1, p. 1943, 2020. [17] C. Yan, J. Wang, and F.-X. Wu, “Dwnn-rls: regularized least squares method for predicting circrna-disease associations,” BMC bioinformatics, vol. 19, pp. 73–81, 2018. [18] L. Wang, L. Wong, Z. Li, Y. Huang, X. Su, B. Zhao, and Z. You, “A machine learning framework based on multi-source feature fusion for circrna-disease association prediction,” Briefings in Bioinformatics, vol. 23, no. 5, p. bbac388, 2022. [19] X. Lei and Z. Fang, “Gbdtcda: predicting circrna-disease associations based on gradient boosting decision tree with multiple biological data fusion,” International journal of biological sciences, vol. 15, no. 13, p. 2911, 2019. [20] K. Deepthi and A. Jereesh, “Inferring potential circrna–disease associations via deep autoencoder-based classification,” Molecular Diagnosis & Therapy, vol. 25, pp. 87–97, 2021. [21] W. Zhang, C. Yu, X. Wang, and F. Liu, “Predicting circrna-disease associations through linear neighborhood label propagation method,” Ieee Access, vol. 7, pp. 83 474–83 483, 2019. [22] L. Peng, C. Yang, L. Huang, X. Chen, X. Fu, and W. Liu, “Rnmflp: predicting circrna–disease associations based on robust nonnegative matrix factorization and label propagation,” Briefings in bioinformatics, vol. 23, no. 5, p. bbac155, 2022. [23] Y. Tian, Q. Zou, C. Wang, and C. Jia, “Mamlcda: A meta-learning model for predicting circrna-disease association based on maml combined with cnn,” IEEE Journal of Biomedical and Health Informatics, 2024.
+[24] L. Wang, Z.-H. You, Y.-A. Huang, D.-S. Huang, and K. C. Chan, “An efficient approach based on multi-sources information to predict circrna–disease associations using deep convolutional neural network,” Bioinformatics, vol. 36, no. 13, pp. 4038–4046, 2020. [25] C. Lu, M. Zeng, F.-X. Wu, M. Li, and J. Wang, “Improving circrnadisease association prediction by sequence and ontology representations with convolutional and recurrent neural networks,” Bioinformatics, vol. 36, no. 24, pp. 5656–5664, 2020. [26] X. Zhang, Q. Zou, M. Niu, and C. Wang, “Predicting circrna-disease associations with shared units and multi-channel attention mechanisms,” Bioinformatics, p. btaf088, 2025. [27] S. Li, Q. Chen, Z. Liu, S. Pan, and S. Zhang, “Bi-sgtar: A simple yet efficient model for circrna-disease association prediction based on known association pair only,” Knowledge-Based Systems, vol. 291, p. 111622, 2024.
+[28] J. Shang, L. Zhao, X. He, X. Meng, L. Zhang, D. Ge, F. Li, and J.-X. Liu, “Sgfccda: Scale graph convolutional networks and feature convolution for circrna-disease association prediction,” IEEE Journal of Biomedical and Health Informatics, 2024.
+[29] W. Liu, T. Tang, X. Lu, X. Fu, Y. Yang, and L. Peng, “Mpclcda: predicting circrna–disease associations by using automatically selected meta-path and contrastive learning,” Briefings in Bioinformatics, vol. 24, no. 4, p. bbad227, 2023. [30] Q. Wu, Z. Deng, X. Pan, H.-B. Shen, K.-S. Choi, S. Wang, J. Wu, and D.-J. Yu, “Mdgf-mcec: a multi-view dual attention embedding model with cooperative ensemble learning for circrna-disease association prediction,” Briefings in Bioinformatics, vol. 23, no. 5, p. bbac289, 2022. [31] X. He, J. Shang, D. Ge, F. Li, and J.-X. Liu, “Rpmvcda: Random perturbation and multi-view graph convolutional networks for circrnadisease association prediction,” IEEE Transactions on Computational Biology and Bioinformatics, 2025.
+[32] Q. Wu, Z. Deng, W. Zhang, X. Pan, K.-S. Choi, Y. Zuo, H.-B. Shen, and D.-J. Yu, “Mlngcf: circrna–disease associations prediction with multilayer attention neural graph-based collaborative filtering,” Bioinformatics, vol. 39, no. 8, p. btad499, 2023. [33] Q. Dai, Z. Liu, Z. Wang, X. Duan, and M. Guo, “Graphcda: a hybrid graph representation learning framework based on gcn and gat for predicting disease-associated circrnas,” Briefings in Bioinformatics, vol. 23, no. 5, p. bbac379, 2022. [34] Z. Liu, Y. Wang, S. Vaidya, F. Ruehle, J. Halverson, M. Soljacˇi ́c, T. Y. Hou, and M. Tegmark, “Kan: Kolmogorov-arnold networks,” arXiv preprint arXiv:2404.19756, 2024.
+[35] W. Lan, Y. Dong, Q. Chen, R. Zheng, J. Liu, Y. Pan, and Y.-P. P. Chen, “Kgancda: predicting circrna-disease associations based on knowledge graph attention network,” Briefings in Bioinformatics, vol. 23, no. 1, p. bbab494, 2022. [36] W. Lan, M. Zhu, Q. Chen, B. Chen, J. Liu, M. Li, and Y.-P. P. Chen, “Circr2cancer: a manually curated database of associations between circrnas and cancers,” Database, vol. 2020, p. baaa085, 2020. [37] M. Rophina, D. Sharma, M. Poojary, and V. Scaria, “Circad: a comprehensive manually curated resource of circular rna associated with diseases,” Database, vol. 2020, p. baaa019, 2020. [38] Z. Zhao, K. Wang, F. Wu, W. Wang, K. Zhang, H. Hu, Y. Liu, and T. Jiang, “circrna disease: a manually curated database of experimentally supported circrna-disease associations,” Cell death & disease, vol. 9, no. 5, p. 475, 2018. [39] D. Wang, J. Wang, M. Lu, F. Song, and Q. Cui, “Inferring the human microrna functional similarity and functional network based on microrna-associated diseases,” Bioinformatics, vol. 26, no. 13, pp. 16441650, 2010. [40] X. Chen, C. Clarence Yan, C. Luo, W. Ji, Y. Zhang, and Q. Dai, “Constructing lncrna functional similarity network based on lncrnadisease associations and disease semantic similarity,” Scientific reports, vol. 5, no. 1, p. 11338, 2015. [41] A. Vaswani, “Attention is all you need,” Advances in Neural Information Processing Systems, 2017.
+[42] K. Hajian-Tilaki, “Receiver operating characteristic (roc) curve analysis for medical diagnostic test evaluation,” Caspian journal of internal medicine, vol. 4, no. 2, p. 627, 2013. [43] T. Saito and M. Rehmsmeier, “The precision-recall plot is more informative than the roc plot when evaluating binary classifiers on imbalanced datasets,” PloS one, vol. 10, no. 3, p. e0118432, 2015. [44] M. Weller, W. Wick, K. Aldape, M. Brada, M. Berger, S. M. Pfister, R. Nishikawa, M. Rosenthal, P. Y. Wen, R. Stupp et al., “Glioma,” Nature reviews Disease primers, vol. 1, no. 1, pp. 1–18, 2015.
+[45] H.-G. Wirsching and M. Weller, “Glioblastoma,” Malignant Brain Tumors: State-of-the-Art Treatment, pp. 265–288, 2017.
+[46] A. Kaul, C. Gordon, M. Crow, Z. Touma, M. Urowitz, R. van Vollenhoven, G. Ruiz-Irastorza, and G. Hughes, “Systemic lupus erythematosus. nat reviews disease primers 2: 16039,” 2016. [47] C. Fan, X. Lei, J. Tie, Y. Zhang, F.-X. Wu, and Y. Pan, “Circr2disease v2. 0: an updated web server for experimentally validated circrnadisease associations and its application,” Genomics, Proteomics and Bioinformatics, vol. 20, no. 3, pp. 435–445, 2022. [48] Z. He, X. Ruan, X. Liu, J. Zheng, Y. Liu, L. Liu, J. Ma, L. Shao, D. Wang, S. Shen et al., “Fus/circ 002136/mir-138-5p/sox13 feedback loop regulates angiogenesis in glioma,” Journal of Experimental & Clinical Cancer Research, vol. 38, pp. 1–19, 2019.
+[49] G. Li, M. Huang, Y. Cai, Y. Yang, X. Sun, and Y. Ke, “Circ-u2af1 promotes human glioma via derepressing neuro-oncological ventral antigen 2 by sponging hsa-mir-7-5p,” Journal of Cellular Physiology, vol. 234, no. 6, pp. 9144–9155, 2019.
+
+
+12 IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. XX, NO. XX, XXXX 2025
+[50] H. Li, K. Li, W. Lai, X. Li, H. Wang, J. Yang, S. Chu, H. Wang, C. Kang, and Y. Qiu, “Comprehensive circular rna profiles in plasma reveals that circular rnas can be used as novel biomarkers for systemic lupus erythematosus,” Clinica Chimica Acta, vol. 480, pp. 17–25, 2018. [51] G. Guo, H. Wang, L. Ye, X. Shi, K. Yan, K. Lin, Q. Huang, B. Li, Q. Lin, L. Zhu et al., “Hsa circ 0000479 as a novel diagnostic biomarker of systemic lupus erythematosus. front immunol 10: 2281,” 2019. [52] R. Wang, S. Zhang, X. Chen, N. Li, J. Li, R. Jia, Y. Pan, and H. Liang, “Circnt5e acts as a sponge of mir-422a to promote glioblastoma tumorigenesis,” Cancer research, vol. 78, no. 17, pp. 4812–4825, 2018. [53] R. Wang, S. Zhang, X. Chen, N. Li, J. Li, R. Jia, Y. Pan, and H. Liang, “Eif4a3-induced circular rna mmp9 (circmmp9) acts as a sponge of mir-124 and promotes glioblastoma multiforme cell tumorigenesis,” Molecular cancer, vol. 17, pp. 1–12, 2018.

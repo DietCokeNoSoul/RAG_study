@@ -1,0 +1,112 @@
+GPT-4 GPT-4o mini
+智能体
+工具
+音乐
+绘画
+新建对话组
+今天
+格式为.tex，翻译成中文：
+Xuan 等 - 2022 - Learning global dependencies and multi-semantics within heterogeneous graph for predicting disease-r.pdf
+1天前
+glioma和glioblastoma的关联
+使用了随机森林算法可以视作为也使用了决策树算法吗？
+1-s2.0-S1532046420302525-main.pdf
+ijbsv14p1950.pdf
+s12859-018-2522-6.pdf
+bbz057.pdf
+ijms-19-03410.pdf
+改写一下这段话，格式为.tex：Wu et al.提出了一种基于多层注意力神经网络（multilayer attenti
+file.pdf
+一个矩阵跟一个标量相乘，这种计算叫做什么？给出其英文名称
+一周前
+胶质母细胞瘤属于中枢神经系统肿瘤吗？
+Android架构被设计出来的目标是什么
+GSMV_Response_to_reviewers.docx
+图神经网络和图注意力、图卷积网络是包含关系吗？
+这是一个作文模版：In recent years, the issue of_________has become a
+可学习参数一般经过softmax处理，其值在0到1之间，那么在学习过程中，可学习参数的值有可能为0或者1吗？
+门控单元中，两个输入特征矩阵将各自按元素乘上一个矩阵g以及1-g，融合加在一起，将两特征矩阵融合成一个特征矩阵，那么这个
+扩写该观后感，字数要求一千五：在全球化的大背景下，文化认同和文化自信成为了每个国家和民族必须面对的问题。杜教授的讲座为我
+a7yhlq
+ChatGPT 4o 
+管理文库
+2025-01-08 10:29:39
+
+该研究提出了一种新型的lncRNA-疾病关联预测模型GSMV，利用图神经网络和自注意力机制整合全球依赖性和语义信息，超越了七种现有方法，并在癌症案例中展示了其潜力。
+
+概述问题：
+
+GSMV模型如何整合lncRNA和疾病的全球依赖性？
+该研究的实验结果与现有方法相比如何？
+研究中提到的元路径实例编码策略的作用是什么？
+2025-01-08 10:30:54
+
+我现在分别上传了两个文件，分别简述他们的工作
+
+2025-01-08 10:30:54
+
+请上传您提到的两个文件，我将根据文件内容为您简述它们的工作。
+
+2025-01-08 10:31:06
+
+已经上传了
+
+2025-01-08 10:31:06
+
+目前我无法直接查看或处理上传的文件。如果您能提供文件的主要内容或摘要，我将很乐意帮助您简述它们的工作。请将相关信息复制粘贴到这里。
+
+2025-01-08 10:32:03
+
+Xuan 等 - 2022论文中，主要工作是什么？
+
+2025-01-08 10:32:03
+
+在Xuan等人于2022年发表的论文中，主要工作集中在预测与疾病相关的长非编码RNA（lncRNAs）。研究提出了一种新的方法，通过学习异构图中的全局依赖性和多语义信息来进行lncRNA-疾病关联的预测。论文强调了lncRNAs在疾病发生和发展中的重要作用，并指出现有方法主要依赖于与lncRNAs和疾病相关的多源数据。
+
+该研究的创新点在于利用异构图中节点属性之间的相互依赖关系，以及各种连接之间的元路径所包含的丰富语义信息。实验结果表明，所提出的方法在lncRNA-疾病关联预测方面优于七种最先进的比较方法，且通过消融实验验证了全球表示学习、语义信息学习、成对多视图特征学习和元路径实例编码策略的贡献。此外，针对三种癌症的案例研究进一步证明了该方法在发现潜在疾病相关lncRNA候选者方面的能力。
+
+2025-01-08 10:32:17
+
+Xuan 等 - 2024论文中，主要工作是什么
+
+2025-01-08 10:32:17
+
+抱歉，我无法访问2024年之后的具体论文或信息。如果您能提供Xuan等人在2024年论文中的一些具体内容或摘要，我将很乐意帮助您分析和总结其主要工作。请将相关信息复制粘贴到这里。
+
+2025-01-08 10:34:30
+
+Xuan 等 - 2024 - Dynamic category-sensitive hypergraph inferring and homo-heterogeneous neighbor feature learning for.pdf论文主要工作是什么？
+
+2025-01-08 10:34:30
+
+在Xuan等人于2024年发表的论文《Dynamic category-sensitive hypergraph inferring and homo-heterogeneous neighbor feature learning》中，主要工作集中在药物相关微生物预测的研究上。具体而言，论文提出了一种动态类别敏感的超图推断方法以及同质-异质邻居特征学习的框架。
+
+主要贡献包括：
+
+动态类别敏感超图卷积网络（NHCN）：该网络设计用于编码动态超图拓扑和节点异质性，能够有效地处理药物和微生物节点的特征异质性。
+
+图的构建：建立了同质图（仅包含药物节点）、同质图（仅包含微生物节点）和异质图（同时包含药物和微生物节点），以反映同类节点之间的相似性以及不同类别节点之间的关联性。
+
+特征传播策略：提出了一种特征传播策略，以补充来自同质图的节点特征到异质图的学习中，从而增强模型的学习能力。
+
+长距离空间相关性：研究中还构建了药物和微生物节点对的属性嵌入，提出了一种分离成对属性并整合长距离相关性的策略（SCA），以提高模型的预测准确性。
+
+通过这些创新，论文展示了该方法在药物相关微生物预测任务中的有效性，超越了现有的图学习方法，提供了更为准确和全面的预测结果。
+
+2025-01-08 10:35:14
+
+该论文使用的数据集是什么？
+
+2025-01-08 10:35:14
+
+该论文使用的数据集包括药物和微生物之间的关联数据、药物化学结构相似性、Gaussian核相似性以及微生物序列相似性。这些数据来自于之前的研究，具体来说，数据集包含2470对药物和微生物的关联，涵盖了1373种药物和173种微生物。此外，药物-微生物关联的数据最初来源于微生物-药物关联数据库（Microbe–Drug Associations Database, MDAD）。
+
+2025-01-08 10:38:12
+
+参考Xuan 等 - 2022 - Learning global dependencies and multi-semantics within heterogeneous graph for predicting disease-r.pdf和Xuan 等 - 2024 - Dynamic category-sensitive hypergraph inferring and homo-heterogeneous neighbor feature learning for.pdf。请参照上述两个pdf论文中的英文风格，包括句式、用词均符合类似这两个论文这样的生信论文风格，把下面一段.tex文件的内容翻译成英文：本研究所使用的数据集来自于先前的工作\cite{lan2022kgancda}，其包括了两个含有circRNA和disease的数据集。第一个数据集覆盖了514个circRNA、62个疾病以及564个miRNA。第二个数据集包含了330个circRNA、79个疾病与245个miRNA之间的关联和互作。我们将这两个数据集进行了整合，形成了一个比他们大的一个新的数据集。该数据集包含了989circRNA-disease关联、837miRNA-disease关联和902circRNA-miRNA相互作用，总共覆盖了834个circRNA、138个疾病和555个miRNA。circRNA与疾病之间的关联原始来源于circR2Cancer数据库\cite{lan2020circr2cancer}、circad数据库\cite{rophina2020circad}和circRNADisease数据库\cite{zhao2018circrna}。
+
+2025-01-08 10:38:12
+
+The dataset utilized in this study is derived from previous work \cite{lan2022kgancda}, which comprises two datasets containing circRNA and disease information. The first dataset encompasses 514 circRNAs, 62 diseases, and 564 miRNAs. The second dataset includes associations and interactions among 330 circRNAs, 79 diseases, and 245 miRNAs. We integrated these two datasets to form a new, larger dataset. This consolidated dataset consists of 989 circRNA-disease associations, 837 miRNA-disease associations, and 902 circRNA-miRNA interactions, covering a total of 834 circRNAs, 138 diseases, and 555 miRNAs. The original associations between circRNAs and diseases are sourced from the circR2Cancer database \cite{lan2020circr2cancer}, the circad database \cite{rophina2020circad}, and the circRNADisease database \cite{zhao2018circrna}.
+
+语音通话

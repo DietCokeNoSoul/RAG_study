@@ -1,0 +1,730 @@
+Heterogeneous Graph Attention Network
+
+arXiv:1903.07293v2 [cs.SI] 20 Jan 2021
+
+Xiao Wang, Houye Ji
+Beijing University of Posts and Telecommunications Beijing, China
+{xiaowang,jhy1993}@bupt.edu.cn
+Peng Cui, P. Yu
+Tsinghua University Beijing, China
+{cuip,psyu}@tsinghua.edu.cn
+ABSTRACT
+Graph neural network, as a powerful graph representation technique based on deep learning, has shown superior performance and attracted considerable research interest. However, it has not been fully considered in graph neural network for heterogeneous graph which contains different types of nodes and links. The heterogeneity and rich semantic information bring great challenges for designing a graph neural network for heterogeneous graph. Recently, one of the most exciting advancements in deep learning is the attention mechanism, whose great potential has been well demonstrated in various areas. In this paper, we first propose a novel heterogeneous graph neural network based on the hierarchical attention, including node-level and semantic-level attentions. Specifically, the node-level attention aims to learn the importance between a node and its metapath based neighbors, while the semantic-level attention is able to learn the importance of different meta-paths. With the learned importance from both node-level and semantic-level attention, the importance of node and meta-path can be fully considered. Then the proposed model can generate node embedding by aggregating features from meta-path based neighbors in a hierarchical manner. Extensive experimental results on three real-world heterogeneous graphs not only show the superior performance of our proposed model over the state-of-the-arts, but also demonstrate its potentially good interpretability for graph analysis.
+KEYWORDS
+Social Network, Neural Network, Graph Analysis
+ACM Reference Format: Xiao Wang, Houye Ji, Chuan Shi*, Bai Wang, Peng Cui, P. Yu, and Yanfang Ye. 2019. Heterogeneous Graph Attention Network. In Proceedings of WWW 2019, Jennifer B. Sartor, Theo D’Hondt, and Wolfgang De Meuter (Eds.). ACM, New York, NY, USA, Article 4, 11 pages. https://doi.org/10.475/123_4
+1 INTRODUCTION
+The real-world data usually come together with the graph structure, such as social networks, citation networks, and the world wide
+Permission to make digital or hard copies of part or all of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for third-party components of this work must be honored. For all other uses, contact the owner/author(s). WWW 2019, May 2019, San Francisco, USA © 2019 Copyright held by the owner/author(s). ACM ISBN 123-4567-24-567/08/06. https://doi.org/10.475/123_4
+
+Chuan Shi*, Bai Wang
+Beijing University of Posts and Telecommunications Beijing, China
+{shichuan,wangbai}@bupt.edu.cn
+Yanfang Ye
+West Virginia University WV, USA
+yanfang.ye@mail.wvu.edu
+web. Graph neural network (GNN), as a powerful deep representation learning method for such graph data, has shown superior performance on network analysis and aroused considerable research interest. For example, [10, 20, 24] leverage deep neural network to learn node representations based on node features and the graph structure. Some works [6, 14, 18] propose the graph convolutional networks by generalizing the convolutional operation to graph. A recent research trend in deep learning is the attention mechanism, which deals with variable sized data and encourages the model to focus on the most salient parts of data. It has demonstrated the effectiveness in deep neural network framework and is widely applied to various applications, such as text analysis [1], knowledge graph [25] and image processing [38]. Graph Attention Network (GAT) [35], a novel convolution-style graph neural network, leverages attention mechanism for the homogeneous graph which includes only one type of nodes or links.
+Despite the success of attention mechanism in deep learning, it has not been considered in the graph neural network framework for heterogeneous graph. As a matter of fact, the real-world graph usually comes with multi-types of nodes and edges, also widely known as heterogeneous information network (HIN) [28]. For convenience, we uniformly call it heterogeneous graph in this paper. Because the heterogeneous graph contains more comprehensive information and rich semantics, it has been widely used in many data mining tasks. Meta-path [32], a composite relation connecting two objects, is a widely used structure to capture the semantics. Taking the movie data IMDB1 shown in Figure 1(a) as an example, it contains three types of nodes include movie, actor and director. A relation between two movies can be revealed by meta-path Movie-Actor-Movie (MAM) which describes the co-actor relation, while Movie-Director-Movie (MDM) means that they are directed by the same director. As can be seen, depending on the meta-paths, the relation between nodes in the heterogeneous graph can have different semantics. Due to the complexity of heterogeneous graph, traditional graph neural network cannot be directly applied to heterogeneous graph.
+Based on the above analysis, when designing graph neural network architecture with attention mechanism for heterogeneous graph, we need to address the following new requirements.
+Heterogeneity of graph. The heterogeneity is an intrinsic property of heterogeneous graph, i.e., various types of nodes and edges. For example, different types of nodes have different traits and their features may fall in different feature space. Still taking IMDB as
+1 https://www.imdb.com
+
+WWW 2019, May 2019, San Francisco, USA
+
+Xiao Wang, Houye Ji, Chuan Shi, Bai Wang et al.
+
+Figure 1: An illustrative example of a heterogenous graph (IMDB). (a) Three types of nodes (i.e., actor, movie, director). (b) A heterogenous graph IMDB consists three types of nodes and two types of connections. (c) Two meta-paths involved in IMDB (i.e., Moive-Actor-Moive and Movie-Director-Movie). (d) Moive 𝑚1 and its meta-path based neighbors (i.e., 𝑚1, 𝑚2 and 𝑚3).
+an example, the feature of an actor may involve in sex, age and nationality. On the other hand, the feature of movie may involve in plot and actors. How to handle such complex structural information and preserve the diverse feature information simultaneously is an urgent problem that needs to be solved.
+Semantic-level attention. Different meaningful and complex semantic information are involved in heterogeneous graph, which are usually reflected by meta-paths [32]. Different meta-paths in heterogeneous graph may extract diverse semantic information. How to select the most meaningful meta-paths and fuse the semantic information for the specific task is an open problem [4, 19, 26]. Semantic-level attention aims to learn the importance of each metapath and assign proper weights to them. Still taking IMDB as an example, The Terminator can either connect to The Terminator 2 via Movie-Actor-Movie (both starred by Schwarzenegger) or connect to Birdy via Movie-Year-Movie (both shot in 1984). However, when identifying the genre of the movie The Terminator, MAM usually plays more important role, rather than MYM. Therefore, treating different meta-paths equally is unpractical and will weaken the semantic information provided by some useful meta-paths.
+Node-level attention. In a heterogeneous graph, nodes can be connected via various types of relation, e.g., meta-path. Given a meta-path, each node has lots of meta-path based neighbors. How to distinguish the subtle difference of there neighbors and select some informative neighors is required. For each node, node-level attention aims to learn the importance of meta-path based neighbors and assign different attention values to them. Still taking IMDB as an example, when using the meta-path Movie-Director-Moive (the movies are with the same director), The Terminator will connect to Titanic and The Terminator 2 via director James Cameron. To better identify the genre of The Terminator as sci-fi movie, the model should pay more attention to The Terminator 2, rather than Titanic. Therefore, how to design a model which can discover the subtle differences of neighbors and learn their weights properly will be desired.
+In this paper, we propose a novel Heterogeneous graph Attention Network, named HAN, which considers both of node-level and
+
+semantic-level attentions. In particular, given the node features as input, we use the type-specific transformation matrix to project different types of node features into the same space. Then the node-level attention is able to learn the attention values between the nodes and their meta-path based neighbors, while the semantic-level attention aims to learn the attention values of different meta-paths for the specific task in the heterogeneous graph. Based on the learned attention values in terms of the two levels, our model can get the optimal combination of neighbors and multiple meta-paths in a hierarchical manner, which enables the learned node embeddings to better capture the complex structure and rich semantic information in a heterogeneous graph. After that, the overall model can be optimized via backpropagation in an end-to-end manner.
+The contributions of our work are summarized as follows: • To our best knowledge, this is the first attempt to study the heterogeneous graph neural network based on attention mechanism. Our work enables the graph neural network to be directly applied to the heterogeneous graph, and further facilitates the heterogeneous graph based applications. • We propose a novel heterogeneous graph attention network (HAN) which includes both of the node-level and semantic-level attentions. Benefitting from such hierarchical attentions, the proposed HAN can take the importance of nodes and meta-paths into consideration simultaneously. Moreover, our model is high efficiency, with the linear complexity with respect to the number of meta-path based node pairs, which can be applied to large-scale heterogeneous graph. • We conduct extensive experiments to evaluate the performance of the proposed model. The results show the superiority of the proposed model by comparing with the state-of-the-art models. More importantly, by analysing the hierarchical attention mechanism, the proposed HAN demonstrates its potentially good interpretability for heterogeneous graph analysis.
+2 RELATED WORK
+2.1 Graph Neural Network
+Graph neural networks (GNNs) which aim to extend the deep neural network to deal with arbitrary graph-structured data are introduced in [10, 24]. Yujia Li et al. [20] proposes a propagation model which can incorporate gated recurrent units to propagate information across all nodes. Recently, there is a surge of generalizing convolutional operation on the graph-structured data. The graph convolutional neural work generally falls into two categories, namely spectral domain and non-spectral domain. On one hand, spectral approaches work with a spectral representation of the graphs. Joan Bruna et al. [2] extends convolution to general graphs by finding the corresponding Fourier basis. Michaël et al. [6] utilizes K-order Chebyshev polynomials to approximate smooth filters in the spectral domain. Kipf et al. [18] proposes a spectral approach, named Graph Convolutional Network, which designs a graph convolutional network via a localized first-order approximation of spectral graph convolutions. On the other hand, we also have non-spectral approaches, which define convolutions directly on the graph, operating on groups of spatially close neighbors. Hamilton et al. [14] introduces GraphSAGE which performs a neural network based aggregator over a fixed size node neighbor. It can learn a function that generates embeddings by aggregating features from a node’s local neighborhood.
+
+Heterogeneous Graph Attention Network
+
+WWW 2019, May 2019, San Francisco, USA
+
+Attention mechanisms, e.g., self-attention [34] and soft-attention [1], have become one of the most influential mechanisms in deep learning. Some previous works introduce the attention mechanism for graph based applications, e.g., the recommendation [15, 16]. Inspired by attention mechanism, Graph Attention Network [35] is proposed to learn the importance between nodes and its neighbors and fuse the neighbors to perform node classification. However, the above graph neural network cannot deal with various types of nodes and edges and can only be applied to the homogeneous graphs.
+2.2 Network Embedding
+Network embedding, i.e., network representation learning (NRL), is proposed to embed network into a low dimensional space while preserving the network structure and property so that the learned embeddings can be applied to the downstream network tasks. For example, the random walk based methods [12, 23], the deep neural network based methods [36], the matrix factorization based methods [22, 37], and others, e.g., LINE [33]. However, all these algorithms are proposed for the homogeneous graphs. Some elaborate reviews can be found in [5, 11].
+Heterogeneous graph embedding mainly focuses on preserving the meta-path based structural information. ESim [26] accepts userdefined meta-paths as guidance to learn vertex vectors in a userpreferred embedding space for similarity search. Even through ESim can utilize multiple meta-paths, it cannot learn the importance of meta-paths. To achieve the best performance, ESim needs to conduct grid search to find the optimal weights of hmeta-paths. It is pretty hard to find the optimal combination for specific task. Metapath2vec [7] designs a meta-path based random walk and utilizes skip-gram to perform heterogeneous graph embedding. However, metapath2vec can only utilize one meta-path and may ignore some useful information. Similar to metapath2vec, HERec [27] proposes a type constraint strategy to filter the node sequence and capture the complex semantics reflected in heterogeneous graph. HIN2Vec [9] carries out multiple prediction training tasks which learn the latent vectors of nodes and meta-paths simultaneously. Chen et al. [3] proposes a projected metric embedding model, named PME, which can preserve node proximities via Euclidian Distance. PME projects different types of node into the same relation space and conducts heterogeneous link prediction. To study the problem of comprehensive describe heterogeneous graph, Chen et al. [29] proposes HEER which can embed heterogeneous graph via edge representations. Fan et al. [8] proposes a embedding model metagraph2vec, where both the structures and semantics are maximally preserved for malware detection. Sun et al. [30] proposes meta-graph-based network embedding models, which simultaneously considers the hidden relations of all meta information of a meta-graph. In summary, all these aforementioned algorithms do not consider the attention mechanism in heterogeneous graph representation learning.
+3 PRELIMINARY
+A heterogeneous graph is a special kind of information network, which contains either multiple types of objects or multiple types of links.
+Definition 3.1. Heterogeneous Graph [31]. A heterogeneous graph, denoted as G = (V, E), consists of an object set V and a link
+
+set E. A heterogeneous graph is also associated with a node type mapping function 𝜙 : V → A and a link type mapping function 𝜓 : E → R. A and R denote the sets of predefined object types and link types, where |A| + |R| > 2.
+Example. As shown in Figure 1(a), we construct a heterogeneous graph to model the IMDB. It consists of multiple types of objects ( Actor (A), Movie (M), Director (D)) and relations (shoot relation between movies and directors, role-play relation between actors and movies).
+In heterogeneous graph, two objects can be connected via different semantic paths, which are called meta-paths.
+Definition 3.2. Meta-path [32]. A meta-path Φ is defined as a path in the form of 𝐴1 −−𝑅→1 𝐴2 −−𝑅→2 · · · −−𝑅→𝑙 𝐴𝑙+1 (abbreviated as 𝐴1𝐴2 · · · 𝐴𝑙+1), which describes a composite relation 𝑅 = 𝑅1 ◦ 𝑅2 ◦ · · · ◦ 𝑅𝑙 between objects 𝐴1 and 𝐴𝑙+1, where ◦ denotes the composition operator on relations.
+Example. As shown in Figure 1(a), two movies can be connected via multiple meta-paths, e.g., Movie-Actor-Movie (MAM) and Movie-Director-Movie (MDM). Different meta-paths always reveal different semantics. For example, the MAM means the coactor relation, while Movie-Director-Movie (MDM) means they are directed by the same director.
+Given a meta-path Φ, there exists a set of meta-path based neighbors of each node which can reveal diverse structure information and rich semantics in a heterogeneous graph.
+Definition 3.3. Meta-path based Neighbors. Givien a node 𝑖 and a meta-path Φ in a heterogeneous graph, the meta-path based neighbors N Φ of node 𝑖 are defined as the set of nodes which connect
+𝑖
+with node 𝑖 via meta-path Φ. Note that the node’s neighbors includes itself.
+Example. Taking Figure 1(d) as an example, given the meta-path Movie-Actor-Movie, the meta-path based neighbors of 𝑚1 includes 𝑚1 (itself), 𝑚2 and 𝑚3. Similarly, the neighbors of 𝑚1 based on meta-path Movie-Director-Movie includes 𝑚1 and 𝑚2. Obviously, meta-path based neighbors can exploit different aspects of structure information in heterogeneous graph. We can get meta-path based neighbors by the multiplication of a sequences of adjacency matrices.
+Graph neural network has been proposed to deal with arbitrary graph-structured data. However, all of them are designed for homogeneous network [18, 35]. Since meta-path and meta-path based neighbors are two fundamental structures in a heterogeneous graph, next, we will present a novel graph neural network for heterogeneous graph data, which is able to exploit the subtle difference of nodes and meta-paths. The notations we will use throughout the article are summarized in Table 1.
+4 THE PROPOSED MODEL
+In this section, we propose a novel semi-supervised graph neural network for heterogeneous graph. Our model follows a hierarchical attention structure: node-level attention → semantic-level attention. Figure 2 presents the whole framework of HAN. First, we propose a node-level attention to learn the weight of meta-path based neighbors and aggregate them to get the semantic-specific node embedding.
+
+WWW 2019, May 2019, San Francisco, USA Table 1: Notations and Explanations.
+
+Notation
+Φ h
+M𝜙 h′ 𝑒Φ
+𝑖𝑗
+aΦ 𝛼Φ
+𝑖𝑗
+NΦ
+ZΦ q
+𝑤Φ
+𝛽Φ Z
+
+Explanation
+Meta-path Initial node feature Type-specific transformation matrix Projected node feature Importance of meta-path based node pair (𝑖,𝑗) Node-level attention vector for meta-path Φ Weight of meta-path based node pair (𝑖,𝑗)
+Meta-path based neighbors Semantic-specific node embedding
+Semantic-level attention vector Importance of meta-path Φ Weight of meta-path Φ The final embedding
+
+Figure 2: The overall framework of the proposed HAN. (a) All types of nodes are projected into a unified feature space and the weight of meta-path based node pair can be learned via nodelevel attention. (b) Joint learning the weight of each meta-path and fuse the semantic-specific node embedding via semanticlevel attention. (c) Calculate the loss and end-to-end optimization for the proposed HAN.
+After that, HAN can tell the difference of meta-paths via semanticlevel attention and get the optimal weighted combination of the semantic-specific node embedding for the specific task.
+4.1 Node-level Attention
+Before aggregating the information from meta-path neighbors for each node, we should notice that the meta-path based neighbors of each node play a different role and show different importance in learning node embedding for the specific task. Here we introduce node-level attention can learn the importance of meta-path based neighbors for each node in a heterogeneous graph and aggregate the representation of these meaningful neighbors to form a node embedding.
+Due to the heterogeneity of nodes, different types of nodes have different feature spaces. Therefore, for each type of nodes (e.g.,node
+
+Xiao Wang, Houye Ji, Chuan Shi, Bai Wang et al.
+
+with type 𝜙𝑖 ), we design the type-specific transformation matrix M𝜙𝑖 to project the features of different types of nodes into the same feature space. Unlike [13], the type-specific transformation matrix is based on node-type rather than edge-type. The projection process can be shown as follows:
+
+h𝑖′ = M𝜙𝑖 · h𝑖,
+
+(1)
+
+where
+
+h𝑖
+
+and
+
+h′
+𝑖
+
+are
+
+the
+
+original
+
+and
+
+projected
+
+feature
+
+of
+
+node
+
+𝑖,
+
+respectively. By type-specific projection operation, the node-level
+
+attention can handle arbitrary types of nodes.
+
+After that, we leverage self-attention [34] to learn the weight
+
+among various kinds of nodes. Given a node pair (𝑖, 𝑗) which are connected via meta-path Φ, the node-level attention 𝑒Φ can learn
+𝑖𝑗
+the importance 𝑒Φ which means how important node 𝑗 will be for
+𝑖𝑗
+node 𝑖. The importance of meta-path based node pair (𝑖, 𝑗) can be
+
+formulated as follows:
+
+𝑒Φ
+𝑖𝑗
+
+=
+
+𝑎𝑡𝑡𝑛𝑜𝑑𝑒 (h𝑖′, h′𝑗 ; Φ).
+
+(2)
+
+Here 𝑎𝑡𝑡𝑛𝑜𝑑𝑒 denotes the deep neural network which performs the node-level attention. Given meta-path Φ, 𝑎𝑡𝑡𝑛𝑜𝑑𝑒 is shared for all meta-path based node pairs. It is because there are some similar
+
+connection patterns under one meta-path. The above Eq. (2) shows
+
+that given meta-path Φ, the weight of meta-path based node pair (𝑖, 𝑗) depends on their features. Please note that, 𝑒Φ is asymmetric,
+𝑖𝑗
+i.e., the importance of node 𝑖 to node 𝑗 and the importance of node 𝑗
+
+to node 𝑖 can be quite difference. It shows node-level attention can
+
+preserve the asymmetry which is a critical property of heterogenous
+
+graph.
+
+Then we inject the structural information into the model via
+
+masked attention which means we only calculate the 𝑒Φ for nodes
+𝑖𝑗
+
+𝑗 ∈ N Φ, where N Φ denotes the meta-path based neighbors of node
+
+𝑖
+
+𝑖
+
+𝑖 (include itself). After obtaining the importance between meta-path
+
+based node pairs, we normalize them to get the weight coefficient 𝛼Φ via softmax function:
+𝑖𝑗
+
+𝛼Φ
+𝑖𝑗
+
+=
+
+𝑠𝑜
+
+𝑓
+
+𝑡𝑚𝑎𝑥
+
+𝑗
+
+(𝑒Φ
+𝑖𝑗
+
+)
+
+=
+
+exp
+
+𝜎 (aTΦ
+
+·
+
+[h′ ∥h′ ])
+𝑖𝑗
+
+𝑘 ∈NΦ
+𝑖
+
+exp
+
+𝜎 (aTΦ
+
+·
+
+[h′∥h′ ])
+𝑖𝑘
+
+,
+
+(3)
+
+where 𝜎 denotes the activation function, ∥ denotes the concatenate
+operation and aΦ is the node-level attention vector for meta-path Φ. As we can see from Eq. (3), the weight coefficient of (𝑖, 𝑗) depends on their features. Also please note that the weight coefficient 𝛼Φ is
+𝑖𝑗
+asymmetric which means they make different contribution to each
+
+other. Not only because the concatenate order in the numerator, but
+
+also because they have different neighbors so the normalize term
+
+(denominator) will be quite difference.
+
+Then, the meta-path based embedding of node 𝑖 can be aggre-
+
+gated by the neighbor’s projected features with the corresponding
+
+coefficients as follows:
+
+z𝑖Φ = 𝜎
+
+∑︁
+
+𝛼Φ
+𝑖𝑗
+
+·
+
+h′𝑗
+
+.
+
+(4)
+
+𝑗 ∈NΦ
+𝑖
+
+where zΦ is the learned embedding of node 𝑖 for the meta-path Φ.
+𝑖
+To better understand the aggregating process of node-level, we also
+
+give a brief explanation in Figure 3 (a). Every node embedding is
+
+Heterogeneous Graph Attention Network
+
+WWW 2019, May 2019, San Francisco, USA
+
+Figure 3: Explanation of aggregating process in both node-level and semantic-level.
+
+aggregated by its neighors. Since the attention weight 𝛼Φ is gener-
+𝑖𝑗
+ated for single meta-path, it is semantic-specific and able to caputre one kind of semantic information.
+Since heterogeneous graph present the property of scale free, the variance of graph data is quite high. To tackle the above challenge, we extend node-level attention to multihead attention so that the training process is more stable. Specifically, we repeat the nodelevel attention for 𝐾 times and concatenate the learned embeddings as the semantic-specific embedding:
+
+z𝑖Φ =
+
+𝐾
+∥𝜎
+
+∑︁
+
+𝛼Φ
+𝑖𝑗
+
+· h′𝑗
+
+.
+
+(5)
+
+𝑘=1 𝑗 ∈NΦ
+
+𝑖
+
+Given the meta-path set {Φ1, . . . , Φ𝑃 }, after feeding node features into node-level attention, we can obtain 𝑃 groups of semantic-specific node embeddings, denoted as ZΦ1, . . . , ZΦ𝑃 .
+
+4.2 Semantic-level Attention
+
+Generally, every node in a heterogeneous graph contains multiple types of semantic information and semantic-specific node embedding can only reflect node from one aspect. To learn a more comprehensive node embedding, we need to fuse multiple semantics which can be revealed by meta-paths. To address the challenge of meta-path selection and semantic fusion in a heterogeneous graph, we propose a novel semantic-level attention to automatically learn the importance of different meta-paths and fuse them for the specific task. Taking 𝑃 groups of semantic-specific node embeddings learned from node-level attention as input, the learned weights of each meta-path (𝛽Φ1, . . . , 𝛽Φ𝑃 ) can be shown as follows:
+
+(𝛽Φ1, . . . , 𝛽Φ𝑃 ) = 𝑎𝑡𝑡𝑠𝑒𝑚 (ZΦ1, . . . , ZΦ𝑃 ).
+
+(6)
+
+Here 𝑎𝑡𝑡𝑠𝑒𝑚 denotes the deep neural network which performs the semantic-level attention. It shows that the semantic-level attention can capture various types of semantic information behind a heterogeneous graph.
+To learn the importance of each meta-path, we first transform semantic-specific embedding through a nonlinear transformation (e.g., one-layer MLP). Then we measure the importance of the
+
+semantic-specific embedding as the similarity of transformed embedding with a semantic-level attention vector q. Furthermore, we average the importance of all the semantic-specific node embedding which can be explained as the importance of each meta-path. The importance of each meta-path, denoted as 𝑤Φ𝑖 , is shown as follows:
+
+𝑤Φ𝑝
+
+=
+
+1 |V|
+
+∑︁
+
+qT · tanh(W · zΦ𝑝
+𝑖
+
++ b),
+
+(7)
+
+𝑖 ∈V
+
+where W is the weight matrix, b is the bias vector, q is the semantic-
+
+level attention vector. Note that for the meaningful comparation, all
+
+above parameters are shared for all meta-paths and semantic-specific
+
+embedding. After obtaining the importance of each meta-path, we
+
+normalize them via softmax function. The weight of meta-path Φ𝑖 ,
+
+denoted as 𝛽Φ𝑖 , can be obtained by normalizing the above importance of all meta-paths using softmax function,
+
+𝛽Φ𝑝 =
+
+exp(𝑤Φ𝑝 )
+
+,
+
+𝑃 𝑝 =1
+
+exp(𝑤Φ𝑝
+
+)
+
+(8)
+
+which can be interpreted as the contribution of the meta-path Φ𝑝 for specific task. Obviously, the higher 𝛽Φ𝑝 , the more important meta-path Φ𝑝 is. Note that for different tasks, meta-path Φ𝑝 may has different weights. With the learned weights as coefficients, we can fuse these semantic-specific embeddings to obtain the final embedding Z as follows:
+
+𝑃
+
+∑︁
+
+Z = 𝛽Φ𝑝 · ZΦ𝑝 .
+
+(9)
+
+𝑝 =1
+
+To better understand the aggregating process of semantic-level, we also give a brief explanation in Figure 3 (b). The final embedding is aggregated by all semantic-specific embedding. Then we can apply the final embedding to specific tasks and design different loss fuction. For semi-supervised node classification, we can minimize the Cross-Entropy over all labeled node between the ground-truth and the prediction:
+
+∑︁
+
+𝐿 = − Y𝑙 ln(C · Z𝑙 ),
+
+(10)
+
+𝑙 ∈Y𝐿
+
+where C is the parameter of the classifier, Y𝐿 is the set of node indices that have labels, Y𝑙 and Z𝑙 are the labels and embeddings of labeled nodes. With the guide of labeled data, we can optimize the proposed model via back propagation and learn the embeddings of nodes. The overall process of HAN in shown in Algorithm 1.
+
+4.3 Analysis of the Proposed Model
+Here we give the analysis of the proposed HAN as follows: • The proposed model can deal with various types of nodes and
+relations and fuse rich semantics in a heterogeneous graph. The information can transfer from one kind of nodes to another kind of nodes via diverse relation. Benefitted from such a heterogeneous graph attention network, different types of node embedding can enhance the mutual integration, mutual promotion and mutual upgrade.
+• The proposed HAN is highly efficient and can be easily parallelized. The computation of attention can compute individually across all nodes and meta-paths. Given a meta-path Φ, the time complexity of node-level attention is 𝑂 (𝑉Φ𝐹1𝐹2𝐾 + 𝐸Φ𝐹1𝐾), where 𝐾 is the number of attention head, 𝑉Φ is the number of nodes, 𝐸Φ is the
+
+WWW 2019, May 2019, San Francisco, USA
+
+Xiao Wang, Houye Ji, Chuan Shi, Bai Wang et al.
+
+Table 2: Statistics of the datasets.
+
+Dataset DBLP IMDB ACM
+
+Relations(A-B) Paper-Author Paper-Conf Paper-Term Movie-Actor Movie-Director Paper-Author Paper-Subject
+
+Number of A 14328 14328 14327 4780 4780 3025 3025
+
+Number of B 4057 20 8789 5841 2269 5835 56
+
+Number of A-B 19645 14328 88420 14340 4780 9744 3025
+
+Feature 334 1232 1830
+
+Training 800 300 600
+
+Validation 400 300 300
+
+Test 2857 2687 2125
+
+Meta-paths APA
+APCPA APTPA MAM MDM
+PAP PSP
+
+Algorithm 1: The overall process of HAN.
+
+Input :The heterogeneous graph G = (V, E), The node feature {h𝑖, ∀𝑖 ∈ V}, The meta-path set {Φ0, Φ1, . . . , Φ𝑃 }. The number of attention head 𝐾,
+Output :The final embedding Z , The node-level attention weight 𝛼 , The semantic-level attention weight 𝛽 .
+
+1 for Φ𝑖 ∈ {Φ0, Φ1, . . . , Φ𝑃 } do
+
+2 for 𝑘 = 1...𝐾 do
+
+3
+
+Type-specific
+
+transformation
+
+h′
+𝑖
+
+←
+
+M𝜙𝑖
+
+·
+
+h𝑖
+
+;
+
+4
+
+for 𝑖 ∈ V do
+
+5
+
+Find the meta-path based neighbors N Φ ;
+
+𝑖
+
+6
+
+for 𝑗 ∈ N Φ do
+
+𝑖
+
+7
+
+Calculate the weight coefficient 𝛼Φ ;
+
+𝑖𝑗
+
+8
+
+end
+
+9
+
+Calculate the semantic-specific node embedding
+
+zΦ ← 𝜎
+𝑖
+
+𝑗 ∈NΦ
+
+𝛼Φ
+𝑖𝑗
+
+·
+
+h′
+𝑗
+
+;
+
+𝑖
+
+10
+
+end
+
+11
+
+Concatenate the learned embeddings from all
+
+𝐾
+
+attention head zΦ ← ∥ 𝜎
+𝑖
+
+𝑗 ∈NΦ
+
+𝛼Φ
+𝑖𝑗
+
+·
+
+h′
+𝑗
+
+;
+
+𝑘 =1
+
+𝑖
+
+12 end
+
+13 Calculate the weight of meta-path 𝛽Φ𝑖 ; 14 Fuse the semantic-specific embedding
+
+Z←
+
+𝑃
+𝑖=1 𝛽Φ𝑖
+
+· ZΦ𝑖
+
+;
+
+15 end
+
+16 Calculate Cross-Entropy 𝐿 = − 𝑙 ∈Y𝐿 Y𝑙 ln(C · Z𝑙 ) ; 17 Back propagation and update parameters in HAN;
+
+18 return 𝑍, 𝛼, 𝛽.
+
+number of meta-path based node pairs, 𝐹1 and 𝐹2 are the numbers of rows and columns of the transformation matrix, respectively. The overall complexity is linear to the number of nodes and meta-path based node pairs. The proposed model can be easily parallelized, because the node-level and semantic-level attention can be parallelized across node paris and meta-paths, respectively. The overall complexity is linear to the number of nodes and meta-path based node pairs.
+
+• The hierarchical attention is shared for the whole heterogeneous graph which means the number of parameters is not dependent on the scale of a heterogeneous graph and can be used for the inductive problems [14]. Here inductive means the model can generate node embeddings for previous unseen nodes or even unseen graph.
+• The proposed model has potentionally good interpretability for the learned node embedding which is a big advantage for heterogeneous graph analysis. With the learned importance of nodes and meta-paths, the proposed model can pay more attention to some meaningful nodes or meta-paths for the specific task and give a more comprensive description of a heterogeneous graph. Based on the attention values, we can check which nodes or meta-paths make the higher (or lower) contributions for our task, which is beneficial to analyze and explain our results.
+5 EXPERIMENTS
+5.1 Datasets
+The detailed descriptions of the heterogeneous graph used here are shown in Table 2.
+• DBLP2. We extract a subset of DBLP which contains 14328 papers (P), 4057 authors (A), 20 conferences (C), 8789 terms (T). The authors are divided into four areas: database, data mining, machine learning, information retrieval. Also, we label each author’s research area according to the conferences they submitted. Author features are the elements of a bag-of-words represented of keywords. Here we employ the meta-path set {APA, APCPA, APTPA} to perform experiments.
+• ACM3. We extract papers published in KDD, SIGMOD, SIGCOMM, MobiCOMM, and VLDB and divide the papers into three classes (Database, Wireless Communication, Data Mining). Then we construct a heterogeneous graph that comprises 3025 papers (P), 5835 authors (A) and 56 subjects (S). Paper features correspond to elements of a bag-of-words represented of keywords. We employ the meta-path set {PAP, PSP} to perform experiments. Here we label the papers according to the conference they published.
+• IMDB. Here we extract a subset of IMDB which contains 4780 movies (M), 5841 actors (A) and 2269 directors (D). The movies are divided into three classes (Action, Comedy, Drama) according to their genre. Movie features correspond to elements of a bag-ofwords represented of plots. We employ the meta-path set {MAM, MDM} to perform experiments.
+2 https://dblp.uni-trier.de 3 http://dl.acm.org/
+
+Heterogeneous Graph Attention Network
+
+WWW 2019, May 2019, San Francisco, USA
+
+Table 3: Qantitative results (%) on the node classification task.
+
+Datasets ACM DBLP IMDB
+
+Metrics Macro-F1 Micro-F1 Macro-F1 Micro-F1 Macro-F1 Micro-F1
+
+Training 20% 40% 60% 80% 20% 40% 60% 80% 20% 40% 60% 80% 20% 40% 60% 80% 20% 40% 60% 80% 20% 40% 60% 80%
+
+DeepWalk 77.25 80.47 82.55 84.17 76.92 79.99 82.11 83.88 77.43 81.02 83.67 84.81 79.37 82.73 85.27 86.26 40.72 45.19 48.13 50.35 46.38 49.99 52.21 54.33
+
+ESim 77.32 80.12 82.44 83.00 76.89 79.70 82.02 82.89 91.64 92.04 92.44 92.53 92.73 93.07 93.39 93.44 32.10 31.94 31.68 32.06 35.28 35.47 35.64 35.59
+
+metapath2vec 65.09 69.93 71.47 73.81 65.00 69.75 71.29 73.69 90.16 90.82 91.32 91.89 91.53 92.03 92.48 92.80 41.16 44.22 45.11 45.15 45.65 48.24 49.09 48.81
+
+HERec 66.17 70.89 72.38 73.92 66.03 70.73 72.24 73.84 91.68 92.16 92.80 92.34 92.69 93.18 93.70 93.27 41.65 43.86 46.27 47.64 45.81 47.59 49.88 50.99
+
+GCN 86.81 87.68 88.10 88.29 86.77 87.64 88.12 88.35 90.79 91.48 91.89 92.38 91.71 92.31 92.62 93.09 45.73 48.01 49.15 51.81 49.78 51.71 52.29 54.61
+
+GAT 86.23 87.04 87.56 87.33 86.01 86.79 87.40 87.11 90.97 91.20 90.80 91.73 91.96 92.16 91.84 92.55 49.44 50.64 51.90 52.99 55.28 55.91 56.44 56.97
+
+HAN𝑛𝑑 88.15 88.41 87.91 88.48 87.99 88.31 87.68 88.26 91.17 91.46 91.78 91.80 92.05 92.38 92.69 92.69 49.78 52.11 51.73 52.66 54.17 56.39 56.09 56.38
+
+HAN𝑠𝑒𝑚 89.04 89.41 90.00 90.17 88.85 89.27 89.85 89.95 92.03 92.08 92.38 92.53 92.99 93.00 93.31 93.29 50.87 50.85 52.09 51.60 55.01 55.15 56.66 56.49
+
+HAN 89.40 89.79 89.51 90.63 89.22 89.64 89.33 90.54 92.24 92.40 92.80 93.08 93.11 93.30 93.70 93.99 50.00 52.71 54.24 54.38 55.73 57.97 58.32 58.51
+
+5.2 Baselines
+We compare with some state-of-art baselines, include the (heterogeneous) network embedding methods and graph neural network based methods, to verfify the effectiveness of the proposed HAN. To verify the effectiveness of our node-level attention and semantic-level attention, respectively, we also test two variants of HAN.
+• DeepWalk [23]: A random walk based network embedding method which designs for the homogeneous graphs. Here we ignore the heterogeneity of nodes and perform DeepWalk on the whole heterogeneous graph.
+• ESim [26]: A heterogeneous graph embedding method which can capture semantic information from multiple meta-paths. Because it is difficult to search the weights of a set of meta-paths, we assign the weights learned from HAN to ESim.
+• metapath2vec [7]: A heterogeneous graph embedding method which performs meta-path based random walk and utilizes skip-gram to embed the heterogeneous graphs. Here we test all the meta-paths for metapath2vec and report the best performance.
+• HERec [27]: A heterogeneous graph embedding method which designs a type constraint strategy to filter the node sequence and utilizes skip-gram to embed the heterogeneous graphs. Here we test all the meta-paths for HERec and report the best performance.
+• GCN [18]: It is a semi-supervised graph convolutional network that designed for the homogeneous graphs. Here we test all the meta-paths for GCN and report the best performance.
+• GAT [35]: It is a semi-supervised neural network which considers the attention mechanism on the homogeneous graphs. Here we test all the meta-paths for GAT and report the best performance.
+
+• HAN𝑛𝑑 : It is a variant of HAN, which removes node-level attention and assigns the same importance to each neighbor.
+• HAN𝑠𝑒𝑚 : It is a variant of HAN, which removes the semanticlevel attention and assigns the same importance to each meta-path.
+• HAN: The proposed semi-supervised graph neural network which employs node-level attention and semantic-level attention simultaneously.
+5.3 Implementation Details
+For the proposed HAN, we randomly initialize parameters and optimize the model with Adam [17]. For the proposed HAN, we set the learning rate to 0.005, the regularization parameter to 0.001, the dimension of the semantic-level attention vector q to 128, the number of attention head 𝐾 to 8, the dropout of attention to 0.6. And we use early stopping with a patience of 100, i.e. we stop training if the validation loss does not decrease for 100 consecutive epochs. To make our experiments repeatable, we make our dataset and codes publicly available at website4.For GCN and GAT, we optimize their parameters using the validation set. For semi-supervised graph neural network, including GCN, GAT and HAN, we split exactly the same training set, validation set and test set to ensure fairness. For random walk based methods include DeepWalk, ESim, metapath2vec, and HERec, we set window size to 5, walk length to 100, walks per node to 40, the number of negative samples to 5. For a fair comparison, we set the embedding dimension to 64 for all the above algorithms.
+4 https://github.com/Jhy1993/HAN
+
+WWW 2019, May 2019, San Francisco, USA
+5.4 Classification
+Here we employ KNN classifier with 𝑘 = 5 to perform node classification. Since the variance of graph-structured data can be quite high, we repeat the process for 10 times and report the averaged Macro-F1 and Micro-F1 in Table 3.
+Based on Table 3, we can see that HAN achieves the best performance. For traditional heterogeneous graph embedding method, ESim which can leverage multiple meta-paths performs better than metapath2vec. Generally, graph neural network based methods which combine the structure and feature information, e.g., GCN and GAT, usually perform better. To go deep into these methods, compared to simply average over node neighbors, e.g., GCN and HAN𝑛𝑑 , GAT and HAN can weigh the information properly and improve the performance of the learned embedding. Compared to GAT, the proposed HAN, which designs for heterogeneous graph, captures the rich semantics successfully and shows its superiority. Also, without node-level attention (HAN𝑛𝑑 ) or semantic-level attention (HAN𝑠𝑒𝑚), the performance becomes worse than HAN, which indicates the importance of modeling the attention mechanism on both of the nodes and semantics. Note that in ACM and IMDB, HAN improves classification results more significantly than in DBLP. Mainly because APCPA is the much more important than the rest meta-paths. We will explain this phenomenon in Section 5.7 by analyzing the semanticlevel attention.
+Through the above analysis, we can find that the proposed HAN achieves the best performance on all datasets. The results demonstrate that it is quite important to capture the importance of nodes and meta-paths in heterogeneous graph analysis.
+
+Xiao Wang, Houye Ji, Chuan Shi, Bai Wang et al.
+(a) Meta-path based neighbors of P831 (b) Attention values of P831’s neighbors
+Figure 4: Meta-path based neighbors of node P831 and corresponding attention values (Different colors mean different classes, e.g., green means Data Mining, blue means Database, orange means Wireless Communication).
+
+(a) NMI values on DBLP
+
+(b) NMI values on ACM
+
+Figure 5: Performance of single meta-path and corresponding attention value.
+
+5.5 Clustering
+We also conduct the clustering task to evaluate the embeddings learned from the above algorithms. Once the proposed HAN trained, we can get all the node embedding via feed forward. Here we utilize the KMeans to perform node clustering and the number of clusters 𝐾 is set to the number of classes. We use the same ground-truth as in node classification. And we adopt NMI and ARI to assess the quality of the clustering results. Since the performance of KMeans is affected by initial centroids, we repeat the process for 10 times and report the average results in Table 4.
+As can be seen in Table 4, we can find that HAN performs consistently much better than all baselines. Also, graph neural network based algorithms usually achieve better performance. Besides, without distinguishing the importance of nodes or meta-paths, metapath2vec and GCN cannot perform well. With the guide of multiple meta-paths, HAN performs significantly better than GCN and GAT. On the other hand, without node-level attention (HAN𝑛𝑑 ) or semantic-level attention (HAN𝑠𝑒𝑚), the performance of HAN has shown various degrees of degeneration. It demonstrates that via assigning the different importance to nodes and meta-paths, the proposed HAN can learn a more meaningful node embedding.
+Based on the above analysis, we can find that the propsed HAN can give a comprehensive description of heterogeneous graph and achieve a significant improvements.
+
+5.6 Analysis of Hierarchical Attention Mechanism
+A salient property of HAN is the incorporation of the hierarchical mechanism, which takes the importance of node neighbors and meta-paths into consideration in learning representative embedding. Recall that we have learned the node-level attention weight 𝛼Φ and
+𝑖𝑗
+the semantic-level attention weight 𝛽Φ𝑖 . To better understand the importance of the neighbors and meta-paths, we provide a detailed analysis on the hierarchical attention mechanism.
+Analysis of node-level attention. As mentioned before, given a specific task, our model can learn the attention values between nodes and its neighbors in a meta-path. Some important neighbors which are useful for the specific task tend to have larger attention values. Here we take the paper P831 5 in ACM dataset as an illustrative example. Given a meta-path Paper-Author-Paper which describes the co-author of different papers, we enumerate the meta-path based neighbors of paper P831 and their attention values are shown in Figure 4. From Figure 4(a), we can see that P831 connects to P699 6 and P133 7, which all belong to Data Mining; conects to P2384 8 and
+5Xintao Wu, Daniel Barbara, Yong Ye. Screening and Interpreting Multi-item Associations Based on Log-linear Modeling, KDD’03 6Xintao Wu, Jianpin Fan, Kalpathi Subramanian. B-EM: a classifier incorporating bootstrap with EM approach for data mining, KDD’02 7Daniel Barbara, Carlotta Domeniconi, James P. Rogers. Detecting outliers using transduction and statistical testing, KDD’06 8Walid G. Aref, Daniel Barbara, Padmavathi Vallabhaneni. The Handwritten Trie: Indexing Electronic Ink, SIGMOD’95
+
+Heterogeneous Graph Attention Network
+
+WWW 2019, May 2019, San Francisco, USA
+
+Table 4: Qantitative results (%) on the node clustering task.
+
+Datasets ACM DBLP IMDB
+
+Metrics NMI ARI NMI ARI NMI ARI
+
+DeepWalk 41.61 35.10 76.53 81.35 1.45 2.15
+
+ESim 39.14 34.32 66.32 68.31 0.55 0.10
+
+metapath2vec 21.22 21.00 74.30 78.50 1.20 1.70
+
+HERec 40.70 37.13 76.73 80.98 1.20 1.65
+
+GCN 51.40 53.01 75.01 80.49 5.45 4.40
+
+GAT 57.29 60.43 71.50 77.26 8.45 7.46
+
+HAN𝑛𝑑 60.99 61.48 75.30 81.46 9.16 7.98
+
+HAN𝑠𝑒𝑚 61.05 59.45 77.31 83.46 10.31 9.51
+
+HAN 61.56 64.39 79.12 84.76 10.87 10.01
+
+P2328 9 while P2384 and P2328 both belong to Database; connects to P1973 10 while P1973 belongs to Wireless Communication. From Figure 4(b), we can see that paper P831 gets the highest attention value from node-level attention which means the node itself plays the most important role in learning its representation. It is reasonable because all information supported by neighbors are usually viewed as a kind of supplementary information. Beyond itself, P699 and P133 get the second and third largest attention values. This is because P699 and P133 also belong to Data Mining and they can make significant contribution to identify the class of P831. The rest neighbors get minor attention values that because they do not belong to Data Mining and cannot make important contribution to identify the P831’s class. Based on the above analysis, we can see that the node-level attention can tell the difference among neighbors and assign higher weights to some meaningful neighbors.
+Analysis of semantic-level attention. As mentioned before, the proposed HAN can learn the importance of meta-paths for the specific task. To verify the ability of semantic-level attention, taking DBLP and ACM as examples, we report the clustering results (NMI) of single meta-path and corresponding attention values in Figure 5. Obviously, there is a positive correlation between the performance of a single meta-path and its attention value. For DBLP, HAN gives APCPA the largest weight, which means that HAN considers the APCPA as the most critical meta-path in identifying the author’s research area. It makes sense because the author’s research area and the conferences they submitted are highly correlated. For example, some natural language processing researchers mainly submit their papers to ACL or EMNLP, whereas some data mining researchers may submit their papers to KDD or WWW. Meanwhile, it is difficult for APA to identify the author’s research area well. If we treat these meta-paths equally, e.g., HAN𝑠𝑒𝑚, the performance will drop significantly. Based on the attention values of each meta-path, we can find that the meta-path APCPA is much more useful than APA and APTPA. So even the proposed HAN can fuse them, APCPA still plays a leading role in identifying the author’s research area while APA and APTPA do not. It also explains why the performance of HAN in DBLP may not be as significant as in ACM and IMDB. We get the similar conclusions on ACM. For ACM, the results show that HAN gives the most considerable weight to PAP. Since the performance of PAP is slightly better than PSP, so HAN𝑠𝑒𝑚 can achieve good performance by simple average operation. We can see that semantic-level attention can reveal the difference between these meta-paths and weights them adequately.
+9Daniel Barbara, Tomasz Imielinski. Sleepers and Workaholics: Caching Strategies in Mobile Environments, VLDB’95 10Hector Garcia-Holina, Daniel Barbara. The cost of data replication, SIGCOMM’81
+
+5.7 Visualization
+For a more intuitively comparation, we conduct the task of visualization, which aims to layout a heterogeneous graph on a low dimensional space. Specifically, we learn the node embedding based on the proposed model and project the learned embedding into a 2-dimensional space. Here we utilize t-SNE [21] to visualize the author embedding in DBLP and coloured the nodes based on their research areas.
+From Figure 6, we can find that GCN and GAT which design for the homogeneous graphs do not perform well. The authors belong to different research areas are mixed with each other. Metapath2vec performs much better than the above homogeneous graph neural networks. It demonstrates that the proper meta-path(e.g., APCPA) can make a significant contribution to heterogeneous graph analysis. However, since metapath2vec can only take only one meta-path into consideration, the boundary is still blurry. From Figure 6, we can see that the visualization of HAN peform best. With the guide of multiple meta-paths, the embedding learned by HAN has high intra-class similarity and separates the authors in different research area with distinct boundaries.
+5.8 Parameters Experiments
+In this section, we investigate the sensitivity of parameters and report the results of clustering (NMI) on ACM dataset with various parameters in Figure 7.
+• Dimension of the final embedding Z. We first test the effect of the dimension of the final embedding Z. The result is shown in Figure 7(a). We can see that with the growth of the embedding dimension, the performance raises first and then starts to drop slowly. The reason is that HAN needs a suitable dimension to encode the semantics information and larger dimension may introduce additional redundancies.
+• Dimension of semantic-level attention vector q. Since the ability of semantic-level attention is affected by the dimension of the semantic-level attention vector q, we explore the experimental results with various dimension. The result is shown in Figure 7(b). We can find that the performance of HAN grows with the dimension of semantic-level attention vector and achieves the best performance when the dimension of q is set to 128. After that, the performance of HAN starts to degenerate which may because of overfitting.
+• Number of attention head 𝐾. In order to check the impact of multihead attention, we explore the performance of HAN with various number of attention head. The result is shown in Figure 7(c). Note that the multihead attention is removed when the number of attention head is set to 1. Based on the results, we can find
+
+WWW 2019, May 2019, San Francisco, USA
+
+Xiao Wang, Houye Ji, Chuan Shi, Bai Wang et al.
+
+(a) GCN
+
+(b) GAT
+
+(c) metapath2vec
+
+(d) HAN
+
+Figure 6: Visualization embedding on DBLP. Each point indicates one author and its color indicates the research area.
+
+(a) Dimension of the final embedding Z (b) Dimension of the semantic-level attention vector q
+
+(c) Number of attention head 𝐾 .
+
+Figure 7: Parameter sensitivity of HAN w.r.t. Dimension of the final embedding 𝑍 , Dimension of the semantic-level attention vector 𝑞 and Number of attention head 𝐾.
+
+that the more number of attention head will generally improve the performance of HAN. However, with the change of attention head, the performance of HAN improve only slightly. Meanwhile, we also find that multihead attention can make the training process more stable.
+6 CONCLUSION
+In this paper, we tackle several fundamental problems in heterogeneous graph analysis and propose a semi-supervised heterogeneous graph neural network based solely on attention mechanism. The proposed HAN can capture complex structures and rich semantics behind heterogeneous graph. The proposed model leverages nodelevel attention and semantic-level attention to learn the importance of nodes and meta-paths, respectively. Meanwhile, the proposed model utilizes the structural information and the feature information in a uniform way. Experimental results include classification and clustering demonstrate the effectiveness of HAN. By analyzing the learned attention weights include both node-level and semantic-level, the proposed HAN has proven its potentially good interpretability.
+7 ACKNOWLEDGMENTS
+This work is supported in part by the National Natural Science Foundation of China (No. 61702296, 61772082, 61532006), the Beijing Municipal Natural Science Foundation (4182043), and the CCF-Tencent Open Fund.
+
+REFERENCES
+[1] Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio. 2015. Neural machine translation by jointly learning to align and translate. ICLR (2015).
+[2] Joan Bruna, Wojciech Zaremba, Arthur Szlam, and Yann LeCun. 2013. Spectral networks and locally connected networks on graphs. arXiv preprint arXiv:1312.6203 (2013).
+[3] Hongxu Chen, Hongzhi Yin, Weiqing Wang, Hao Wang, Quoc Viet Hung Nguyen, and Xue Li. 2018. PME: Projected Metric Embedding on Heterogeneous Networks for Link Prediction. In SIGKDD. 1177–1186.
+[4] Ting Chen and Yizhou Sun. 2017. Task-guided and path-augmented heterogeneous network embedding for author identification. In WSDM. 295–304.
+[5] Peng Cui, Xiao Wang, Jian Pei, and Wenwu Zhu. 2018. A survey on network embedding. IEEE Transactions on Knowledge and Data Engineering (2018).
+[6] Michaël Defferrard, Xavier Bresson, and Pierre Vandergheynst. 2016. Convolutional neural networks on graphs with fast localized spectral filtering. In NIPS. 3844–3852.
+[7] Yuxiao Dong, Nitesh V Chawla, and Ananthram Swami. 2017. metapath2vec: Scalable representation learning for heterogeneous networks. In SIGKDD. 135– 144.
+[8] Yujie Fan, Shifu Hou, Yiming Zhang, Yanfang Ye, and Melih Abdulhayoglu. 2018. Gotcha-sly malware!: Scorpion a metagraph2vec based malware detection system. In SIGKDD. 253–262.
+[9] Tao-yang Fu, Wang-Chien Lee, and Zhen Lei. 2017. HIN2Vec: Explore Metapaths in Heterogeneous Information Networks for Representation Learning. In CIKM. 1797–1806.
+[10] Marco Gori, Gabriele Monfardini, and Franco Scarselli. 2005. A new model for learning in graph domains. In IJCNN, Vol. 2. 729–734.
+[11] Palash Goyal and Emilio Ferrara. 2017. Graph embedding techniques, applications, and performance: A survey. arXiv preprint arXiv:1705.02801 (2017).
+[12] Aditya Grover and Jure Leskovec. 2016. node2vec: Scalable feature learning for networks. In SIGKDD. 855–864.
+[13] Will Hamilton, Payal Bajaj, Marinka Zitnik, Dan Jurafsky, and Jure Leskovec. 2018. Embedding logical queries on knowledge graphs. In Advances in Neural Information Processing Systems. 2030–2041.
+[14] William L. Hamilton, Rex Ying, and Jure Leskovec. 2017. Inductive Representation Learning on Large Graphs. In NIPS. 1024–1034.
+
+Heterogeneous Graph Attention Network
+
+WWW 2019, May 2019, San Francisco, USA
+
+[15] Xiaotian Han, Chuan Shi, Senzhang Wang, S Yu Philip, and Li Song. 2018. AspectLevel Deep Collaborative Filtering via Heterogeneous Information Networks.. In IJCAI. 3393–3399.
+[16] Binbin Hu, Chuan Shi, Wayne Xin Zhao, and Philip S Yu. 2018. Leveraging Meta-path based Context for Top-N Recommendation with A Neural Co-Attention Model. In SIGKDD. 1531–1540.
+[17] Diederik P Kingma and Jimmy Ba. 2015. Adam: A method for stochastic optimization. ICLR (2015).
+[18] Thomas N. Kipf and Max Welling. 2017. Semi-Supervised Classification with Graph Convolutional Networks. In ICLR.
+[19] Xiang Li, Yao Wu, Martin Ester, Ben Kao, Xin Wang, and Yudian Zheng. 2017. Semi-supervised clustering in attributed heterogeneous information networks. In WWW. 1621–1629.
+[20] Yujia Li, Daniel Tarlow, Marc Brockschmidt, and Richard Zemel. 2016. Gated graph sequence neural networks. ICLR (2016).
+[21] Laurens Van Der Maaten and Geoffrey Hinton. 2008. Visualizing data using t-SNE. Journal of Machine Learning Research 9, 2605 (2008), 2579–2605.
+[22] Mingdong Ou, Peng Cui, Jian Pei, Ziwei Zhang, and Wenwu Zhu. 2016. Asymmetric transitivity preserving graph embedding. In SIGKDD. 1105–1114.
+[23] Bryan Perozzi, Rami Al-Rfou, and Steven Skiena. 2014. Deepwalk: Online learning of social representations. In SIGKDD. 701–710.
+[24] Franco Scarselli, Marco Gori, Ah Chung Tsoi, Markus Hagenbuchner, and Gabriele Monfardini. 2009. The graph neural network model. IEEE Transactions on Neural Networks 20, 1 (2009), 61–80.
+[25] Michael Schlichtkrull, Thomas N Kipf, Peter Bloem, Rianne van den Berg, Ivan Titov, and Max Welling. 2018. Modeling relational data with graph convolutional networks. In European Semantic Web Conference. Springer, 593–607.
+[26] Jingbo Shang, Meng Qu, Jialu Liu, Lance M. Kaplan, Jiawei Han, and Jian Peng. 2016. Meta-Path Guided Embedding for Similarity Search in Large-Scale Heterogeneous Information Networks. CoRR abs/1610.09769 (2016).
+[27] Chuan Shi, Binbin Hu, Xin Zhao, and Philip Yu. 2018. Heterogeneous Information Network Embedding for Recommendation. IEEE Transactions on Knowledge and
+
+Data Engineering (2018). [28] Chuan Shi, Yitong Li, Jiawei Zhang, Yizhou Sun, and Philip S. Yu. 2017. A
+Survey of Heterogeneous Information Network Analysis. IEEE Transactions on Knowledge and Data Engineering 29 (2017), 17–37. [29] Yu Shi, Qi Zhu, Fang Guo, Chao Zhang, and Jiawei Han. 2018. Easing Embedding Learning by Comprehensive Transcription of Heterogeneous Information Networks. In SIGKDD. ACM, 2190–2199. [30] Lichao Sun, Lifang He, Zhipeng Huang, Bokai Cao, Congying Xia, Xiaokai Wei, and S Yu Philip. 2018. Joint embedding of meta-path and meta-graph for heterogeneous information networks. In 2018 IEEE International Conference on Big Knowledge (ICBK). 131–138. [31] Yizhou Sun and Jiawei Han. 2013. Mining heterogeneous information networks: a structural analysis approach. Acm Sigkdd Explorations Newsletter 14, 2 (2013), 20–28. [32] Yizhou Sun, Jiawei Han, Xifeng Yan, Philip S Yu, and Tianyi Wu. 2011. Pathsim: Meta path-based top-k similarity search in heterogeneous information networks. VLDB 4, 11 (2011), 992–1003. [33] Jian Tang, Meng Qu, Mingzhe Wang, Ming Zhang, Jun Yan, and Qiaozhu Mei. 2015. Line: Large-scale information network embedding. In WWW. 1067–1077. [34] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. 2017. Attention is All you Need. In NIPS. 5998–6008. [35] Petar Velicˇkovic´, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Liò, and Yoshua Bengio. 2018. Graph Attention Networks. ICLR (2018). [36] Daixin Wang, Peng Cui, and Wenwu Zhu. 2016. Structural deep network embedding. In SIGKDD. 1225–1234. [37] Xiao Wang, Peng Cui, Jing Wang, Jian Pei, Wenwu Zhu, and Shiqiang Yang. 2017. Community Preserving Network Embedding.. In AAAI. 203–209. [38] Kelvin Xu, Jimmy Ba, Ryan Kiros, Kyunghyun Cho, Aaron Courville, Ruslan Salakhudinov, Rich Zemel, and Yoshua Bengio. 2015. Show, attend and tell: Neural image caption generation with visual attention. In ICML. 2048–2057.
+

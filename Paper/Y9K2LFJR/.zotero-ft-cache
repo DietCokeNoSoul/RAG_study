@@ -1,0 +1,1219 @@
+Gradformer: Graph Transformer with Exponential Decay
+Chuang Liu1∗ , Zelin Yao1∗ , Yibing Zhan2 , Xueqi Ma3 , Shirui Pan4 , Wenbin Hu1†
+1School of Computer Science, Wuhan University, Wuhan, China
+2JD Explore Academy, JD.com, China
+3School of Computing and Information Systems, The University of Melbourne, Melbourne, Australia
+4School of Information and Communication Technology, Griffith University, Brisbane, Australia
+{chuangliu, zelinyao, hwb}@whu.edu.cn, zhanyibing@jd.com, xueqim@student.unimelb.edu.au,
+s.pan@griffith.edu.au
+Abstract
+Graph Transformers (GTs) have demonstrated their
+advantages across a wide range of tasks. How
+ever, the self-attention mechanism in GTs over
+looks the graph’s inductive biases, particularly bi
+ases related to structure, which are crucial for the
+graph tasks. Although some methods utilize posi
+tional encoding and attention bias to model induc
+tive biases, their effectiveness is still suboptimal
+analytically. Therefore, this paper presents Grad
+former, a method innovatively integrating GT with
+the intrinsic inductive bias by applying an exponen
+tial decay mask to the attention matrix. Specifi
+cally, the values in the decay mask matrix dimin
+ish exponentially, correlating with the decreasing
+node proximities within the graph structure. This
+design enables Gradformer to retain its ability to
+capture information from distant nodes while fo
+cusing on the graph’s local details. Furthermore,
+Gradformer introduces a learnable constraint into
+the decay mask, allowing different attention heads
+to learn distinct decay masks. Such an design di
+versifies the attention heads, enabling a more effec
+tive assimilation of diverse structural information
+within the graph. Extensive experiments on various
+benchmarks demonstrate that Gradformer consis
+tently outperforms the Graph Neural Network and
+GT baseline models in various graph classification
+and regression tasks. Additionally, Gradformer has
+proven to be an effective method for training deep
+GT models, maintaining or even enhancing accu
+racy compared to shallow models as the network
+deepens, in contrast to the significant accuracy drop
+observed in other GT models.Codes are available at
+https://github.com/LiuChuang0059/Gradformer.
+1 Introduction
+Graph Transformers (GTs) [Dwivedi and Bresson, 2021]
+have shown remarkable success in achieving state-of-the-art
+performance across various applications. Unlike the local
+∗Equal Contribution †Corresponding Author
+0 12 24
+0
+12
+24
+Vanilla
+0 12 24
+w/ PE
+0 12 24
+w/ Bias
+0 12 24
+Ours
+0 12 24 36
+0
+12
+24
+36
+0 12 24 36 0 12 24 36 0 12 24 36
+Figure 1: Visualization of attention patterns in different GT models
+with two graphs from the OGBG-HIV dataset. From left to right:
+vanilla GT, GT with position encoding (w/ PE), GT with attention
+bias (w/ Bias), and GT with our proposed decay mask (ours).
+message-passing in graph neural networks (GNNs), GTs can
+capture long-range information from distant nodes. Specifi
+cally, the self-attention mechanism in GTs allows each node
+to directly attend to other nodes in a graph, enabling informa
+tion aggregation from arbitrary nodes.
+The self-attention in GTs offers considerable flexibility and
+the capacity to aggregate information both globally and adap
+tively. However, this mechanism significantly neglects in
+trinsic inductive biases in graphs, which poses challenges in
+capturing the essential graph structural information. Without
+considering structural relationships, the indiscriminate atten
+tion to all nodes in a graph will render the self-attention mech
+anism’s inadequate focus on key information and the aggre
+gation of redundant information. This comes with the gen
+eration of meaningless attention scores and, ultimately, sub
+optimal learning outcomes. Furthermore, the above issue is
+particularly evident in scenarios with limited data.
+Numerous studies have focused on integrating graph in
+ductive biases into self-attention learning mechanisms. These
+studies are broadly divided into two main approaches: 1) In
+jected position encoding: Studies such as GT [Dwivedi and
+Bresson, 2021] and SAN [Kreuzer et al., 2021] suggest us
+ing laplacian eigenfunctions as positional encodings (PEs) to
+contain the structural characteristics of graphs. 2) Attention
+arXiv:2404.15729v1 [cs.LG] 24 Apr 2024
+
+
+bias: Graphormer [Ying et al., 2021] proposes a direct addi
+tion of structural encodings into the attention mechanism as a
+bias, enhancing the GT’s capacity to model graph-structured
+data. Notably, applying PEs, which are typically concate
+nated with input features, would affect attention scores and
+could be considered as a way to introduce attention bias, as
+illustrated in Figure 2. However, concatenated PEs and atten
+tion bias fail to directly and effectively guide attention scores
+to fully capture structural information in graphs. From the
+Figure 1, it is evident that the attention patterns in GTs aug
+mented with PE or attention bias exhibit minimal deviation
+from those observed in the vanilla GTs. This observation
+suggests that the inductive biases introduced by these meth
+ods have a limited effect on the model’s attention mechanism.
+Furthermore, the attention in these models appears to be inat
+tentive (characterized by dense patterns), potentially leading
+to a failure in focusing on key information and aggregating re
+dundant information. These findings highlight a critical need
+for more sophisticated approaches capable of effectively in
+corporating structural insights into the self-attention frame
+work of GTs. Therefore, the goal is to develop a method
+that not only enhances the model’s attention mechanism by
+focusing on structurally significant features but also reduces
+redundancy in the information aggregation process. Different from the aforementioned methods, we propose
+Gradformer, a novel method that innovatively integrates GTs
+with inductive bias. Specifically, Gradformer integrates an
+exponential decay mask into the GT self-attention architec
+ture. This mask, multiplied with the attention score, explicitly
+controls each node’s attention weights relative to other nodes,
+ensuring that the attention weights decay with an increasing
+node distance. In addition, the exponential decay ensures a
+gradual reduction in attention weights at the boundary of the
+full attention zone, avoiding an abrupt truncation. As a result,
+the introduced decay mask, rooted in the graph’s structural
+bias, effectively guides the learning process within the self
+attention framework. Furthermore, Gradformer incorporates
+a learnable constraint within the decay mask, applied to the
+attention heads, dynamically adjusting the node distance for
+full attention in a graph. This constraint amplifies the model’s
+ability to discern local structural nuances and diversifies the
+attention heads, facilitating more effective assimilation of di
+verse structural information. The design elements of Gradformer offer multiple bene
+fits: 1) The decay mask effectively integrates a form of prior
+knowledge, deeply connected to the graph’s structural at
+tributes, into the GT models. 2) The structure-oriented prior
+knowledge precisely governs each node’s interaction radius
+and hence defines the extent of its attention relative to other
+nodes, thus preventing the aggregation of redundant infor
+mation. This is achieved by the design of exponential de
+cay, which enables mask values for distant nodes approaching
+near-zero levels, thus effectively reducing their influence in
+the aggregation process. 3) The exponential decay mask en
+dows the enhanced attention mechanism in Gradformer with
+the ability to function as a unified form of GNNs and GTs,
+synergizing their strengths: the local processing power of
+GNNs and global aggregation capabilities of GTs (further ex
+pounded in Section 3.3). In summary, Gradformer empow
+ers the self-attention mechanism to effectively concentrate on
+structural information within the graph and limit unnecessary
+aggregation from distant nodes.
+To evaluate the effectiveness of our Gradformer, we
+conduct extensive experiments on various commonly-used
+datasets, including the large-scale Open Graph Benchmark
+(OGB) [Hu et al., 2020]. The experimental results consis
+tently demonstrate that Gradformer outperforms state-of-the
+art GT models on most datasets with remarkable stability
+and accuracy improvements, even as network depth increases.
+This finding stands in stark contrast to the performance of
+other GT models, where accuracy tends to decline with in
+creased depth [Zhao et al., 2023]. Additionally, incorporat
+ing the decay mask design into Gradformer provides notable
+advantages for the graph classification task in low-resource
+settings, underscoring the versatility and practicality of our
+model. Our main contributions are summarized as follows:
+1. We propose a general GT with an exponential decay
+mask attention mechanism, termed Gradformer, which
+enhances the self-attention mechanism by fully leverag
+ing the graph’s structural information. Therefore, Grad
+former maintains the ability to capture long-range in
+formation while prioritizing the local information of the
+graph, guided by an intense inductive bias.
+2. We conduct extensive experiments to compare Gradformer
+with 14 GNN and GT baseline models for the graph classi
+fication task on various real-world graph datasets, includ
+ing OGB. The experimental results consistently validate
+the effectiveness of the proposed Gradformer.
+2 Related Work
+Graph Transformers. In recent years, many transformer
+variants have been applied to graph modeling. Unlike GNNs,
+transformers display competitive or even superior perfor
+mance across various tasks. Dwivedi et al. [2021] were the
+first to extend the transformer architecture to graphs and pro
+pose PEs [Ding et al., 2020]. Subsequently, numerous vari
+ants of GT have been proposed, making significant progress
+in graph-level tasks [Rong et al., 2020; Chen et al., 2021;
+Wu et al., 2021; Chen et al., 2022; Yin and Zhong, 2023].
+However, these methods are primarily designed for graph
+level tasks due to the time and memory constraints of the self
+attention layer, which requires O(n2) complexity. Therefore,
+multiple studies [Zhao et al., 2021; Choromanski et al., 2022;
+Guo et al., 2022; Park et al., 2022; Wu et al., 2022; Wu et al.,
+2023a; Liu et al., 2023; Liu et al., 2024] have been conducted
+to enhance GTs’ scalability and efficiency, facilitating their
+application in node-level tasks. Additionally, GTs have been
+applied in various fields, including natural language process
+ing [Cai et al., 2022], computer vision [Zhu et al., 2021; Tang
+et al., 2023], recommendation systems [Xu et al., 2019a;
+Li et al., 2023], multimodal contexts [Chen and Li, 2022;
+He and Wang, 2023], and reinforcement learning [Hu et al.,
+2023]. For a more detailed introduction, please refer to the
+recent GT reviews [Rampasek et al., 2022; Min et al., 2022].
+Prior Knowledge in Graph Transformer. Numerous ef
+forts have been undertaken to integrate prior knowledge into
+
+
+QK V
+MatMul
+MatMul
+Scale
+Graph Structure
+Decay Mask
+Softmax
+.
+QK V
+MatMul
+MatMul
+Scale Spatial Encoding
+Softmax
+QK V
+MatMul
+MatMul
+Scale
+Softmax
+Q_pe
+MatMul
+K_pe
+QK V
+MatMul
+MatMul
+Scale
+Softmax
+a) Vanilla b) With PE c) With Attention Bias d) With Decay Mask (ours)
+Figure 2: The overview of the Gradformer framework and its comparison with existing methods. a) Vanilla: Vanilla self-attention mechanism
+serves as the baseline. b) With PE: In several works [Dwivedi and Bresson, 2021], the PE vector (i.e., pi) is concatenated with the input
+node features, which can be interpreted as introducing a bias in the attention score. c) With Attention Bias: Some methods [Ying et al.,
+2021] incorporate an attention bias (i.e., φ(i, j)) into the attention score calculation. This bias often derives from spatial information, such
+as the shortest path. d) Ours: Our method introduces an exponential decay mask that is multiplied with the attention scores. This mask
+is derived from the structural information of the graph. Moreover, different attention heads utilize distinct masks, made possible through
+learnable parameters. A comprehensive explanation of the symbols is provided in Section 3.
+GTs to augment their performance. This integration can be
+classified into three categories. 1) Proposed position encod
+ings: SAN [Kreuzer et al., 2021] suggests utilizing learned
+Laplace eigenfunctions as a substitute for the original PE.
+GraphGPS [Rampasek et al., 2022] summarizes possible po
+sitional and structural encodings for GTs. 2) Improved self
+attention: Graphormer [Ying et al., 2021] suggests adding
+structural encodings to the attention metric as a bias to en
+hance GTs’ structured-data modeling. Moreover, RT [Diao
+and Loynd, 2023] and EGT [Hussain et al., 2022] consider
+incorporating the edge vectors in their self-attention calcula
+tions. 3) Modified architecture: GraphTrans [Wu et al., 2021]
+introduces a transformer sub-network above a GNN layer. In
+GraphGPS, the transformer and GNN layers are placed in par
+allel. In this manuscript, our proposed method lies on the line
+of improving the self-attention learning.
+3 Methodology
+3.1 Preliminaries
+Notations. A graph G can be represented by an adjacency
+matrix A ∈ {0, 1}n×n and a node feature matrix X ∈ Rn×d,
+where n is the number of nodes, d is the node feature dimen
+sion, and A[i, j] = 1 if an edge between nodes vi and vj
+exists, otherwise, A[i, j] = 0.
+Graph Transformer. GTs [Vaswani et al., 2017; Ying et
+al., 2021] consist of two essential parts: a multi-head self
+attention (MHA) module and a feed-forward network (FFN). Given the node embedding matrix H(l) ∈ Rn×d(l) in a graph,
+a single attention head is computed as follows:
+H(l+1) = softmax Q(l)(K(l))⊤
+√
+d(l) V(l), (1)
+where H(l+1) ∈ Rn×d(l+1) is the output matrix, d(l+1) is the output hidden dimension, and Q(l) ∈ Rn×d(l) , K(l) ∈
+Rn×d(l) , and V(l) ∈ Rn×d(l) are the query, key, and value
+vectors, respectively, which are the projection results of
+H(l) ∈ Rn×d(l) :
+Q(l) = H(l)WQ; K(l) = H(l)WK ; V(l) = H(l)WV , (2)
+where WQ ∈ Rd(l)×d(l+1) , WK ∈ Rd(l)×d(l+1) , and WV ∈
+Rd(l)×d(l+1) are projection matrices. Note that the above
+single-head self-attention module can be generalized into a
+MHA via the concatenation operation.
+3.2 Proposed Method: Gradformer
+This subsection introduces the Gradformer method. First, we
+describe the fundamental Gradformer architecture with a pri
+mary focus on its central module, the exponential decay mask
+attention mechanism. The mechanism comprises two com
+ponents: exponential decay and learnable constraints. Subse
+quently, we explore the Gradformer method in detail, with a
+focus on its general form and computational complexity.
+Architecture
+As depicted in Figure 2, Gradformer extends the original GT
+architecture by incorporating a decay mask. The decay mask,
+derived from the graph’s structural information, introduces a
+strong inductive bias into the self-attention learning.
+
+
+12
+3
+45
+Attention Score Decay Mask
+Input . Refined Attention
+=
+Figure 3: The decay mask mechanism. The blue matrix represents
+the pairwise dot product, where the intensity of the blue color in
+dicates the magnitude of the attention. The red matrix represents
+the decay mask, where the intensity of the red color indicates the
+magnitude of the mask. Once the mask is applied (indicated by red
+cells with diagonal stripes), the attention values in the masked cells
+become significantly attenuated. With this attention decay mask
+ing, the self-attention mechanism becomes more responsive to the
+graph’s structural characteristics.
+Masking Attention with Exponential Decay. According
+to Eq. (1), we observe that the attention matrix is comparable
+to a row-normalized adjacency matrix of a directly weighted
+complete graph. This dictates the aggregation of node fea
+tures in a graph, similar to GCN. Unlike the input graph, this
+dynamically forms graph representations through the atten
+tion mechanism. However, the basic transformer does not di
+rectly consider the input structure (i.e., existing edges) when
+forming these weighted graphs (i.e., the attention matrices).
+Consequently, the attention mechanism may overlook the im
+portance of certain neighbouring nodes due to feature simi
+larity, and hence these dynamic graphs collapse immediately
+after aggregation. To address this issue, we introduce a de
+cay mask M, related to the graph’s structural information, to
+participate in the aggregation process as follows:
+M = λψ(vi,vj) ∈ Rn×n, (3)
+where λ is a scalar and ψ (vi, vj) refers to a function that
+measures the spatial distance between vi and vj in a graph.
+The function ψ(·) can be defined by the connectivity between
+the nodes in the graph. In this paper, we choose ψ (vi, vj) to
+present the distance of the shortest path (SPH) between vi and
+vj if the two nodes are connected. If not, we set the output
+of ψ(·) to a special value (i.e., -1). Based on the study [Sun
+et al., 2023], our approach configures the attention mask M
+to decrease monotonically and exponentially, as depicted in
+the left part of Figure 4. Compared to methods with lin
+ear decay, exponential decay eliminates the need for an ad
+ditional endpoint and effectively filters attention at extended
+distances, with values for distant nodes diminishing to nearly
+zero. After obtaining the attention mask, it is multiplied with
+the attention score S ∈ Rn×n, as illustrated in Figure 3, and
+formally defined as:
+S ̃(l) = softmax S(l) ⊙ M(l) ,
+Attn Q(l), K(l), V(l) =  ̃S(l)V(l),
+(4)
+where S ̃(l) denotes the refined attention at layer l, and Attn
+denotes the self-attention operation with decay mask.
+Distance
+1
+M( )
+Full Attention
+start (sp) end
+Masked Attention
+(Almost) Zero Attention
+Linear Exponential Baseline
+0 500 1000 1500 2000
+Epoch
+0
+2
+4
+6
+Learned Start
+Head 1 Head 2 Head 3 Head 4
+Figure 4: Left: The value of the decay mask matrix M varies with
+the node-wise distance, ψ. Please note that the configuration of an
+end point is unique to linear decay, whereas exponential decay does
+not require such a parameter. Furthermore, the start point (i.e., sp in
+Eq. (5)) is a learnable parameter, as depicted in the right part. Right:
+The learned start points for different attention heads demonstrate
+variation across epochs during training on the ZINC dataset.
+Mask Decay with Learnable Constraints. To enhance the
+attention mechanism’s ability to model local structural infor
+mation, given the strong locality inherent in graphs, a refined
+version of Eq. (3) is provided. This version incorporates a
+distance constraint into the decay operation, effectively tai
+loring the attention mechanism to be more sensitive to the
+local information. The refined decay mask is as follows:
+M = λRelu(ψ(vi,vj )−sp), (5)
+where sp is a scalar that defines the starting point of the de
+cay. Specifically, if the spatial distance in ψ (vi, vj) is less
+than sp, the attention score between vi and vj remains unaf
+fected by the decay. Hence, this design accurately controls
+each node’s interaction radius, delineating the extent of its at
+tention relative to other nodes and preventing the aggregation
+of redundant information.
+Furthermore, to enable various attention heads to capture
+diverse structural information, we make the constraints sp
+learnable. Consequently, when the decay mechanism is ex
+tended to multi-head attention, a decay mask bearing differ
+ent constraints is applied to each head, as shown below:
+S ̃(l) =
+h
+S(l,1) ⊙ M(l,1); Sˆ(l,2) ⊙ M(l,2); · · · Sˆ(l,h) ⊙ M(l,h)i
+,
+where h represents the total number of attention heads. As
+illustrated in the right part of Figure 4, the constraints of dif
+ferent attention heads are learned to capture various struc
+tural information. Specifically, we observe that the learned
+constraint for Head 3 is relatively large. This characteris
+tic enables Head 3 to focus on global information of the
+graph. Conversely, Head 1 exhibits a different learning pat
+tern, which allows model to capture proximate information.
+3.3 Discussion
+Gradformer is a General Form of GNNs and GTs. In
+essence, Gradformer represents a more generalized form of
+the GNN [Velicˇkovic ́ et al., 2018] and GT [Dwivedi and
+Bresson, 2021] models. This generalization becomes evi
+dent when considering the behavior of the decay mask M
+under varying settings of the parameter λ. Specifically, when
+λ = 1, the decay mask in Eq. (3) essentially transforms into
+
+
+NCI1 PROTE. MUTAG COLLAB IMDB-B PATTERN CLUSTER MOLHIV ZINC
+Acc. ↑ Acc. ↑ Acc. ↑ Acc. ↑ Acc. ↑ Acc. ↑ Acc. ↑ AUROC. ↑ MAE ↓
+GCN-based methods
+GCN [Kipf and Welling, 2017] 79.68±2.05 71.7±4.7 73.4±10.8 71.92±1.18 74.3±4.6 71.89±0.33 69.50±0.98 75.99±1.19 0.367±0.011
+GAT [Velicˇkovic ́ et al., 2018] 79.88±0.88 72.0±3.3 73.9±10.7 75.8±1.6 74.7±4.7 78.27±0.19 70.59±0.45 – 0.384±0.007
+GIN [Xu et al., 2019b] 81.7±1.7 73.76±4.61 84.5±8.9 73.32±1.08 75.1±4.9 85.39±0.14 64.72±1.55 77.07±1.49 0.526±0.051
+GatedGCN [Li et al., 2016] 81.17±0.79 74.65±1.13 85.00±2.67 80.70±0.75 73.20±1.32 85.57±0.09 73.84±0.33 – 0.282±0.015
+Graph Transformer-based methods
+GT [Dwivedi and Bresson, 2021] 80.15±2.04 73.94±3.78 83.9±6.5 79.63±1.02 73.10±2.11 84.81±0.07 73.17±0.62 – 0.226±0.014
+SAN [Kreuzer et al., 2021] 80.50±1.30 74.11±3.07 78.8±2.9 79.42±1.61 72.10±2.30 86.58±0.04 76.69±0.65 77.85±2.47 0.139±0.006
+Graphormer [Ying et al., 2021] 81.44±0.57 75.29±3.10 80.52±5.79 81.80±2.24 73.40±2.80 86.65±0.03 74.66±0.24 74.55±1.06 0.122±0.006
+GraphTrans [Wu et al., 2021] 82.60±1.20 75.18±3.36 87.22±7.05 79.81±0.84 74.50±2.89 – – 76.33±1.11 
+SAT [Chen et al., 2022] 80.69±1.55 73.32±2.36 80.50±2.84 80.05±0.55 75.90±0.94 86.85±0.04 77.86±0.10 – 0.094±0.008
+EGT [Hussain et al., 2022] 81.91±3.42 – – – – 86.82±0.02 79.23±0.35 80.51*±*0.30 0.108±0.009
+GraphGPS [Rampasek et al., 2022] 84.21±2.25 75.77±2.19 85.00±3.16 81.40±1.26 77.40±0.63 86.69±0.06 78.02±0.18 78.80±0.49 0.070±0.004
+LGI-GT [Yin and Zhong, 2023] 82.18±1.90 – – – – 86.93±0.04 78.19±0.10 – 0.069±0.002 KDLGT [Wu et al., 2023b] – – – – – – – 78.98±1.78 0.130±0.002 DeepGraph [Zhao et al., 2023] – – – – – 90.66*±0.06 77.91±0.14 – 0.072±0.004
+Gradformer (ours) 86.01±1.47 77.50±1.86 88.00±2.45 82.01±1.06 77.10±0.54 86.89±0.07 78.55±0.16 79.15±0.89 0.069±0.002
+Notations: *: DeepGraph utilizes a distinct evaluation metric on the pattern dataset, diverging from other models. Employing this metric, our
+method achieves an accuracy of 90.88±0.06. **: The result is derived from the fine-tuning of a large pretrained model.
+Table 1: Experimental results on eight common datasets (the mean accuracy (Acc.), AUROC, and MAE, and standard deviation over 10
+different runs). Bold: the best performance per dataset. Underline: the second best performance per dataset.
+an all-ones matrix. In this configuration, Gradformer effec
+tively mirrors the GT model, as the decay mask exerts no
+modifying influence on the attention scores. Additionally,
+when λ = 0 , the decay mask M0 retains the mask value
+of the 1-hop neighbors as one and sets all others to zero. This
+configuration parallels the adjacency matrix A, thereby align
+ing Gradformer closely with the GNN models. The formal
+derivation of the above process is as follows:
+H(l+1) = √1
+d(l) S(l) ⊙ M(l)
+0 H(l)W; M(l)
+0 = A. (6)
+Taking the GCN layer as an example, the message passing
+mechanism is expressed as follows:
+H(l+1) = σ AH(l)W , (7)
+where σ denotes the Sigmoid activation function. From these
+equations, we can deduce that Gradformer essentially consti
+tutes a generalized GNN form, possessing at least the same
+expressive capability as traditional GNNs. In summary, Gradformer surpasses traditional GNNs by
+broadening its receptive field to encompass more relevant
+nodes. Furthermore, compared to GTs, Gradformer demon
+strates superior capacity in fusing node representations with
+graph structure, capturing more topological information.
+Computational Complexity. This subsection analyzes
+Gradformer’s complexity. Compared to vanilla GTs, Grad
+former incurs only the additional computational cost of point
+wise multiplication between the decay and attention matrices.
+This process has significantly less computational complex
+ity than self-attention. Additionally, Gradformer’s additional
+memory requirement is the mask matrix, which shares the
+same size as the self-attention one. To illustrate Gradformer’s
+complexity, detailed experimental results for time and mem
+ory are provided in the following section (See Figure 7).
+4 Experiments 4.1 Experimental Settings
+Datasets. We utilize nine commonly-used real-world
+datasets from various sources to ensure diversity, includ
+ing five graph datasets from the TU database [Morris et al.,
+2020] (i.e., NCI1, PROTEINS, MUTAG, IMDB-B, and COL
+LAB), three datasets from Benchmarking GNN [Dwivedi et
+al., 2023] (i.e., PATTERN, CLUSTER, and ZINC), and one
+dataset from OGB [Hu et al., 2020] (i.e., OGBG-MOLHIV),
+involving diverse domains (e.g., synthetic, social, biology,
+and chemistry), sizes (e.g., ZINC and OGBG-MOLHIV are
+large datasets), and tasks (e.g., node classification, graph clas
+sification and regression). For all datasets, we strictly follow
+the evaluation metrics and dataset split recommended by the
+
+
+Dataset Method 4 layers 12 layers 24 layers
+NCI1 GraphGPS 84.21±2.25 84.09±1.68 71.90±1.46
+Ours 86.01±1.47 84.31±1.26 84.25±1.77
+Method 12 layers 24 layers 48 layers CLUSTER GraphGPS 78.06±0.12 78.39±0.14 70.91±3.29
+Ours 77.78±0.25 78.31±0.10 78.55±0.14
+PATTERN GraphGPS 86.74±0.04 86.68±0.06 85.83±0.38
+Ours 86.75±0.05 86.78±0.04 86.89±0.07
+Table 2: Performance of Gradformer with deep layers.
+given benchmarks [Ying et al., 2021].
+Baseline. To demonstrate the effectiveness of our proposed
+method, we compare Gradformer with the following 14 base
+lines: (I) 4 standard GCN-based models: GCN [2017],
+GAT [2018], GIN [2019b], and GatedGCN [2016]; (II)
+10 GT-based graph models: GraphTransformer [2021],
+SAN [2021], Graphormer [2021], GraphTrans [2021],
+SAT [2022], EGT [2022], GraphGPS [2022], LGI
+GT [2023], KDLGT [2023b], and DeepGraph [2023]. For
+each baseline, we utilize the recommended settings as per the
+official implementation guidelines.
+Implementation Details. We assess our proposed model’s
+effectiveness by measuring its performance in graph classifi
+cation and regression tasks. To ensure reliability, we conduct
+10 trials for each model using different random seeds. Ac
+cordingly, we report the average test accuracy/AUROC/MAE
+based on the epoch when the best validation accuracy/AU
+ROC/MAE is achieved. Furthermore, all the experiments are
+conducted on a server equipped with 8 NVIDIA A100s.
+4.2 Overall Performance
+We evaluate the proposed model’s effectiveness by compar
+ing it with GT models that are both shallow and deep. For
+each model and dataset, we conduct 10 trials with random
+seeds, and then measure the mean accuracy and standard de
+viation, which are reported in Tables 1 and 2.
+Performance of Gradformer. From the results in Ta
+ble 1, we observe that: 1) Gradformer demonstrates excep
+tional performance, achieving state-of-the-art results on five
+datasets while remaining competitive on three others. This
+highlights the efficacy of the proposed method. 2) Notably,
+on small-scale datasets such as NCI1 and PROTEINS, Grad
+former outperforms all 14 methods, exhibiting improvements
+of 2.13% and 2.28%, respectively. This demonstrates Grad
+former’s effective integration of inductive biases into the GT
+model, a crucial advantage especially in scenarios with lim
+ited data availability. To further validate this observation, ad
+ditional experiments under low-resource conditions for the
+large-scale datasets have been conducted (see next section).
+3) Furthermore, Gradformer delivers competitive results on
+large-scale datasets (e.g., ZINC), demonstrating its potential
+applicability across various dataset scales.
+NCI1 ↑ 5% 10% 25% 100%
+GraphGPS 69.54±0.96 74.70±0.44 76.55±1.19 84.21±2.25
+Ours 71.20±0.49 76.38±0.85 77.98±1.22 86.01±1.47
+ZINC ↓ 5% 10% 25% 100%
+GraphGPS 0.438±0.021 0.295±0.012 0.182±0.014 0.070±0.004
+Ours 0.429±0.019 0.289±0.011 0.171±0.009 0.069±0.002
+Table 3: Results on Low-resource Settings. 5% denotes the utiliza
+tion of 5% of the datasets as the training sets.
+NCI1 PATTERN CLUSTER ZINC
+GraphGPS 84.2 86.68 78.02 0.070
+w/o MPNN 80.04 ↓ 4.16 71.01 ↓ 15.67 68.29 ↓ 9.73 0.217 ↓ 0.147 w/o PE 83.67 ↓ 0.53 86.63 ↓ 0.05 77.27 ↓ 0.75 0.113 ↓ 0.043
+Ours 86.01 86.56 78.22 0.069
+w/o MPNN 80.80 ↓ 5.21 86.49 ↓ 0.07 73.92 ↓ 4.30 0.187 ↓ 0.118 w/o PE 85.01 ↓ 1.00 86.70 ↑ 0.14 77.58 ↓ 0.64 0.116 ↓ 0.047
+Table 4: Analysis of Gradformer’s performance without the MPNN
+or PE module. The downward arrow (↓) denotes a reduction in
+model performance relative to the baseline method.
+Performance of Gradformer with Deep Layers. Table 2
+displays the results of Gradformer with deep layers. Based on
+these results, the following observations can be made. 1) In
+creasing the number of layers notably decreases the accuracy
+of deep GTs, such as GraphGPS (e.g., a drop of 14.4% on
+NCI1 and 9.54% on CLUSTER). 2) In contrast, Gradformer
+demonstrates a significant improvement in this context. It
+sustains performance on the NCI1 dataset and surpasses shal
+low models on CLUSTER and PATTERN datasets. This im
+provement can be attributed to Gradformer’s inherent flex
+ibility in accommodating increased model depth. Specifi
+cally, while self-attention in shallow networks is inclined to
+focus locally, it adopts a more global perspective in deeper
+networks. Therefore, incorporating residual connections en
+hances information flow between layers, stabilizing the learn
+ing process. The decay mask utilized by Gradformer plays
+a pivotal role in ensuring that the updated node information
+maintains higher fidelity to the original data, producing ef
+fects similar to those observed in shallower models.
+4.3 Further Discussions
+Results on Low-resource Settings. We conduct experi
+ments using datasets with a reduced number of labels on
+NCI1 and ZINC datasets. The results in Table 3 indicate
+that Gradformer consistently outperforms GraphGPS across
+all settings, particularly when the number of labels is very
+low, with improvements of 2.4% and 2.3% for 5% and 10%
+labeled data, respectively. This finding indicates that our
+method effectively incorporates the inductive biases into the
+GTs, enabling them to efficiently assimilate graph informa
+tion with a limited number of labeled datasets. Further
+more, this discovery highlights the potential applicability of
+our model under resource-constrained conditions, such as the
+
+
+NCI1
+83
+85
+Accuracy (%)
++2.8
+PROTEINS
+76
+77 +0.8
+COLLAB
+81
+82
++0.6
+FS Curve SPH (default)
+Figure 5: Ablation study of graph structure index.
+0.0 0.3 0.6 0.9
+82
+85
+Accuracy (%)
+NCI1
+Exponential Linear
+0.0 0.3 0.6 0.9
+74
+77
+PROTEINS
+Exponential Linear
+0.0 0.3 0.6 0.9
+80
+81
+82
+COLLAB
+Exponential Linear
+Figure 6: The parameter analysis of the decay ratio, along with an
+ablation study of the decay function.
+biomedical field where labeled data are scarce and costly.
+Performance without MPNN or Position Encoding. In
+our subsequent analysis, we examine the impact of two
+key GT components: the Message Passing Neural Network
+(MPNN) module and PE. This investigation involves four
+graph datasets. It is important to note that except for the spe
+cific components under study, all other aspects of the models
+are maintained in line with the complete models. The find
+ings, summarized in Table 4, indicate that: 1) The removal of
+the MPNN module leads to a slight decline in Gradformer’s
+performance, especially in contrast to GraphGPS. For in
+stance, the performance of GraphGPS without MPNN dimin
+ishes by 15.67 on the PATTERN dataset, whereas Gradformer
+only experiences a reduction of 0.07. 2) The absence of PE
+seems to have a minimal, and in some cases even beneficial,
+impact on Gradformer. The model demonstrates improved
+performance on certain datasets (i.e., PATTERN) when PE
+is omitted. This finding suggests that Gradformer’s architec
+ture, particularly its decay mask design, can compensate for
+the absence of positional information. In summary, these re
+sults imply that our method effectively enables self-attention
+mechanisms to capture more structural information.
+The Impact of Graph Structure Index. As detailed in
+Section 3.2, our model’s decay mask is formulated based on
+specific graph structural indices. In addition to the previously
+mentioned SPH, our study also examines another structural
+index: the discrete Ricci curvature (Curve) [Lai et al., 2023].
+This index is the graph distance based on Riemannian mani
+fold. Furthermore, we evaluate the effectiveness of a feature
+based index, specifically the feature cosine similarity (FS).
+The results, illustrated in Figure 5, show that SPH consis
+tently outperforms the other two indexes. Notably, the accu
+racy achieved with FS is significantly lower than that obtained
+with the structural indices (i.e., SPH and Curve). These find
+ings further emphasize the importance of incorporating struc
+tural information in enhancing model performance.
+20 40 Time/epoch (s)
+0.07
+0.10
+0.13
+MAE
+SAN Graphormer GraphGPS Gradformer(ours)
+MAE vs. Time vs. Memory
+50 75 Time/epoch (s)
+76
+78
+Accuracy (%)
+SAN Graphormer GraphGPS Gradformer(ours)
+Acc. vs. Time vs. Memory
+Figure 7: Efficiency analysis comparing Gradformer with three
+baseline models on two datasets: ZINC (left) and CLUSTER (right).
+The size of the markers indicates GPU memory usage.
+The Impact of Decay Ratio and Decay Function. In an
+analysis conducted on three datasets, NCI1, PROTEINS, and
+COLLAB, the impact of varying the parameter λ is examined.
+The results are depicted in Figure 6. These findings reveal
+that as λ increases, the model’s accuracy initially rises, reach
+ing optimal performance typically around the values of 0.5 or
+0.6. Subsequently, the model’s accuracy declines. Further
+more, as elaborated in Section 3.3, specific λ values confer
+distinct characteristics to Gradformer. For instance, at λ = 1,
+Gradformer aligns with the conventional GT model, whereas
+at λ = 0, it nearly regresses to a GNN model. Notably, across
+varying decay ratios, Gradformer consistently exhibits supe
+rior performance over the standard GNN model. In addition,
+observations indicate that the exponential decay function con
+sistently outperforms the linear one.
+Efficiency Analysis. To validate Gradformer’s efficiency,
+its training cost is compared with prominent methods such as
+SAN [Kreuzer et al., 2021], Graphormer [Ying et al., 2021],
+and GraphGPS [Rampasek et al., 2022], with a focus on met
+rics such as running time and GPU memory usage. The com
+parative results are presented in Figure 7. These findings re
+veal that Gradformer achieves an optimal balance between ef
+ficiency and effectiveness. Notably, Gradformer outperforms
+SAN and GraphGPS in computational efficiency and accu
+racy. Although Gradformer exhibits a marginally longer run
+time compared to Graphormer, the former significantly sur
+passes the latter in accuracy, highlighting its superiority in
+balancing resource usage with high-performance outcomes.
+5 Conclusion
+In this study, we introduce Gradformer, a novel integration of
+GT with intrinsic inductive biases, achieved by applying an
+exponential decay mask with learnable parameters to the at
+tention matrix. Through extensive experimentation across 9
+graph datasets, Gradformer has shown its superiority by out
+performing 14 contemporary GTs and GNNs. Notably, Grad
+former’s strength lies in its ability to maintain or even surpass
+shallow models in accuracy while deepening the network ar
+chitecture. This is a feat not commonly observed in other GTs
+where accuracy tends to decline significantly in the same con
+text. Despite its competitive performance, Gradformer still
+has areas for further improvement, including 1) exploring the
+feasibility of achieving state-of-the-art structure without the
+use of MPNN, and 2) investigating the potential for the decay
+mask operation to significantly improve GT efficiency.
+
+
+Acknowledgments
+The work of Wenbin Hu was supported by the Na
+tional Key Research and Development Program of China
+(2023YFC2705700). This work was supported in part by
+the Natural Science Foundation of China (No. 82174230),
+Artificial Intelligence Innovation Project of Wuhan Sci
+ence and Technology Bureau (No. 2022010702040070),
+Natural Science Foundation of Shenzhen City (No.
+JCYJ20230807090211021).
+References
+[Cai et al., 2022] Weishan Cai, Wenjun Ma, Jieyu Zhan, and
+Yuncheng Jiang. Entity alignment with reliable path
+reasoning and relation-aware heterogeneous graph trans
+former. In IJCAI, 2022.
+[Chen and Li, 2022] Sijia Chen and Baochun Li. Multi
+modal dynamic graph transformer for visual grounding. In
+CVPR, 2022.
+[Chen et al., 2021] Jianwen Chen, Shuangjia Zheng, Ying
+Song, Jiahua Rao, and Yuedong Yang. Learning attributed
+graph representation with communicative message passing
+transformer. In IJCAI, 2021.
+[Chen et al., 2022] Dexiong Chen, Leslie O’Bray, and
+Karsten Borgwardt. Structure-aware transformer for graph
+representation learning. In ICML, 2022.
+[Choromanski et al., 2022] Krzysztof Choromanski, Han
+Lin, Haoxian Chen, Tianyi Zhang, Arijit Sehanobish, Va
+lerii Likhosherstov, Jack Parker-Holder, Tamas Sarlos,
+Adrian Weller, and Thomas Weingarten. From block
+toeplitz matrices to differential equations on graphs: to
+wards a general theory for scalable masked transformers.
+In ICML, 2022.
+[Diao and Loynd, 2023] Cameron Diao and Ricky Loynd.
+Relational attention: Generalizing transformers for graph
+structured tasks. In ICLR, 2023.
+[Ding et al., 2020] Liang Ding, Longyue Wang, and
+Dacheng Tao. Self-attention with cross-lingual position
+representation. In ACL, 2020.
+[Dwivedi and Bresson, 2021] Vijay Prakash Dwivedi and
+Xavier Bresson. A generalization of transformer networks
+to graphs. In AAAI Workshop, 2021.
+[Dwivedi et al., 2023] Vijay Prakash Dwivedi, Chaitanya K
+Joshi, Anh Tuan Luu, Thomas Laurent, Yoshua Bengio,
+and Xavier Bresson. Benchmarking graph neural net
+works. Journal of Machine Learning Research, 2023.
+[Fey and Lenssen, 2019] Matthias Fey and Jan E. Lenssen.
+Fast graph representation learning with PyTorch Geomet
+ric. In ICLR Workshop, 2019.
+[Guo et al., 2022] Lingbing Guo, Qiang Zhang, and Huajun
+Chen. Unleashing the power of transformer for graphs.
+arXiv:2202.10581, 2022.
+[He and Wang, 2023] Xuehai He and Xin Wang. Multimodal
+graph transformer for multimodal question answering. In
+ACL, 2023.
+[Hu et al., 2020] Weihua Hu, Matthias Fey, Marinka Zitnik,
+Yuxiao Dong, Hongyu Ren, Bowen Liu, Michele Catasta,
+and Jure Leskovec. Open graph benchmark: Datasets for
+machine learning on graphs. arXiv:2005.00687, 2020.
+[Hu et al., 2023] Shengchao Hu, Li Shen, Ya Zhang, and
+Dacheng Tao. Graph decision transformer. arXiv preprint
+arXiv:2303.03747, 2023.
+[Hussain et al., 2022] Md Shamim Hussain, Mohammed J.
+Zaki, and Dharmashankar Subramanian. Global self
+attention as a replacement for graph convolution. In
+SIGKDD, 2022.
+[Kingma and Ba, 2014] Diederik P Kingma and Jimmy
+Ba. Adam: A method for stochastic optimization.
+arXiv:1412.6980, 2014.
+[Kipf and Welling, 2017] Thomas N. Kipf and Max Welling.
+Semi-supervised classification with graph convolutional
+networks. In ICLR, 2017.
+[Kreuzer et al., 2021] Devin Kreuzer, Dominique Beaini,
+William L. Hamilton, Vincent L ́etourneau, and Prudencio
+Tossou. Rethinking graph transformers with spectral at
+tention. In NeurIPS, 2021.
+[Lai et al., 2023] Xin Lai, Yang Liu, Rui Qian, Yong Lin,
+and Qiwei Ye. Deeper exploiting graph structure infor
+mation by discrete ricci curvature in a graph transformer.
+Entropy, 2023.
+[Li et al., 2016] Yujia Li, Richard Zemel, Marc
+Brockschmidt, and Daniel Tarlow. Gated graph se
+quence neural networks. In ICLR, 2016.
+[Li et al., 2023] Chaoliu Li, Lianghao Xia, Xubin Ren,
+Yaowen Ye, Yong Xu, and Chao Huang. Graph trans
+former for recommendation. In SIGIR, 2023.
+[Liu et al., 2023] Chuang Liu, Yibing Zhan, Xueqi Ma,
+Liang Ding, Dapeng Tao, Jia Wu, and Wenbin Hu. Gap
+former: Graph transformer with graph pooling for node
+classification. In IJCAI, 2023.
+[Liu et al., 2024] Chuang Liu, Yibing Zhan, Xueqi Ma,
+Liang Ding, Dapeng Tao, Jia Wu, Wenbin Hu, and Bo Du.
+Exploring sparsity in graph transformers. Neural Net
+works, 2024.
+[Min et al., 2022] Erxue Min, Runfa Chen, Yatao Bian,
+Tingyang Xu, Kangfei Zhao, Wenbing Huang, Peilin
+Zhao, Junzhou Huang, Sophia Ananiadou, and Yu Rong.
+Transformer for graphs: An overview from architecture
+perspective. arXiv:2202.08455, 2022.
+[Morris et al., 2020] Christopher Morris, Nils M Kriege,
+Franka Bause, Kristian Kersting, Petra Mutzel, and Mar
+ion Neumann. Tudataset: A collection of benchmark
+datasets for learning with graphs. arXiv:2007.08663,
+2020.
+[Park et al., 2022] Jinyoung Park, Seongjun Yun, Hyeonjin
+Park, Jaewoo Kang, Jisu Jeong, Kyung-Min Kim, Jung
+woo Ha, and Hyunwoo J Kim. Deformable graph trans
+former. arXiv:2206.14337, 2022.
+
+
+[Rampasek et al., 2022] Ladislav Rampasek, Mikhail
+Galkin, Vijay Prakash Dwivedi, Anh Tuan Luu, Guy
+Wolf, and Dominique Beaini. Recipe for a general,
+powerful, scalable graph transformer. In NeurIPS, 2022.
+[Rong et al., 2020] Yu Rong, Yatao Bian, Tingyang Xu,
+Weiyang Xie, Ying WEI, Wenbing Huang, and Junzhou
+Huang. Self-supervised graph transformer on large-scale
+molecular data. In NeurIPS, 2020.
+[Sun et al., 2023] Yutao Sun, Li Dong, Shaohan Huang,
+Shuming Ma, Yuqing Xia, Jilong Xue, Jianyong Wang,
+and Furu Wei. Retentive network: A successor to
+transformer for large language models. arXiv preprint
+arXiv:2307.08621, 2023.
+[Tang et al., 2023] Hao Tang, Zhenyu Zhang, Humphrey
+Shi, Bo Li, Ling Shao, Nicu Sebe, Radu Timofte, and Luc
+Van Gool. Graph transformer gans for graph-constrained
+house generation. In CVPR, 2023.
+[Vaswani et al., 2017] Ashish Vaswani, Noam Shazeer, Niki
+Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez,
+Ł ukasz Kaiser, and Illia Polosukhin. Attention is all you
+need. In NeurIPS, 2017.
+[Velicˇkovic ́ et al., 2018] Petar Velicˇkovic ́, Guillem Cucurull,
+Arantxa Casanova, Adriana Romero, Pietro Lio`, and
+Yoshua Bengio. Graph attention networks. In ICLR, 2018.
+[Wu et al., 2021] Zhanghao Wu, Paras Jain, Matthew
+Wright, Azalia Mirhoseini, Joseph E Gonzalez, and Ion
+Stoica. Representing long-range context for graph neural
+networks with global attention. In NeurIPS, 2021.
+[Wu et al., 2022] Qitian Wu, Wentao Zhao, Zenan Li, David
+Wipf, and Junchi Yan. Nodeformer: A scalable graph
+structure learning transformer for node classification. In
+NeurIPS, 2022.
+[Wu et al., 2023a] Qitian Wu, Chenxiao Yang, Wentao Zhao,
+Yixuan He, David Wipf, and Junchi Yan. DIFFormer:
+Scalable (graph) transformers induced by energy con
+strained diffusion. In ICLR, 2023.
+[Wu et al., 2023b] Yi Wu, Yanyang Xu, Wenhao Zhu, Guo
+jie Song, Zhouchen Lin, Liang Wang, and Shaoguo Liu.
+Kdlgt: A linear graph transformer framework via kernel
+decomposition approach. In IJCAI, 2023.
+[Xu et al., 2019a] Chengfeng Xu, Pengpeng Zhao, Yanchi
+Liu, Victor S. Sheng, Jiajie Xu, Fuzhen Zhuang, Junhua
+Fang, and Xiaofang Zhou. Graph contextualized self
+attention network for session-based recommendation. In
+IJCAI, 2019.
+[Xu et al., 2019b] Keyulu Xu, Weihua Hu, Jure Leskovec,
+and Stefanie Jegelka. How powerful are graph neural net
+works? In ICLR, 2019.
+[Yin and Zhong, 2023] Shuo Yin and Guoqiang Zhong. Lgi
+gt: Graph transformers with local and global operators in
+terleaving. In IJCAI, 2023.
+[Ying et al., 2021] Chengxuan Ying, Tianle Cai, Shengjie
+Luo, Shuxin Zheng, Guolin Ke, Di He, Yanming Shen,
+and Tie-Yan Liu. Do transformers really perform badly
+for graph representation? In NeurIPS, 2021.
+[Zhao et al., 2021] Jianan Zhao, Chaozhuo Li, Qianlong
+Wen, Yiqi Wang, Yuming Liu, Hao Sun, Xing Xie, and
+Yanfang Ye. Gophormer: Ego-graph transformer for node
+classification. arXiv:2110.13094, 2021.
+[Zhao et al., 2023] Haiteng Zhao, Shuming Ma, Dongdong
+Zhang, Zhi-Hong Deng, and Furu Wei. Are more layers
+beneficial to graph transformers? In ICLR, 2023.
+[Zhu et al., 2020] Jiong Zhu, Yujun Yan, Lingxiao Zhao,
+Mark Heimann, Leman Akoglu, and Danai Koutra. Be
+yond homophily in graph neural networks: Current limita
+tions and effective designs. In NeurIPS, 2020.
+[Zhu et al., 2021] Yiran Zhu, Xing Xu, Fumin Shen, Yanli Ji,
+Lianli Gao, and Heng Tao Shen. Posegtac: Graph trans
+former encoder-decoder with atrous convolution for 3d hu
+man pose estimation. In IJCAI, 2021.
+
+
+A Experimental Settings
+We evaluate the effectiveness of the proposed model in terms
+of mean accuracy, mean absolute error and AUROC, conduct
+ing 10 trials with random seeds for each model. For each
+baseline, we refer to the recommended settings in the offi
+cial implementations and implement Gradformer with Python
+(3.11.0), Pytorch (2.1.0), and Pytorch Geometric (2.4.0). All
+experiments are conducted on a Linux server with 8 NVIDIA
+A100s with 40GB memory.
+Dataset Splits. For TUDataset, we randomly split the
+dataset into training, validation, and test sets by a ratio of
+8:1:1. The other evaluated benchmarks already define a stan
+dard train/validation/test dataset split.
+Training Details. The Adam [Kingma and Ba, 2014] op
+timizer is used for the optimization of TUDataset without
+a learning rate scheduler. On the Benchmarking GNN and
+OGB datasets, we adopt AdamW optimizer with default set
+tings, β1 = 0.9, β2 = 0.999, ε = 10−8, along with linear
+warmup increase of learning rate at the beginning of training
+and cosine decay during training. Finally, we report the test
+metric (i.e., MAE, Accuracy, and AUROC) achieved by the
+epoch that gives the highest metric on the validation dataset.
+Hyperparameters. In our experimental setup for Grad
+former, certain hyperparameters have been standardized to
+streamline the tuning process. Specifically, we have set the
+attention dropout rate at 0.5, and the weight decay is fixed at
+1e−5. For other hyperparameters across various datasets, we
+have aligned our settings with those used in GraphGPS [Ram
+pasek et al., 2022] to maintain consistency and comparability.
+In the deep layer performance experiment, as detailed in Ta
+ble 2 of the main text, the only variable we alter is the number
+of layers in Gradformer. This approach allows us to isolate
+the impact of layer depth on model performance. Addition
+ally, we introduce a range of values for the hyperparameter λ,
+which is a key component in our model. The values for λ that
+we explore are within the set {0.3, 0.4, 0.5, 0.6, 0.7}. For a
+comprehensive understanding of our experimental setup, de
+tailed hyperparameters are systematically listed in Table 5. In
+this table, the term ‘Layers’ refers to the number of layers
+in Gradformer. ‘PE’ denotes Positional Encoding, ‘RWSE’
+stands for Random-walk Structure Encoding, and ‘Lap’ sig
+nifies Laplacian Eigenvectors Encodings. The notation ‘-20’
+alongside these encodings indicates that the size of the posi
+tional embedding is set to 20.
+B Datasets and Baselines B.1 Introduction of Datasets
+We use a total of nine datasets, including five from TU
+Dataset [Morris et al., 2020], three from Benchmarking
+GNN [Dwivedi et al., 2023], and one from Open Graph
+Benchmark (OGB) [Hu et al., 2020], which vary in content
+domains, sizes, and tasks. All the adopted graph datasets can
+be downloaded from PyTorch Geometric (PyG). The dataset
+statistics are summarized in Table 6. A brief introduction to
+these datasets is provided below.
+NCI1 consists of 4,110 molecule graphs from TUDataset,
+which represent two balanced subsets of datasets for chem
+ical compounds screened for activity against non-small cell
+lung cancer and ovarian cancer cell lines, respectively.
+PROTEINS consists of 1,113 protein graphs from TU
+Dataset, where each graph corresponds to a protein molecule,
+nodes represent amino acids, and edges capture the interac
+tions between amino acids.
+MUTAG consists of 188 chemical compounds from TU
+Dataset, divided into two classes according to their mutagenic
+effect on a bacterium.
+IMDB-BINARY consists 1,000 movie graphs from TU
+Dataset, classifying movies into two categories based on cer
+tain criteria. Each graph represents a movie, with nodes as
+actors and edges indicating their collaborations.
+COLLAB consists 5,000 graphs representing collaboration
+networks from TUDataset. Nodes represent authors, and
+edges denote collaborations between them. The task involves
+classifying graphs into three classes based on specific criteria.
+ZINC consists of 12,000 chemical compounds represented
+as graphs. The task associated with this dataset is regression,
+constraining solubility of the molecule.
+CLUSTER consists of 12,000 graphs. This dataset is widely
+employed to model communities in social networks by cap
+turing intra- and extra-community relationships. It is gener
+ated with the Stochastic Block Model (SBM).
+PATTERN consists of 14,000 graphs and aims to identify
+nodes within a graph associated with one of 100 distinct sub
+graph patterns. These patterns are randomly generated using
+SBM parameters different from the remainder of the graph.
+Different from other tasks, PATTERN and CLUSTER are
+node classification tasks.
+Ogbg-molhiv consists of 41,127 graphs, which are molecular
+property prediction datasets adopted by OGB from Molecu
+leNet. The prediction task involves 2-class classification of a
+molecule’s fitness to inhibit HIV replication.
+B.2 Introduction of Baselines
+To demonstrate the effectiveness of our proposed method, we
+compare Gradformer against 14 baselines. These baselines
+consist of four general Graph Convolutional Network (GCN)
+based models and 10 Transformer-based models designed for
+graph-related tasks. We use the original paper implementa
+tions for all baseline models. If the original paper does not
+provide specific dataset settings, we maintain consistent pa
+rameter configurations with Gradformer. The links to the
+code implementations are included in Table 7; if unavailable,
+we utilize the implementations from PyTorch Geometric.
+
+
+NCI1 PROTEINS MUTAG COLLAB IMDB-B CLUSTER PATTERN MOLHIV ZINC
+Layers 4 4 4 4 4 48 48 10 10 Hidden dim 64 64 64 64 64 48 64 64 64 Batch size 128 128 128 128 128 16 32 32 32 Dropout 0 0 0 0 0 0.1 0 0.05 0 Heads 4 4 4 4 4 8 4 4 4 PE RWSE-20 RWSE-20 RWSE-20 RWSE-20 RWSE-20 Lap-10 None RWSE-16 RWSE-20 λ [0.6, 0.7] [0.5, 0.6] 0.7 0.7 0.7 0.3 0.3 0.7 0.6
+Table 5: Main experiment hyperparameters in the main text.
+Source Dataset # Graphs # Nodes # Edges Predict level Predict task Metric
+TUDataset
+[Morris et al., 2020]
+NCI1 4,110 29.8 32.3 graph 2-class classif. Accuracy PROTEINS 1,113 39.1 72.8 graph 2-class classif. Accuracy MUTAG 188 17.9 19.7 graph 2-class classif. Accuracy COLLAB 5,000 74.5 2,457.7 graph 3-class classif. Accuracy IMDB-B 1,000 19.8 96.5 graph 2-class classif. Accuracy
+Bench. GNN
+[Dwivedi et al., 2023]
+ZINC 12,000 23.2 24.9 graph regression MAE PATTERN 14,000 118.9 3,039.3 inductive node 2-class classif. Accuracy CLUSTER 12,000 117.2 2,150.9 inductive node 6-class classif. Accuracy
+OGB [Hu et al., 2020] ogbg-molhiv 41,127 25.5 27.5 graph 2-class classif. AUROC
+Table 6: Overview of the datasets mentioned in the main text.
+Models Code Links
+GCN-based methods
+GCN [2017] https://github.com/tkipf/gcn GAT [2018] https://github.com/PetarV-/GAT GIN [2019b] https://github.com/weihua916/powerful-gnns GatedGCN [2016] https://github.com/pyg-team/pytorch geometric
+Graph Transformer-based methods
+GT [2021] https://github.com/graphdeeplearning/graphtransformer SAN [2021] https://github.com/DevinKreuzer/SAN Graphormer [2021] https://github.com/Microsoft/Graphormer GraphTrans [2021] https://github.com/ucbrise/graphtrans SAT [2022] https://github.com/BorgwardtLab/SAT/tree/main EGT [2022] https://github.com/shamim-hussain/egt pytorch GraphGPS [2022] https://github.com/rampasek/GraphGPS/tree/main LGI-GT [2023] https://github.com/shuoyinn/LGI-GT KDL-GT [2023b] DeepGraph [2023] https://github.com/zhao-ht/DeepGraph/tree/master
+Table 7: Baselines and their URLs.
+5.2.1 GCN-based Methods
+GCN [Kipf and Welling, 2017]. Each node aggregates infor
+mation from its neighboring nodes, facilitating the network in
+capturing the relational dependencies within the graph. This
+mechanism allows for learning complex patterns and repre
+sentations for each node in the graph.
+GAT [Velicˇkovic ́ et al., 2018]. It operates on graph
+structured data and utilizes self-attention layers of masks.
+Such a utilization is computationally efficient in these net
+works, enabling the assignment of varying importance to dif
+ferent nodes when processing regions of different sizes.
+GIN [Xu et al., 2019b]. GIN is a streamlined yet potent net
+work architecture that shows comparable graph structure dis
+crimination to the Weisfeiler-Lehman test and exhibits robust
+representation capabilities.
+GatedGCN [Li et al., 2016]. It incorporates gating mecha
+nisms to enhance the learning process within the graph struc
+ture by selectively filtering and weighting the information
+propagated through the edges of the graph.
+5.2.2 Graph Transformer-based Methods
+GT [Dwivedi and Bresson, 2021]. GT is the pioneering work
+that generalizes transformer networks to arbitrary graphs and
+introduces the corresponding architecture.
+SAN [Kreuzer et al., 2021]. SAN combines node features
+
+
+with learned position encodings (from Laplacian eigenval
+ues and eigenvectors), then uses them as attention keys and
+queries respectively, and employs edge features as attention
+Force values.
+Graphormer [Ying et al., 2021]. The Graphormer model
+introduces three structural encodings to enable the Trans
+former model to capture the structural information of the
+graph. These encodings allow the self-attention layer of the
+Graphormer model to successfully capture more important
+nodes or node pairs,leading to more accurate attention weight
+allocation.
+GraphTrans [Wu et al., 2021]. GraphTrans designed a novel
+GNNs readout module that uses a special token to aggregate
+all pairs interactions into a classification vector. It has been
+proven that modeling pairs node-node interaction is particu
+larly important for large graph classification tasks.
+SAT [Chen et al., 2022]. SAT proposes Structure-Aware
+Transformer, a simple and flexible graph Transformer based
+on a novel self-attention mechanism. This mechanism inte
+grates structural information into the original self-attention
+by extracting a subgraph representation rooted at each node
+before computing attention.
+EGT [Hussain et al., 2022]. EGT exclusively use global self
+attention as an aggregation mechanism rather than static lo
+calized convolutional aggregation.
+GraphGPS [Rampasek et al., 2022]. GraphGPS allows
+for combining message passing networks with linear (long
+range) transformer models to create a hybrid network.
+LGI-GT [Yin and Zhong, 2023]. LGI-GT introduces a novel
+method for global information representation by propagating
+[CLS] token embeddings. It also incorporates an effective
+message passing module called edge-enhanced local atten
+tion, making LGI-GT a fully attentive Graph Transformer.
+KDL-GT [Wu et al., 2023b]. KDLGT utilizes kernel decom
+position methods to rearrange the order of matrix multiplica
+tions, thereby reducing the complexity to linear levels.
+DeepGraph [Zhao et al., 2023]. DeepGraph is a novel graph
+transformer model that explicitly incorporates substructure
+tokens in the encoded representation. It applies local attention
+to related nodes, yielding substructure-based attention encod
+ing.
+C Evaluation on Other Task
+Given Gradformer’s exemplary performance in graph classi
+fication task, we are motivated to extend our evaluation to
+node classification task. This shift in focus aims to specifi
+cally assess Gradformer’s capability to leverage local infor
+mation within a graph, a crucial aspect of node classification.
+Traditional GTs typically treat all nodes in a graph uniformly,
+primarily relying on positional encoding to capture and pre
+serve the graph’s structural information. This approach, while
+effective in certain contexts, may not adequately emphasize
+the nuances of local graph structures. In contrast, the decay
+mask mechanism integrated into Gradformer offers signifi
+cant advancements.
+C.1 Introduction of Datasets
+We use three graph datasets, including two homophilic
+datasets (i.e., Cora and Citeseer) and one heterophilic dataset
+(i.e., Actor). All mentioned datasets are available from Py
+Torch Geometric (PyG) [Fey and Lenssen, 2019]. The de
+tailed statistics for the node classification datasets are shown
+in Table 8.
+Dataset # Nodes # Edges Classes Hom. ratio Metric
+Cora 2,708 5,429 7 0.81 Accuracy Citeseer 3,327 4,732 6 0.74 Accuracy Actor 7,600 30,019 5 0.22 Accuracy
+Table 8: Overview of the node classification datasets.
+Definition of Homophily and Heterophily. The edge ho
+mophily ratio (γ) introduced in H2GCN [Zhu et al., 2020]
+quantifies the level of graph homophily. The edge homophily
+ratio is defined as follows:
+γ = |{(u, v) : (u, v) ∈ ε ∧ yu = yv}|
+|ε| , (8)
+where u and v represent the nodes in the graph, yu and yv re
+fer to the node labels, and ε represents the set of the edges in
+the graph. The edge homophily ratio, γ → 0, indicates strong
+heterophily in the graph; γ → 1 suggests strong homophily.
+Homogeneous Graph. In the Cora dataset, nodes represent
+academic documents with citation relationships serving as
+connections between nodes. In the Citeseer dataset, nodes
+represent computer science papers, and edges indicate cita
+tion relationships. Each paper node is labeled with a prede
+fined category, reflecting various topics in computer science.
+Heterogeneous Graph. In the Actor dataset, nodes are
+linked to information regarding their participation in diverse
+movies or TV shows, and the edges represent connections be
+tween actors.
+C.2 Implementation Details.
+We evaluate the effectiveness of the proposed strategy in
+terms of node classification accuracy and conduct 10 tri
+als with random seeds for each model. All methods share
+the same training, validation, and test splits, and the av
+erage and standard derivation are reported as the perfor
+mance. The hyperparameter learning rate is set to 0.0001,
+with both the training batch size and evaluation batch size
+set to 128. Training epoch is set to 200. λ is searched
+within {0.4, 0.5, 0.6, 0.7, 0.8}, and the layer of Gradformer
+is searched within {1, 2, 3, 4}. Subsequently, we select
+GraphGPS [Rampasek et al., 2022] as the baseline to eval
+uate the effectiveness of Gradformer. Finally, we report the
+test accuracy achieved at the epoch with the highest accuracy
+on the validation dataset.
+
+
+C.3 Experimental Results.
+Table 9 provides a comprehensive summary of the node clas
+sification results. Based on these results, we can draw the
+following conclusions: 1) Superiority of Gradformer Over
+Baselines: Gradformer demonstrates a consistent improve
+ment in performance over the baseline models across three
+different datasets: Cora, Citeseer, and Actor. Specifically,
+the accuracy enhancements observed on these datasets are
+0.12%, 0.52%, and 1.06%, respectively. This consistent out
+performance across diverse datasets highlights the effective
+ness of the Gradformer model in node classification tasks. 2)
+Enhanced Performance on Heterogeneous Graphs: A no
+table observation from the results is that Gradformer exhibits
+particularly impressive performance on the Actor dataset,
+which is a heterogeneous graph. The significantly better re
+sults on this dataset, compared to Cora and Citeseer, suggest
+that Gradformer is particularly well-suited for handling het
+erogeneous graphs.
+Cora Citeseer Actor
+GraphGPS 81.57±1.54 71.10±2.88 32.57±0.76
+Ours 81.69±1.21 71.62±2.80 33.63±0.75
+Table 9: Result of the node classification.
+D The Pseudocode of Decay Mask
+The most crucial aspect of implementing Gradformer is the
+addition of the decay mask to the attention scores. This
+process involves simply multiplying the computed attention
+scores with the preprocessed decay mask. The pseudocode
+for adding the decay mask is presented in Figure 8, highlight
+ing the method’s straightforwardness and simplicity and thus
+underscoring its implementation efficiency.
+def DecayAttention ( q , # bsz * num_head * n_nodes * qk_dim
+k , # bsz * num_head * n_nodes * qk_dim
+v , # bsz * num_head * n_nodes * v_dim
+decay_mask # num_head * n_nodes * n_nodes
+): attention = q @ k . transpose ( −1 , −2) attention_m = attention * decay_mask
+output = softmax ( attention_m ) @ v return output
+5 Datasets and Baselines 5.1 Introduction of Datasets
+We use a total of nine datasets, including five graph datasets
+form TUDatasets, three datasets from Benchmarking GNN
+and one dataset from Open Graph Benchmark (OGB), which
+vary in content domains , dataset sizes and task. All the
+adopted graph datasets, can be downloaded from PyTorch
+Geometric (PyG). The dataset statistics are summarized in
+Table 3. A brief introduction to these datasets is provided
+below.
+NCI1 consists of 4,110 molecule graphs from TUDataset,
+which represent two balanced subsets of datasets of chem
+ical compounds screened for activity against non-small cell
+lung cancer and ovarian cancer cell lines respectively.
+tify nodes within a graph associated with one of 100 distinct
+sub-graph patterns. These patterns are randomly generated
+using SBM parameters different from the remainder of the
+graph. Different from other task, PATTERN and CLUSTER
+is node classification task.
+ogbg-molhiv consists of 41,127 graphs, which are molec
+ular property prediction datasets adopted by OGB from
+MoleculeNet. The prediction task is 2-class classification of
+molecule’s fitness to inhibit HIV replication.
+5.2 Introduction of Baselines
+To showcase the effectiveness of our proposed method, we
+compare Gradformer against 14 baselines. These baselines
+consist of four general Graph Convolutional Network (GCN)
+based models and 10 Transformer-based models designed for
+graph-related tasks. We refer to the original paper imple
+mentations for all baseline models. If the original paper does
+not provide specific dataset settings, we maintain consistent
+parameter configurations with Gradformer. The links to the
+code implementations are included in Table 4, if unavailable,
+we utilize the implementations provided by PyTorch Geomet
+ric.
+5.2.1 GCN-based Methods
+GCN [Kipf and Welling, 2017]. Each node aggregates in
+formation from its neighboring nodes, allowing the network
+to capture the relational dependencies within the graph. This
+enables learning of complex patterns and representations for
+each node in the graph.
+Figure 8: The Pseudocode of decay mask in Gradformer.

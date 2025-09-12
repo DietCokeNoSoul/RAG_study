@@ -1,0 +1,599 @@
+Graph Neural Network with Two Uplift Estimators for Label-Scarcity Individual Uplift Modeling
+Dingyuan Zhu1∗, Daixin Wang1∗, Zhiqiang Zhang1, Kun Kuang2, Yan Zhang1, Yulin Kang1, Jun Zhou1# 1Ant Group, China 2Zhejiang University, China {dingyuan.zdy,daixin.wdx,lingyao.zzq,zy118409,yulin.kyl,jun.zhoujun}@antgroup.com,kunkuang@zju.edu.cn
+ABSTRACT
+Uplift modeling aims to measure the incremental effect, which we call uplift, of a strategy or action on the users from randomized experiments or observational data. Most existing uplift methods only use individual data, which are usually not informative enough to capture the unobserved and complex hidden factors regarding the uplift. Furthermore, uplift modeling scenario usually has scarce labeled data, especially for the treatment group, which also poses a great challenge for model training. Considering that the neighbors’ features and the social relationships are very informative to characterize a user’s uplift, we propose a graph neural network-based framework with two uplift estimators, called GNUM, to learn from the social graph for uplift estimation. Specifically, we design the first estimator based on a class-transformed target. The estimator is general for all types of outcomes, and is able to comprehensively model the treatment and control group data together to approach the uplift. When the outcome is discrete, we further design the other uplift estimator based on our defined partial labels, which is able to utilize more labeled data from both the treatment and control groups, to further alleviate the label scarcity problem. Comprehensive experiments on a public dataset and two industrial datasets show a superior performance of our proposed framework over state-of-the-art methods under various evaluation metrics. The proposed algorithms have been deployed online to serve real-world uplift estimation scenarios.
+CCS CONCEPTS
+• Mathematics of computing → Graph algorithms.
+KEYWORDS
+uplift modeling, graph neural networks, partial label
+ACM Reference Format:
+Dingyuan Zhu1∗, Daixin Wang1∗, Zhiqiang Zhang1, Kun Kuang2,, Yan Zhang1, Yulin Kang1, Jun Zhou1#. 2023. Graph Neural Network with Two
+* Equal contribution. # Corresponding author.
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for components of this work owned by others than the author(s) must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specific permission and/or a fee. Request permissions from permissions@acm.org. WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+© 2023 Copyright held by the owner/author(s). Publication rights licensed to ACM. ACM ISBN 978-1-4503-9416-1/23/04. . . $15.00 https://doi.org/10.1145/3543507.3583368
+Uplift Estimators for Label-Scarcity Individual Uplift Modeling. In Proceedings of the ACM Web Conference 2023 (WWW ’23), April 30-May 4, 2023, Austin, TX, USA. ACM, New York, NY, USA, 12 pages. https: //doi.org/10.1145/3543507.3583368
+1 INTRODUCTION
+Uplift modeling refers to the set of techniques used to estimate the effect of an action on a user’s outcome. This technology can be applied to various fields, such as economics[1, 2], medicine[3, 4] and sociology[5, 6]. For example, an e-commerce company is preparing to send promotional coupons (i.e., action or treatment) to some users to attract them to purchase more products (i.e., outcome). Then estimating the individual uplift can help to find target users. Uplift modeling is a complicated problem because one needs to estimate the difference between two outcomes with and without the treatment which are mutually exclusive to individuals. For example, we can only observe the outcome of a user getting or not getting a promotional coupon. The outcome we can observe is called the factual outcome and the outcome we can not observe is called the counterfactual outcome. Therefore, uplift modeling also can be seen as a counterfactual inference problem[7, 8]. To model the counterfactual outcome, existing uplift methods mainly rely on randomized experiments or observational data: users will be assigned to either the treatment group or the control group and we can observe only one type of outcome. Based on these data, most existing methods [7, 9, 10] utilize user’s individual features to estimate the user uplift [11, 12]. An accurate uplift modeling is required to capture the complex and the unobserved hidden factors (representations) within the user. However, many factors regarding the user’s uplift are difficult to be captured by only using individual data for two reasons. Firstly, in real-world scenarios, the individual features of users, especially the new users, are missing. Secondly, some informative information for uplift estimation is hidden and difficult to be characterized by individual features, like social status and personality. To resolve the aforementioned problems, we hope to introduce the social graph. On the one hand, considering that users with close social relations usually have similar behaviors and preferences, we can utilize the information from social neighbors as a supplement to the user’s own features. On the other hand, social graphs can reveal some informative social information like social status, which is also beneficial for uplift modeling [13]. From the experiments, we also demonstrate that the uplift difference between users with friend relationships is much smaller than the difference between random users. Therefore, it is very essential to incorporate social graphs when doing uplift estimation.
+arXiv:2403.06489v1 [cs.LG] 11 Mar 2024
+
+
+WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+Dingyuan Zhu1∗, Daixin Wang1∗, Zhiqiang Zhang1, Kun Kuang2, Yan Zhang1, Yulin Kang1, Jun Zhou1#
+A few of the existing works propose graph-based uplift models for uplift estimation [6, 13, 14]: They first use graph neural network (GNN) model to learn the graph-based representations from the social graphs. Then with the graph-based representations, these works design uplift estimators, which consist of two separate pathways of models to predict the outcome with and without the treatment using the data of the treatment group and control group respectively. Although these works have achieved substantial improvements, they still have limitations. In real-world scenarios, since the effect of the treatment is unpredictable, imposing the treatment on samples may bring a bad effect like capital loss and user loss. In this way, it is common that only a little flow will be assigned to the treatment group. In this way, the number of labeled instances, particularly the instances from the treatment group, is commonly limited, especially in the scenario of randomized experiments we mainly focus on. Moreover, to model the relational data, graph-based models require learning more parameters. From Figure 4.3.3, compared with tree-based and NN-based models, the performance of existing graph-based models will drop more quickly when the labeled data is scarce, thereby labeled data scarcity is a more severe and unresolved problem for graph-based representation learning in uplift estimation. To address aforementioned problems, we propose a general GNNbased framework with two uplift estimators for uplift modeling. First of all, a GNN-based model with breadth and depth aggregators is proposed to generate the graph-based representations for the following uplift estimation. And empirically we demonstrate the proposed uplift estimation framework is general for many existing GNN-based models. Furthermore, to address the label scarcity problem, we propose two uplift estimators to utilize the treatment and control group data and their corresponding social relations. Firstly, we design a class-transformed target, which we prove is equal to the uplift and is general for uplift scenarios. Unlike two separate pathways of estimators, our transformed target is able to utilize the training instances with and without the treatment simultaneously in a common model to approach the uplift. Furthermore, when the outcome is discrete, we design partial labels based on the user’s treatment and the observed outcome. Then we design the other uplift estimator with two classifiers to learn partial labels. The two classifiers can focus on different facets of the uplift but all require two groups of data for training. In this way, our model can capture the relations between two groups of data and utilize the labeled data more effectively. Experimental results show our proposed framework can outperform the best-performing baseline method by an improvement of 5% to 10% in the regression setting and 12% to 25% in the classification setting. The main contributions of the paper are summarized here:
+• Problem: We point out the label scarcity problem is severe for uplift modeling, especially when trained with the graphbased model. To the best of our knowledge, it is the first work trying to solve the label scarcity problem in uplift estimation. • Methodology: We introduce a novel GNN-based framework with two uplift estimators for uplift modeling, which can utilize the two groups of data and the social graph comprehensively. Specifically, when the outcome is discrete, we are the first to introduce partial label learning to uplift estimation, which is able to utilize the labeled data more effectively to alleviate the labeled data scarcity problem.
+• Results: Extensive experiments on a public dataset and two industrial datasets demonstrate the superiority of proposed GNN-based uplift model(GNUM) on different types of outcomes. Specifically, we find labeled data scarcity is indeed a serious problem for previous graph-based uplift methods and our methods are robust to the label scarcity problem.
+2 RELATED WORK
+2.1 Uplift modeling
+Existing uplift methods can be classified into three categories [7], i.e. the Two-Model methods [15, 16], the Class-Transformation methods [4] and the methods that model uplift directly [10, 17, 18]. The Two-Model methods construct two independent models for the two groups of data. One model infers the label using the data from the treatment group and the other model is for the control group data. However, [17] points out that the Two-Model methods may miss the uplift signal. Then The Class Transformation methods are introduced by [4, 19], which aim to create a new target to approach the uplift. Then a single model is proposed to learn the new target. But Class Transformation methods usually require a balanced dataset between the control and treatment groups. The last type of uplift method aims to directly infer the uplift. The work [20] proposes a method based on a modification of the SVM model and the work [21] focuses on k-nearest neighbors to do the uplift estimation. The aforementioned works assume that the data of the control group and treatment group are randomly collected. If the collecting data is naturally observed, besides uplift estimation, uplift modeling also needs to reduce the bias of the data from the treatment group and control group. The most popular methods of this type are the doubly robust learning methods [22–25]. They usually adopt the Inverse Propensity Scoring (IPS) [26, 27] to re-weight each instance, aiming at making the uplift estimator unbiased. And some methods[28, 29] which estimate individual treatment effect can be used to estimate the uplift. However, aforementioned uplift methods assume that the uplift can be fully estimated by the individual features. As we have stated before, the social relationships between users are important for uplift estimation. Then Guo et. al.[6, 14, 30] first introduce the networked observational data to the problem of causal effects estimation. NetEst[31] formalize the networked causal effects estimation to a multi-task learning problem and HyperSCI[32] learning causal effects on hypergraphs. These methods prove that networked data is important for predicting causal effects. Although incorporating the graph data will violate the Stable Unit Treatment Value Assumption(SUTVA), following works [33] have pointed out that SUTVA is not plausible in real-world scenarios. We will follow these works [6, 14] to incorporate the graph data but are distinct from them by addressing the label scarcity problem for graph-based uplift estimation.
+2.2 Partial Label Learning
+Partial label learning deals with the problem that each sample is associated with a set of candidate labels, among which only one label is the ground-truth label to be predicted. Existing partial label
+
+
+Graph Neural Network with Two Uplift Estimators for Label-Scarcity Individual Uplift Modeling WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+learning methods can be classified into two categories: the averagedbased strategy and the identification-based strategy. The averagedbased strategy assumes that each candidate label contributes equally to the model training [34, 35], which may suffer from the problem that the real label is overwhelmed by other labels. To overcome this drawback, the identification-based methods give different confidence to different candidate labels by learning the topological information [36, 37]. Existing partial-label learning is often applied to automatic face naming, object detection, and web mining. As far as we know, this is the first work to apply partial label learning to uplift modeling. Other typical types of weakly-supervised learning include incomplete label learning[38] and inaccurate label learning[39]. They are not closely related to our problem, which will not be discussed here.
+2.3 Graph Neural Network
+Graph neural networks (GNNs), aiming to generalize neural networks to deal with graph data, have drawn increasing research interest recently [40, 41] and show effectiveness in various tasks [42–44]. Generally, current GNNs can be divided into two categories: spectralbased methods and spatial-based methods. Spectral-based GNNs are originated from signal processing and are commonly based on the Laplacian Matrix [45–47]. Spatial-based GNNs regard the graph convolution as the ’message-passing’ framework in the spatial domain, i.e. defining the graph convolution as nodes aggregating information from neighborhoods [48, 49]. And [50–52] have explored the causal inference problems with GNN-based models. More GNN-based models can be referred in recent surveys [41, 53]. However, only a few works focus on uplift estimation using GNNs and they do not address some specific and important problems when using GNNs on uplift estimation.
+3 MODEL FORMULATION
+3.1 Notations and Preliminaries
+Firstly, we describe the notations used in this paper. We denote a scalar with a letter (e.g., t), a vector with a boldface lowercase letter (e.g., x), and a matrix with a boldface uppercase letter (e.g., A). In our uplift estimation problem, we assume there are N users in total. The data of each user i can be represented as {xi, ti, yi }, where x
+i ∈ Rd represents the individual feature vector, ti ∈ {0, 1} denotes the observed treatment and yi denotes the observed outcome. Note that yi (1) denotes the outcome of user i when he receives the active treatment, and yi (0) denotes its outcome with the control treatment. In this paper, we focus on the scenario of a randomized experiment, which means that each user is randomly given the treatment or not. Then, the actual uplift of user i is defined as:
+τi = yi (1) − yi (0), (1)
+and our target in this paper is to estimate the uplift of each user. However, for a specific user i, we can only observe yi (1) or yi (0). The one we can observe is called the factual outcome. And the other one we cannot observe is called the counterfactual outcome. It is not difficult to find that the key and the challenging issue of uplift modeling is to do the counterfactual prediction. As we have stated before, the user’s social relationships and his/her social neighbors’ features contribute a lot to uplift estimation. Therefore, we introduce the social graph in our work.
+We define the social graph as G = (V, E) 1, where V = {v1, ..., vN } denotes the set of nodes, N = |V | is the number of nodes, and E ⊆ V × V is the set of edges between nodes. Here the node denotes a user and the edge denotes two users’ social relationships. Let X
+be a matrix of node attributes. We define H(l ) =
+h
+h(l )
+1 , h(l )
+2 , ..., h(l )
+N
+i
+as the hidden representations of nodes in the lth layer of the graph neural networks where h(l )
+i is the representation of node vi . And we use L as the number of layers for the GNN model. For convenience, we also denote X as H(0) .
+3.2 GNUM
+To incorporate the social relations and the neighbors’ attributes, we propose a novel GNN-based uplift model (GNUM). Figure 1 shows the overall framework of the proposed GNUM, which consists of two components, i.e. graph-based representation learning and uplift estimation. Specifically, we propose two GNN-based uplift estimators in this paper working for different scenarios to address the labeled data scarcity problem for uplift estimation scenarios.
+3.2.1 Graph-based Representation Learning. This component aims to learn the graph-based node (user) representations by extracting the key information from the social relations and neighbors’ attributes. Basically, most GNNs can be represented by:
+ ̃h (l +1 )
+i = AGGR (  ̃h(l )
+i
+,  ̃h(l )
+N
+i
+), (2)
+where Ni represents the neighbors of user i and AGGR represents the aggregation function of the target user’s embedding and his neighbors’ embeddings. Experimentally, we demonstrate our proposed uplift estimation framework works well with different aggregators like GCN and GAT. Inspired by [54], we propose more comprehensive graph-based aggregators in GNUM, which consist of a breadth aggregator to learn information from social neighbors of the current layer and a depth aggregator to ensemble information from different layers. The l-th graph convolution layer of GNUM is defined as:
+ ̃h (l +1 )
+i = tanh ©
+«
+∑︁
+j ∈ne (i )∪{i }
+α (h(l )
+i
+, h(l )
+j )h(l )
+j W(l ) a
+®
+¬
+. (3)
+where α (h(l )
+i
+, h(l )
+j ) is the attention function of the breadth aggregator to measure the importance of user i and user j for uplift modeling, defined as:
+α (h(l )
+i
+, h(l )
+j ) = so f tmax (v(l )tanh(Ws h(l )
+i + Wd h(l )
+j )), (4)
+where Ws
+(l ) represents the weight for the source node, Wd
+(l ) represents the weight for the target node and v(l ) denotes a vector to map the representations to a value. Given a user ui , the breadth aggregator in each layer will adaptively gather the information from his neighbors and his own representations of the previous layer. Then we further stack multiple convolution layers and utilize a memory-based depth aggregator to aggregate the user embedding, defined as:
+1For simplicity, we assume the social graph is a directed unweight graph
+
+
+WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+Dingyuan Zhu1∗, Daixin Wang1∗, Zhiqiang Zhang1, Kun Kuang2, Yan Zhang1, Yulin Kang1, Jun Zhou1#
+Figure 1: Framework of GNUM
+ii = σ W (l )⊤
+i
+ ̃h (l +1 )
+i
+, fi = σ W (l )⊤
+f
+ ̃h (l +1 )
+i
+oi = σ W (l )⊤
+o  ̃h(l+1)
+i
+, C ̃ = tanh W (l )⊤
+c  ̃h(l+1)
+i
+C (l+1)
+i = fi ⊙ C (l )
+i + ii ⊙ C ̃, h(l+1)
+i = oi ⊙ tanh C (l+1)
+i
+.
+In this way, our proposed method can extract both local and global structural information from the social graph to obtain the graphbased representations for each user, which facilitates the learning of the following uplift estimators.
+3.2.2 Transformed Target-based Uplift Estimator. With the graph-based hidden representations, an intuitive way is to build two pathways of models to project the node representations into the label space, aiming to approach the outcome with and without treatment using the treatment group data and control group data respectively [6, 14]. The process can be formulated as yˆi (t) = f (t ) (h(L)
+i ), t ∈
+{0, 1}, where f (t ) (·) is one pathway of the model for treatment or control group data and yˆi (t) represents the prediction of the user’s outcome with the treatment or not. Note that yˆi (t) can be continuous as the regression task or discrete as the multi-classification task. By optimizing the regression loss or classification loss, the uplift of user i can be estimated as τˆi = yˆi (1) − yˆi (0). However, any one pathway of their model can only utilize one group of data to learn, which will suffer from the labeled data scarcity problem. Furthermore, as previous works of literature state [7], Two-Model methods cannot well capture the relationship between data of the treatment group and the control group, which limits their performance on uplift modeling. To address the problem, we propose a class-transformed target and prove that by using the transformed target as the learning objective for both treatment and control group data, the model is equal to do uplift estimation. We first define the observed outcome of user i as:
+yobs
+i = tiyi (1) + (1 − ti )yi (0). (5)
+Then the class-transformed target can be defined as follows:
+zi = yobs
+i · ti − p
+p (1 − p) , (6)
+where p = E(ti |xi, G) = E(ti ) = p (ti = 1) is defined as the probability that user i receives the treatment. Since we focus on the randomized experiment, it is a constant. We have the following important proposition:
+PROPOSITION 1. The uplift of user i can be estimated in the following form: τˆi = E(zi |xi, G).
+Inspired by [19], the proof of the proposition can be found in the Appendix A.1. Based on the proposition, we can project the node representations H(L) to form the transformed target. The loss for the GNUM with class-transformed target (GNUM-CT) is:
+L
+CT =
+∑︁
+i ∈V
+(zi − zˆi )2 + λLreg, (7)
+where zi has been given in Eq. (6), zˆi = σ (WCT h(L)
+i + bCT ) is the prediction of the target, WCT and bCT are learnable parameters. Lreg is defined as the L2 regularized loss on all parameters of the proposed model and λ is set to 0.0005 in this paper. In summary, both the treatment group and control group data are utilized to learn and optimize the proposed transformed uplift estimator, which can well alleviate the label scarcity problem and capture the inherent relationship between the two groups of data. Moreover, we do not make any assumption regarding the proposed uplift estimator with the class-transformed target. It can work well for any types of outcome, i.e. continuous and discrete outcome. Additionally, the newly proposed target is also general to balanced and imbalanced data of two groups. If the two groups of data are biased, we can also replace the p in Eq. (6) with the sample’s propensity score. Therefore, it is a very general uplift estimator which can comprehensively utilize the two groups of data for modeling individual uplift values.
+3.2.3 Partial-Label-based Uplift Estimator. When the outcome is discrete, i.e. a multi-classification outcome prediction problem, we propose a partial-label-based uplift estimator to further utilize more labeled data for uplift estimation. For simplicity, we will assume that the outcome is binary and introduce our solution. It can be
+
+
+Graph Neural Network with Two Uplift Estimators for Label-Scarcity Individual Uplift Modeling WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+generalized to a multi-classification problem by transforming the problem into multiple binary scenarios. In detail, we divide the whole users into three groups:
+• Group A: The group of users who give positive outcomes regardless of whether they receive the treatment. • Group B: The group of users who give positive outcomes only when they receive the treatment. • Group C: The group of users who do not give positive outcomes regardless of whether they receive the treatment.
+Without loss of generality, in this paper, we consider the cases where the treatment has a positive impact on the user’s outcome (e.g., promotional coupon). Thus the situation where a user gives a negative outcome with the treatment but gives a positive outcome without the treatment does not exist. Next, we generate a 3-bits coding as the partial label for each user. Each bit of code corresponds to whether the user belongs to the above-mentioned group. According to the treatment and observed outcome, the partial label of Si = [sA
+i ,sB
+i , sC
+i ] for user i is defined as:
+Si =
+
+
+
+[1, 0, 0] i f ti = 0 and yobs
+i =1
+[0, 1, 1] i f ti = 0 and yobs
+i =0
+[1, 1, 0] i f ti = 1 and yobs
+i =1
+[0, 0, 1] i f ti = 1 and yobs
+i = 0.
+(8)
+Taking a user belonging to ti = 1, yobs
+i = 1 as an example: if we give the treatment to the user i, we can observe his positive outcome. Then based on our aforementioned definition, the user may belong to Group A or Group B. Therefore, based on our definition, the partial label is [1, 1, 0] for user i. We build two binary classifiers to help estimate the uplift. The first classifier gives the probability that the user belongs to group A, i.e. P (Si = [1, 0, 0] |xi ). Then the instances whose partial labels are Si = [1, 0, 0] are regarded as positive samples, and the instances with the partial label Si ∈ {[0, 1, 1], [0, 0, 1]} are negative samples for the first classifier. The second classifier gives the probability that the user belongs to group C, i.e. P (Si = [0, 0, 1] |xi ). Thus the instances with the partial label Si = [0, 0, 1] are positive samples, and the instances with Si ∈ {[1, 1, 0], [1, 0, 0]} are negative samples. Then we project the node representations to the partial label space:
+yˆ
+pl1
+i = σ (Wpl1h(L)
+i + bpl1)
+yˆ
+pl2
+i = σ (Wpl2h(L)
+i + bpl2),
+(9)
+where yˆ
+pl1
+i and yˆ
+pl2
+i represent the prediction of the two partial labels, W
+pl1, Wpl2, bpl1 and bpl2 are learnable parameters. Then we define the cross-entropy loss as the classification loss for partial labels. The overall loss function for GNUM with partiallabel-based estimator (GNUM-PL) is defined as:
+L=
+∑︁
+i ∈V
+(F (y
+pl1 i
+, yˆ
+pl1
+i ) + F (y
+pl2 i
+, yˆ
+pl 2
+i )) + λLreg, (10)
+where y
+pl1
+i and y
+pl2
+i are the ground truth for the first and second partial labels we defined. F (yi, yˆi ) is defined as the cross-entropy loss, where F (yi, yˆi ) = −(yi log yˆi − (1 − yi ) log(1 − yˆi )). Lreg is defined as the L2 regularized loss on all the parameters of the model and λ is set to 0.0005 in this paper.
+Using the above loss function, the proposed graph model with partial labels can be trained. Then the final uplift of user i can be defined in the following ways:
+τˆi = p (yi (1)|xi, G) − p (yi (0)|xi ), G)
+= 1 − P (Si = [0, 0, 1] |xi, G) − P (Si = [1, 0, 0] |xi, G)
+= 1 − yˆ
+pl1
+i − yˆ
+pl2 i
+.
+Now we introduce why the proposed model with the partial label can further improve the performance. Although the graph-based model with the transformed target we just proposed in Section 3.2.2 utilizes a general target for both treatment group data and control group data to capture the relationship between two groups of data, each sample can only be utilized once in each epoch of training. However, in our partial-label-based uplift estimator, both classifiers will utilize both the treatment data and the control data but focus on different facets of information. Specifically, the data with Si = [1, 1, 0] and Si = [0, 1, 1] can be utilized by both classifiers. In this way, on the one hand, more labeled data can be utilized to train each classifier, ensuring a better performance especially when the labeled data is scarce in uplift estimation scenarios. On the other hand, since the two classifiers can both obtain the two groups of data, the classifiers can better capture the relations and learn useful information from the two groups to achieve better results. The pseudo-code and complexity analysis of GNUM-CT and GNUM-PL can be found in Appendix A.2.
+4 EXPERIMENTS
+In this section, we conduct experimental results to answer the following three questions:
+• Q1: How our method performs compared with all the baseline methods on a public dataset and two industrial datasets? (Answered in Section 4.2.1 and Section 4.2.2.) • Q2: How can our proposed estimators generalize to other GNNs? (Answered in Section 4.3.1.) • Q3: What is the relationship between the user uplift and the social relation? (Answered in Section 4.3.2.) • Q4: How do our proposed graph-based methods and comparing methods perform with different amounts of labeled data? (Answered in Section 4.3.3.)
+4.1 Experiment settings
+4.1.1 Dataset. We evaluate our method on one public dataset and two real-world industrial datasets. Firstly, we follow [14] to build a semi-synthetic dataset base on BlogCatalog: the node features and network structures are collected from the BlogCatalog. The treatments and outcomes are synthesized. There are confounders in this dataset and the control and test datasets are biased. In detail, the node represents a blogger and the edge denotes their social relationships. The node features are bag-ofwords representations of keywords to describe the bloggers. We synthesize (1) the outcomes as the rating of readers on the bloggers and (2) the treatments as whether the blog contents are shown on mobile devices or desktops. The detailed synthetic process for the synthetic process can be found in Appendix A.3.1. There are three different parameters C, κ1, κ2 that control the synthetic results of the
+
+
+WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+Dingyuan Zhu1∗, Daixin Wang1∗, Zhiqiang Zhang1, Kun Kuang2, Yan Zhang1, Yulin Kang1, Jun Zhou1#
+Table 1: The experimental result on public dataset BlogCatalog. The result of the best performance is in bold and the result of the second best performance is underlined.
+κ2 Outcome Type Metric GNUM-PL GNUM-GCN GNUM-GAT GNUM-CT Two-Model CTM Uplift-RF NetDeconf DML DRL
+0.5 Continuous √
+εPEHE / / / 4.164 9.215 8.448 6.760 4.496 5.312 5.407 εAT E / / / 0.935 4.172 3.317 2.629 0.970 1.244 1.360
+Binary √
+εPEHE 0.529 0.642 0.586 0.613 1.253 0.964 0.740 0.621 0.689 0.707 εAT E 0.121 0.147 0.129 0.138 0.470 0.364 0.210 0.135 0.159 0.172
+2 Continuous √
+εPEHE / / / 9.337 23.348 17.277 15.945 9.623 12.134 13.060 εAT E / / / 2.102 10.920 8.624 8.004 2.243 6.530 7.191
+Binary √
+εPEHE 0.353 0.430 0.392 0.411 1.047 0.820 0.699 0.423 0.554 0.598 εAT E 0.105 0.136 0.114 0.126 0.417 0.255 0.202 0.131 0.164 0.160
+Table 2: Statistics of datasets. |V | denotes the number of users, |E| denotes the number of edges and |F | denotes the number of attributes. Vt and Vc represent the set of users in the treatment group and the set of users in the control group, respectively.
+Datasets |V | |E | |F | |Vt | |Vc | Industry-A 505.2K 2.2M 652 252.6K 252.6K Industry-B 573.8K 2.6M 915 286.9K 286.9K Blogcatalog 5.2K 173.5K 8189 1.6K 3.6K
+dataset. Following the experimental settings in previous work[14], we set C = 5, κ1 = 10, κ2 ∈ {0.5, 2}.
+The two real-world industrial datasets are collected from an internet company2, denoted as Industry-A and Industry-B. The company has two products and plans to send discount coupons to users who have not purchased the products. Because the discount coupons are limited, we need to find the users who are most likely to purchase the product when receiving the coupons. This can be regarded as a problem of uplift modeling. For each dataset, the users are randomly split into the treatment group and the control group. The users of the treatment group will receive the coupons and the users of the control group will not. Then we observe whether they will purchase the product for the following 30 days. The nodes represent users and the edges represent users’ friendships. The user features mainly consist of statistical features regarding the user’s profile and behaviors in our platform. Note that the collection of data removes the user’s sensitive information and obtains the user’s privacy authorization. The detail statistics of three datasets are shown in Table 2.
+4.1.2 Baseline Methods. To evaluate the effectiveness of GNUMPL and GNUM-CT, we compare them with three lines of state-of-theart uplift methods, including NN-based methods (Two-Model [15] and CTM [4]), a tree-based method (Uplift-RF [9]), Causal-effectbased methods (DML [25] and DRL [23]) and graph-based uplift methods (NetDeconf [14]). GNUM-GCN and GNUM-GAT are implemented by using the GCN or GAN as the GNN backbones but
+2The data set does not contain any Personal Identifiable Information. The data set is desensitized and encrypted. Adequate data protection was carried out during the experiment to prevent the risk of data copy leakage, and the data set was destroyed after the experiment. The data set is only used for academic research, it does not represent any real business situation.
+still use partial-label-based uplift estimator. More details of the comparing methods can be found in Appendix A.3.2. And the parameter settings can be found in Appendix A.3.3.
+4.2 Overall Performance
+4.2.1 Results on BlogCatalog. Since we have both factual and counterfactual outcomes for each user in BlogCatalog, we can measure the performance of different methods by comparing the predicted average treatment effect (ATE) with the ground-truth ATE, where ATE is defined as the average uplift over the users
+as AT E = 1
+n
+Ín
+i=1 τi . Specifically, we use two evaluation metrics, i.e. the Rooted Precision in Estimation of Heterogeneous Effect
+(εPEHE =
+√︃
+1
+n
+Í
+i=1 (τˆi − τi )2) and Mean Absolute Error on ATE
+(εAT E = 1
+n
+Í
+i=1 (τˆi ) − 1
+n
+Í
+i=1 (τi ) ). Furthermore, we also extend the setting to the scenario of the discrete outcome, by setting the outcome of each sample greater than the mean ATE value as 1, otherwise as 0. It is worth noting that these two metrics require both factual and counterfactual outcomes. Therefore, we only report the results on semi-synthetic dataset BlogCatalog in Table 1. Then we have the following observations:
+• In the regression setting, our proposed method GNUM-CT outperforms other baseline methods by 5% to 10%, which demonstrates that the proposed class-transformed target is able to utilize the graph-based data more effectively. • In the classification setting, our proposed method GNUM-PL outperforms GNUM-CT and other baseline methods by 12% to 25%, which demonstrates that the proposed partial-label learning can further utilize the labeled graph data to improve the overall performance. • All the graph-based methods achieve a substantial gain over non-graph-based methods, which demonstrates the importance of graph data for uplift modeling. • The result that the Two-Model achieves bad results demonstrates that it is very important to use a common uplift estimator to utilize the treatment and control group of data together.
+4.2.2 Results on Industrial Datasets. Without the counterfactual outcome, we use commonly accepted metrics, i.e. uplift curve and the Qini Coefficient value to evaluate the performance of different methods on our industrial datasets. In detail, we sort all users in the treatment group and control group based on their predicted uplift values. Then we will select the top-k% users to get their uplift Yk as:
+
+
+Graph Neural Network with Two Uplift Estimators for Label-Scarcity Individual Uplift Modeling WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+0
+0.01
+0.02
+0.03
+0.04
+0.05
+0.06
+0.07
+10% 30% 50% 70% 90%
+GNUM-PL GNUM-CT Two-Model CTM Uplift-RF NetDeconf DML DRL
+(a) Uplift Curve on Industry-A.
+0
+0.01
+0.02
+0.03
+0.04
+0.05
+0.06
+0.07
+0.08
+0.09
+0.1
+10% 30% 50% 70% 90%
+GNUM-PL GNUM-CT Two-Model CTM Uplift-RF NetDeconf DML DRL
+(b) Uplift Curve on Industry-B.
+0.051
+0.043
+0.049 0.046
+0.042 0.04 0.039 0.038
+0.03
+0.034
+0.025
+0.03
+0.035
+0.04
+0.045
+0.05
+0.055
+GNUM-PL
+GNUM-GCN
+GNUM-GAT
+GNUM-CT
+NetDeconf
+DML DRL
+Uplift-RF
+Two-Model
+CTM
+(c) Qini Coefficient on Industry-A.
+0.064
+0.056
+0.061 0.059 0.056 0.054
+0.05 0.048
+0.035
+0.04
+0.03
+0.035
+0.04
+0.045
+0.05
+0.055
+0.06
+0.065
+GNUM-PL
+GNUM-GCN
+GNUM-GAT
+GNUM-CT
+NetDeconf
+DML DRL
+Uplift-RF
+Two-Model
+CTM
+(d) Qini Coefficient on Industry-B.
+Figure 2: The uplift curve on (a) Industry-A and (b) Industry-B: The ordinate represents the uplift value defined in Eq. 11, and the abscissa represents users with top k% largest predicted uplift values. The Qini Coefficient on (c) Industry-A and (d) Industry-B.
+Table 3: The detailed comparison of the uplift curve. The result of the best performance is in bold and the result of the second best performance is underlined.
+Datasets Quantiles GNUM-PL GNUM-GCN GNUM-GAT GNUM-CT Two-Model CTM Uplift-RF NetDeconf DML DRL Industry-A Top10% 6.92% 6.58% 6.79% 6.67% 4.18% 5.50% 6.00% 6.54% 6.50% 6.44% Top20% 5.52% 5.22% 5.45% 5.34% 3.12% 3.63% 4.19% 5.19% 5.02% 4.86% Industry-B Top10% 8.72% 8.38% 8.51% 8.47% 6.44% 6.92% 7.51% 8.35% 8.21% 7.98% Top20% 8.20% 7.85% 8.11% 7.97% 5.95% 6.21% 6.58% 7.74% 7.67% 7.32%
+Yk =
+∑︁
+i ∈V k
+t
+τˆi /|V k
+t |−
+∑︁
+i ∈V k
+c
+τˆi /|V k
+c | (11)
+where V k
+t and V k
+c are the set of the top k% samples of the treatment and control group, and τˆi is the predicted uplift value by the model. By changing the k from 10% to 100%, we can obtain the curve on Yk . Note that the leftmost point corresponds to the top 10% users which the models predict as the most sensitive to the treatment and the following right part corresponds to the top 20% users. Since the ATE of the dataset is fixed, all the curves will converge to the same value. A well-performing model will show a curve with a larger slope. The left part has larger values than other methods. The results of uplift curve is shown in Figure 2(a)(b). In addition, we introduce the Qini metric to measure the overall performance of uplift methods [15]. Similar to the AUC value, the Qini metric measures the distance between the Qini curve and the random curve. The detail of the calculation process of Qini curve and Qini Coefficient can be referred in [15]. We show the results of the Qini Coefficient in Figure 2(c)(d). From Figure 2, we find that the proposed method GNUM-PL and GNUM-CT consistently outperform the baseline methods on two metrics. Specifically, GNUM-PL improves the best performing baseline method NetDeconf by an improvement of 21% and 14% on two datasets in terms of Qini Coefficient. It demonstrates that our proposed methods have a better ranking performance regarding the user’s uplift. Additionally, the result that GNUM-PL performs better than GNUM-CT demonstrates that in the classification scenario, the proposed uplift estimators based on partial label learning can further improve the overall performance because partial label learning can utilize the labeled data more effectively. The result that CTM outperforms Two-Model demonstrates that a common uplift estimator to model both the treatment and control group data is very essential. In many real-world scenarios, we only focus on samples with uplift values ranking ahead because we will only give actions to users with larger uplift values. Therefore, we give a detailed comparison
+of the users with the largest 20% uplift values in Table 3. We can find that GNUM-CT and GNUM-PL also achieve better results than other baseline methods, which demonstrates that our proposed methods with the two estimators can find users with larger uplift.
+4.3 In-Depth Analysis
+4.3.1 Generality to different backbones of GNN models. We further replace our GNN models with GAT and GCN to demonstrate the generality of our proposed uplift estimators. The results are shown in Figure 4. We find in most cases, our proposed graph-based methods GNUM-PL, GNUM-GCN and GNUM-GAT perform better than NetDeconf and DML. It demonstrates that our proposed uplift estimators can be adapted to different GNN-based representation learning methods effectively. Furthermore, GNUM-PL still achieves the best performance because our breadth and depth aggregators can utilize more informative information from the social graph.
+4.3.2 Correlation between Uplift and Social Relationship. Previously, we claim that the uplift difference between users with social relationships is smaller than the uplift difference between random users. To verify this, for each user we first calculate the average of the inferred uplift value of his neighbors. Then, according to the number of his neighbors, we randomly sample the same number of users to calculate the average of their inferred uplift values. Finally, we compare the uplift difference between the above two averaged values and the user’s own inferred uplift value. Specifically, we use mean-squared error (MSE) as the evaluation metric. The result of the uplift analysis is shown in Table 4. We can see that for the graph-based methods, the uplift difference between neighbors is significantly smaller than the difference between random users compared with non-graph-based methods. Compared with the random sampling strategy, the MSE of inferred uplift calculated from neighbors drops by more than 30%. It demonstrates that the graph-based method can indeed learn the similarity information from neighbors which is useful for uplift modeling. It is worth mentioning
+
+
+WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+Dingyuan Zhu1∗, Daixin Wang1∗, Zhiqiang Zhang1, Kun Kuang2, Yan Zhang1, Yulin Kang1, Jun Zhou1#
+Table 4: The mean-squared error of the inferred uplift between different users.
+Datasets Sampling strategy GNUM-PL GNUM-GCN GNUM-GAT GNUM-CT NetDeconf Two-Model CTM Uplift-RF DML DRL Industry-A Neighbors 1.05 ∗ 10−3 0.97 ∗ 10−3 1.07 ∗ 10−3 1.11 ∗ 10−3 1.07 ∗ 10−3 1.29 ∗ 10−3 1.30 ∗ 10−3 1.22 ∗ 10−3 1.14 ∗ 10−3 1.18 ∗ 10−3 Random 1.40 ∗ 10−3 1.38 ∗ 10−3 1.40 ∗ 10−3 1.39 ∗ 10−3 1.37 ∗ 10−3 1.35 ∗ 10−3 1.41 ∗ 10−3 1.39 ∗ 10−3 1.36 ∗ 10−3 1.38 ∗ 10−3 Industry-B Neighbors 1.44 ∗ 10−3 1.32 ∗ 10−3 1.42 ∗ 10−3 1.49 ∗ 10−3 1.48 ∗ 10−3 1.75 ∗ 10−3 1.68 ∗ 10−3 1.63 ∗ 10−3 1.50 ∗ 10−3 1.55 ∗ 10−3 Random 1.95 ∗ 10−3 1.94 ∗ 10−3 1.93 ∗ 10−3 1.95 ∗ 10−3 1.91 ∗ 10−3 1.87 ∗ 10−3 1.90 ∗ 10−3 1.88 ∗ 10−3 1.93 ∗ 10−3 1.92 ∗ 10−3
+0.01
+0.015
+0.02
+0.025
+0.03
+0.035
+0.04
+0.045
+0.05
+90% 70% 50% 30% 10%
+GNUM-PL GNUM-CT Two-Model CTM Uplift-RF NetDeconf DML DRL
+(a) Industry-A.
+0.02
+0.025
+0.03
+0.035
+0.04
+0.045
+0.05
+0.055
+0.06
+90% 70% 50% 30% 10%
+GNUM-PL GNUM-CT Two-Model CTM Uplift-RF NetDeconf DML DRL
+(b) Industry-B.
+0.01
+0.015
+0.02
+0.025
+0.03
+0.035
+0.04
+0.045
+0.05
+90% 70% 50% 30% 10%
+GNUM-PL GNUM-GCN GNUM-GAT NetDeconf DML
+(c) Industry-A.
+0.02
+0.025
+0.03
+0.035
+0.04
+0.045
+0.05
+0.055
+0.06
+90% 70% 50% 30% 10%
+GNUM-PL GNUM-GCN GNUM-GAT NetDeconf DML
+(d) Industry-B.
+Figure 3: The Qini Coefficient of the different uplift methods under different percentage of labeled users. The ordinate represents the value of Qini Coefficient, and the abscissa represents different percentage of labeled users. (c)(d) More comparisons by replacing the GNN layers in GNUM-PL with GCN/GAT.
+0
+0.01
+0.02
+0.03
+0.04
+0.05
+0.06
+0.07
+10% 30% 50% 70% 90%
+GNUM-PL GNUM-GCN GNUM-GAT NetDeconf DML
+(a) Industry-A.
+0
+0.01
+0.02
+0.03
+0.04
+0.05
+0.06
+0.07
+0.08
+0.09
+0.1
+10% 30% 50% 70% 90%
+GNUM-PL GNUM-GCN GNUM-GAT NetDeconf DML
+(b) Industry-B.
+Figure 4: The uplift curve of different graph-based methods.
+that the smaller difference of uplift is not representing that the model performs better necessarily. The result of GNUM-GCN is worse than that of GNUM-PL and GNUM-GAT because GNUM-GCN does not capture the attentional weight of different neighbors. The uplift differences between the neighbors of Two-Model and CTM are largest, since they can not capture structural information at all. Therefore, this result demonstrates that it is very essential to utilize social relations to do the uplift estimation. And the performance gain can be achieved by proposing the graph-based model to mine the social relationships between users.
+4.3.3 Data Scarcity Analysis. Due to the labeled data scarcity problem for uplift modeling, we propose GNUM-PL and GNUMCT in this paper to alleviate the problem. To prove this point, we randomly sample 10% to 90% of the labeled users to train different uplift models and compare their performance on the same test set. Note that we will not sample the edges of the graph. We use the Qini Coefficient to evaluate the performance and note that the uplift curve is consistent with the Qini coefficient. The experimental results are shown in Figure 3(a)(b) and we have the following observations:
+• The performance of GNUM-PL and GNUM-CT are consistently above the curves of baseline methods, which demonstrates that both the partial-label-based uplift estimator and
+the class-transformed uplift estimator are robust to the label scarcity. Furthermore, in the classification setting, the partial-label-based uplift estimator can further improve the performance by utilizing more labeled data explicitly. • Comparing Netdeconf and other baseline methods, we find that NetDeconf drops more quickly than other baseline methods, which proves our assumption that data scarcity is a more severe problem for the graph-based uplift method because of the more parameters. Therefore, our solution for alleviating the labeled data scarcity problem is very critical.
+Moreover, as is shown in Figure 3(c)(d), GNUM-GCN and GNUMGAT are still robust to the data scarcity problem. It demonstrates that our partial-label-based uplift estimator can alleviate the data scarcity problem when using different types of GNN-based models.
+5 CONCLUSION
+In this paper, we propose GNUM, a novel and general GNN-based framework with two uplift estimators for user uplift modeling. The first uplift estimators are general to different uplift scenarios, which can utilize the two groups of data together to estimate the user uplift. Specifically, when the outcome is discrete, we further propose an uplift estimator based on our designed partial labels to address the labeled data scarcity problem. Experimental results demonstrate that our proposed methods outperform state-of-the-art uplift methods under various evaluation metrics. We also give an analysis of the relationship between the uplift and social relations. And we further demonstrate the robustness of our proposed model when labeled data is limited. In the future, we expect to utilize more types of graphs to estimate the user uplift.
+6 ACKNOWLEDGEMENT
+Kun Kuang’s research was supported by National Natural Science Foundation of China (62006207), Young Elite Scientists Sponsorship Program by CAST (2021QNRC001), and the Fundamental Research Funds for the Central Universities (226-2022-00142)
+
+
+Graph Neural Network with Two Uplift Estimators for Label-Scarcity Individual Uplift Modeling WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+REFERENCES
+[1] Diego Olaya, Kristof Coussement, and Wouter Verbeke. A survey and benchmarking study of multitreatment uplift modeling. Data Mining and Knowledge Discovery, 34(2):273–308, 2020. [2] Robin Marco Gubela, Stefan Lessmann, Johannes Haupt, Annika Baumann, Tillmann Radmer, and Fabian Gebert. Revenue uplift modeling. Machine Learning for Marketing Decision Support, 2017.
+[3] Szymon Jaroszewicz and Piotr Rzepakowski. Uplift modeling with survival data. In ACM SIGKDD Workshop on Health Informatics (HI-KDD–14), New York City, 2014. [4] Maciej Jaskowski and Szymon Jaroszewicz. Uplift modeling for clinical trial data. In ICML Workshop on Clinical Data Analysis, 2012.
+[5] Diego Olaya, Jonathan Vásquez, Sebastián Maldonado, Jaime Miranda, and Wouter Verbeke. Uplift modeling for preventing student dropout in higher education. Decision Support Systems, 134:113320, 2020.
+[6] Ruocheng Guo, Jundong Li, and Huan Liu. Counterfactual evaluation of treatment assignment functions with networked observational data. In Proceedings of the 2020 SIAM International Conference on Data Mining, pages 271–279. SIAM, 2020. [7] Pierre Gutierrez and Jean-Yves Gérardy. Causal inference and uplift modelling: A review of the literature. In International Conference on Predictive Applications and APIs, pages 1–13, 2017. [8] Kun Kuang, Peng Cui, Hao Zou, Bo Li, Jianrong Tao, Fei Wu, and Shiqiang Yang. Data-driven variable decomposition for treatment effect estimation. IEEE Transactions on Knowledge and Data Engineering, 2020.
+[9] Leo Guelman, Montserrat Guillén, and Ana M Pérez-Marín. Uplift random forests. Cybernetics and Systems, 46(3-4):230–248, 2015.
+[10] Piotr Rzepakowski and Szymon Jaroszewicz. Decision trees for uplift modeling with single and multiple treatments. Knowledge and Information Systems, 32(2):303–327, 2012. [11] Leo Breiman. Random forests. Machine learning, 45(1):5–32, 2001. [12] Tianqi Chen and Carlos Guestrin. Xgboost: A scalable tree boosting system. In Proceedings of the 22nd acm sigkdd international conference on knowledge discovery and data mining, pages 785–794, 2016.
+[13] Victor Veitch, Yixin Wang, and David Blei. Using embeddings to correct for unobserved confounding in networks. Advances in Neural Information Processing Systems, 32, 2019. [14] Ruocheng Guo, Jundong Li, and Huan Liu. Learning individual causal effects from networked observational data. In Proceedings of the 13th International Conference on Web Search and Data Mining, pages 232–240, 2020.
+[15] Nicholas J Radcliffe. Using control groups to target on predicted lift: Building and assessing uplift models. Direct Marketing Analytics Journal, 1(3):14–21, 2007. [16] Houssam Nassif, Finn Kuusisto, Elizabeth S Burnside, and Jude W Shavlik. Uplift modeling with roc: An srl case study. In ILP (Late Breaking Papers), pages 40–45, 2013. [17] Nicholas J Radcliffe and Patrick D Surry. Real-world uplift modelling with significance-based uplift trees. White Paper TR-2011-1, Stochastic Solutions, pages 1–33, 2011. [18] Michał Sołtys, Szymon Jaroszewicz, and Piotr Rzepakowski. Ensemble methods for uplift modeling. Data mining and knowledge discovery, 29(6):1531–1559, 2015. [19] Susan Athey and Guido W Imbens. Machine learning methods for estimating heterogeneous causal effects. stat, 1050(5):1–26, 2015. [20] Łukasz Zaniewicz and Szymon Jaroszewicz. Support vector machines for uplift modeling. In 2013 IEEE 13th International Conference on Data Mining Workshops, pages 131–138. IEEE, 2013. [21] Leo Guelman, Montserrat Guillén, and Ana María Pérez Marín. Optimal personalized treatment rules for marketing interventions: A review of methods, a new proposal, and an insurance case study. UB Riskcenter Working Paper Series, 2014/06, 2014.
+[22] Richard Emsley, Mark Lunt, Andrew Pickles, and Graham Dunn. Implementing double-robust estimators of causal effects. The Stata Journal, 8(3):334–353, 2008. [23] Ying-Qi Zhao, Donglin Zeng, Eric B Laber, Rui Song, Ming Yuan, and Michael Rene Kosorok. Doubly robust learning for estimating individualized treatment with censored data. Biometrika, 102(1):151–168, 2015. [24] Yonghan Jung, Jin Tian, and Elias Bareinboim. Estimating identifiable causal effects through double machine learning. In Proceedings of the 35th AAAI Conference on Artificial Intelligence, 2021.
+[25] Victor Chernozhukov, Denis Chetverikov, Mert Demirer, Esther Duflo, Christian Hansen, Whitney Newey, and James Robins. Double/debiased machine learning for treatment and structural parameters, 2018. [26] Keisuke Hirano, Guido W Imbens, and Geert Ridder. Efficient estimation of average treatment effects using the estimated propensity score. Econometrica, 71(4):1161–1189, 2003. [27] Toru Kitagawa and Aleksey Tetenov. Who should be treated? empirical welfare maximization methods for treatment choice. Econometrica, 86(2):591–616, 2018.
+[28] Christos Louizos, Uri Shalit, Joris M Mooij, David Sontag, Richard Zemel, and Max Welling. Causal effect inference with deep latent-variable models. Advances in neural information processing systems, 30, 2017.
+[29] Uri Shalit, Fredrik D Johansson, and David Sontag. Estimating individual treatment effect: generalization bounds and algorithms. In International Conference on Machine Learning, pages 3076–3085. PMLR, 2017. [30] Jing Ma, Ruocheng Guo, Chen Chen, Aidong Zhang, and Jundong Li. Deconfounding with networked observational data in a dynamic environment. In Proceedings of the 14th ACM International Conference on Web Search and Data Mining, pages 166–174, 2021. [31] Song Jiang and Yizhou Sun. Estimating causal effects on networked observational data via representation learning. In Proceedings of the 31st ACM International Conference on Information & Knowledge Management, pages 852–861, 2022. [32] Jing Ma, Mengting Wan, Longqi Yang, Jundong Li, Brent Hecht, and Jaime Teevan. Learning causal effects on hypergraphs. In Proceedings of the 28th ACM SIGKDD Conference on Knowledge Discovery and Data Mining, pages 1202–1212, 2022. [33] E. Michael SOBEL. What do randomized studies of housing mobility demonstrate?: Causal inference in the face of interference. Journal of the American Statistical Association, 2006.
+[34] Eyke Hüllermeier and Jürgen Beringer. Learning from ambiguously labeled examples. Intelligent Data Analysis, 10(5):419–439, 2006. [35] Chen Gong, Tongliang Liu, Yuanyan Tang, Jian Yang, Jie Yang, and Dacheng Tao. A regularization approach for instance-based superset label learning. IEEE transactions on cybernetics, 48(3):967–978, 2017.
+[36] Min-Ling Zhang and Fei Yu. Solving the partial label learning problem: An instance-based approach. In IJCAI, pages 4048–4054, 2015. [37] Min-Ling Zhang, Bin-Bin Zhou, and Xu-Ying Liu. Partial label learning via feature-aware disambiguation. In Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, pages 1335–1344, 2016. [38] Feipeng Zhao and Yuhong Guo. Semi-supervised multi-label learning with incomplete labels. IJCAI, pages 4062–4068, 2015. [39] Xiang Wu, Ran He, Zhenan Sun, and Tieniu Tan. A light cnn for deep face representation with noisy labels. IEEE Transactions on Information Forensics and Security, pages 2884–2896, 2018. [40] Michael M Bronstein, Joan Bruna, Yann LeCun, Arthur Szlam, and Pierre Vandergheynst. Geometric deep learning: going beyond euclidean data. IEEE Signal Processing Magazine, 34(4):18–42, 2017.
+[41] Ziwei Zhang, Peng Cui, and Wenwu Zhu. Deep learning on graphs: A survey. IEEE Transactions on Knowledge and Data Engineering, 2020.
+[42] Xiao Wang, Peng Cui, Jing Wang, Jian Pei, Wenwu Zhu, and Shiqiang Yang. Community preserving network embedding. In Proceedings of the AAAI conference on artificial intelligence, volume 31, 2017.
+[43] Wenqi Fan, Yao Ma, Qing Li, Jianping Wang, Guoyong Cai, Jiliang Tang, and Dawei Yin. A graph neural network framework for social recommendations. IEEE Transactions on Knowledge and Data Engineering, 34(5):2033–2047, 2020.
+[44] Xiao-Meng Zhang, Li Liang, and Lin Liu. Graph neural networks and their current applications in bioinformatics. Frontiers in genetics, 12:690049, 2021. [45] Joan Bruna, Wojciech Zaremba, Arthur Szlam, and Yann Lecun. Spectral networks and locally connected networks on graphs. In Proceedings of the 3rd International Conference on Learning Representations, 2014.
+[46] Michaël Defferrard, Xavier Bresson, and Pierre Vandergheynst. Convolutional neural networks on graphs with fast localized spectral filtering. In Advances in Neural Information Processing Systems, pages 3844–3852, 2016.
+[47] Thomas N Kipf and Max Welling. Semi-supervised classification with graph convolutional networks. In Proceedings of the 6th International Conference on Learning Representations, 2017.
+[48] Justin Gilmer, Samuel S Schoenholz, Patrick F Riley, Oriol Vinyals, and George E Dahl. Neural message passing for quantum chemistry. In International Conference on Machine Learning, pages 1263–1272, 2017. [49] Will Hamilton, Zhitao Ying, and Jure Leskovec. Inductive representation learning on large graphs. In Advances in Neural Information Processing Systems, pages 1024–1034, 2017. [50] Fuli Feng, Weiran Huang, Xiangnan He, Xin Xin, Qifan Wang, and Tat-Seng Chua. Should graph convolution trust neighbors? a simple causal inference method. In Proceedings of the 44th International ACM SIGIR Conference on Research and Development in Information Retrieval, pages 1208–1218, 2021.
+[51] Yongduo Sui, Xiang Wang, Jiancan Wu, Min Lin, Xiangnan He, and Tat-Seng Chua. Causal attention for interpretable and generalizable graph classification. In Proceedings of the 28th ACM SIGKDD Conference on Knowledge Discovery and Data Mining, pages 1696–1705, 2022. [52] Sihao Ding, Fuli Feng, Xiangnan He, Yong Liao, Jun Shi, and Yongdong Zhang. Causal incremental graph convolution for recommender system retraining. IEEE Transactions on Neural Networks and Learning Systems, 2022.
+[53] Zonghan Wu, Shirui Pan, Fengwen Chen, Guodong Long, Chengqi Zhang, and S Yu Philip. A comprehensive survey on graph neural networks. IEEE transactions on neural networks and learning systems, 32(1):4–24, 2020.
+
+
+WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+Dingyuan Zhu1∗, Daixin Wang1∗, Zhiqiang Zhang1, Kun Kuang2, Yan Zhang1, Yulin Kang1, Jun Zhou1#
+[54] Ziqi Liu, Chaochao Chen, Longfei Li, Jun Zhou, Xiaolong Li, Le Song, and Yuan Qi. Geniepath: Graph neural networks with adaptive receptive paths. In Proceedings of the AAAI Conference on Artificial Intelligence, volume 33, pages 4424–4431, 2019. [55] Weibo Liu, Zidong Wang, Xiaohui Liu, Nianyin Zeng, Yurong Liu, and Fuad E Alsaadi. A survey of deep neural network architectures and their applications. Neurocomputing, 234:11–26, 2017. [56] Xavier Glorot and Yoshua Bengio. Understanding the difficulty of training deep feedforward neural networks. In Proceedings of the Thirteenth International Conference on Artificial Intelligence and Statistics, pages 249–256, 2010.
+[57] Dalong Zhang, Xin Huang, Ziqi Liu, Zhiyang Hu, Xianzheng Song, Zhibang Ge, Zhiqiang Zhang, Lin Wang, Jun Zhou, and Yuan Qi. Agl: a scalable system for industrial-purpose graph machine learning. arXiv preprint arXiv:2003.02454, 2020.
+
+
+Graph Neural Network with Two Uplift Estimators for Label-Scarcity Individual Uplift Modeling WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+A APPENDIX
+A.1 Proposition Proof
+PROOF.
+E(zi |xi, G) = E(yobs
+i · ti − p
+p (1 − p) |xi, G)
+= E(tiyobs
+i · ti − p
+p (1 − p) + (1 − ti )yobs
+i · ti − p
+p (1 − p) |xi, G)
+(12)
+Given ti ∈ {0, 1}, we have t2
+i = ti and (1 − ti )2 = (1 − ti ). Simultaneously with the definition in Eq. (5), we have:
+tiyobs
+i = t2
+i yi (1) + ti (1 − ti )yi (0) = t2
+i yi (1) = tiyi (1) (1 − ti )yobs
+i = ti (1 − ti )yi (1) + (1 − ti )2yi (0) = (1 − ti )yi (0).
+Then we can rewire Eq. 12 as 3:
+E(tiyobs
+i · ti − p
+p (1 − p) + (1 − ti )yobs
+i · ti − p
+p (1 − p) |xi, G)
+= E(tiyi (1) ti − p
+p (1 − p) + (1 − ti )yi (0) ti − p
+p (1 − p) |xi, G, t1
+i ) ∗ p (t1
+i |xi, G)
++ E(tiyi (1) ti − p
+p (1 − p) + (1 − ti )yi (0) ti − p
+p (1 − p) |xi, G, t0
+i ) ∗ p (t0
+i |xi, G)
+= E( yi (1)
+p
+|xi, G) ∗ p (ti = 1|xi, G) − E( yi (0)
+1−p
+|xi, G) ∗ p (ti = 0|xi, G)
+= E(yi (1)|xi, G) p (ti = 1|xi, G)
+p
+− E(yi (0)|xi, G) p (ti = 0|xi, G)
+1−p = E(yi (1)|xi, G) − E(yi (0)|xi, G)
+= τˆi
+A.2 Pseudo Code and Complexity Analysis
+The pseudo-code of GNUM-CT is given in Algorithm 1 and GNUMPL in Algorithm 2. Our proposed method can be trained by an end-to-end back-propagation, and thus we can use gradient descent to optimize the model. For each sample, it will go through the GNUM layer first and then perform the uplift prediction. The complexity of the whole
+process is O M
+ÍL
+i=0 fl + N
+ÍL
+i=1 fi−1 fi where N denotes the total
+number of users, including the users in the treatment and control group, M = |E| is the number of relationships, L is number of hidden layers and fl is the dimensionality of the lth hidden layer. In practice, L and fl are often bounded within a small constant. The proposed method is linear to the number of users and number of relationships in the dataset respectively. Therefore, the overall model is scalable.
+O (N d2
+max Smax ), where N denotes the total number of users, including the users in the treatment and control group, dmax denotes the maximum number of dimensionality among different layers and Smax denotes in the social graph the maximum degree among all the users. In practice, Smax is often bounded within a constant. For example, in social networks like Facebook, the number of friends a user can have has an upper bound.
+3Due to the limit of space, t
+j
+i represents ti = j here.
+Algorithm 1 Graph Neural Network for Uplift Modeling (GNUM) using Class-Transformed Target
+Require: Set of user features, treatment assignment and observed outcome {(xi, ti, yi )}N
+i=1, social graph G = (V , E) and number of layers L, Ensure: Prediction of user uplift and GNUM parameters Θ. 1: Initialize all parameters Θ and using X as H(0) 2: while L does not converge do 3: for i ← 1 to L do 4: Calculate graph-based representation H(l ) . 5: end for
+6: Calculate yˆ
+pl1
+i and yˆ
+pl2
+i from learned representations H(L) using Eq. (9). 7: Calculate the class-transformed target zi using Eq. (6). 8: Calculate the loss LCT using Eq. (7). 9: Update Θ using back-propagation. 10: end while
+11: Using the trained model parameters to estimate the user uplift as: τˆi = E(zi |xi, G).
+Algorithm 2 Graph Neural Network for Uplift Modeling (GNUM) using Partial Label Learning
+Require: Set of user features, treatment assignment and observed outcome {(xi, ti, yi )}N
+i=1, social graph G = (V , E) and number of layers L, Ensure: Prediction of user uplift and GNUM parameters Θ. 1: Initialize all parameters Θ and using X as H(0) 2: while L does not converge do 3: for i ← 1 to L do 4: Calculate graph-based representation H(l ) . 5: end for
+6: Calculate yˆ
+pl1
+i and yˆ
+pl2
+i from learned representations H(L) using Eq. (9). 7: Construct the sample’s partial labels based on yi and ti . 8: Calculate the loss L using Eq. (10). 9: Update Θ using back-propagation. 10: end while
+11: Using the trained model parameters to estimate the user uplift as: τˆi = 1 − P (Si = [1, 0, 0] |xi, G) − P (Si = [0, 0, 1] |xi, G)
+A.3 More Experimental Details
+A.3.1 More Details about Dataset. Blogcatalog is a social blog directory that manages bloggers and their blogs. The dateset contains the features of bloggers and the social relationships between bloggers listed on the BlogCatalog website. The features are bagof-words representations of keywords in bloggers’ descriptions. We follow the assumptions and procedures of synthesizing the outcomes and treatments assignments in [14], in which the outcomes represent the opinions of readers on each blogger and the treatments represent whether contents created by a blogger receive more views on mobile devices or desktops. In the treatment group, the blogger’s blogs are read more on mobile devices. In the control group, the blogger’s blogs are read more on desktops. We assume that the social relationships of bloggers can causally affect their treatment assignments and
+
+
+WWW ’23, April 30-May 4, 2023, Austin, TX, USA
+Dingyuan Zhu1∗, Daixin Wang1∗, Zhiqiang Zhang1, Kun Kuang2, Yan Zhang1, Yulin Kang1, Jun Zhou1#
+readers’ opinions of them. We trained the LDA topic model to get the device preference of the readers of the i-th blogger’s content as:
+Pr(t = 1 | xi, A) =
+exp pi
+1
+exp pi
+1 + exp pi
+0
+;
+pi
+1 = κ1r (xi )T rc
+1 + κ2
+∑︁
+j ∈ N (i )
+r xj
+T
+rc
+1
+= κ1r (xi )T rc
+1 + κ2 Ar xj
+T
+rc
+1;
+pi
+0 = κ1r (xi )T rc
+0 + κ2
+∑︁
+j ∈ N (i )
+r xj
+T
+rc
+0
+= κ1r (xi )T rc
+0 + κ2 Ar xj
+T
+rc
+0,
+where κ1, κ2 ≥ 0 signifies the magnitude of the confounding bias resulting from a blogger’s topics and her neighbors’ topics, respectively. κ1 = 0, κ2 = 0 means the treatment assignment is random and there is no selection bias, and greater κ1, κ2 means larger selection bias. The factual outcome and the counterfactual outcome of the i-th blogger are simulated as:
+yF (xi ) = yi = C pi
+0 + tipi
+1 +ε
+yCF (xi ) = C pi
+0 + (1 − ti ) pi
+1 + ε,
+where C is a scaling factor and the noise is sampled as ε ∼ N (0, 1). In this work, we set C = 5, κ1 = 10, κ2 ∈ {0.5, 2}.
+A.3.2 Details about the comparing methods. The detail descriptions of the comparing methods can be found here.
+• Two-Model: This method infers the labels in the treatment group and the control group respectively. • CTM: The Class-Transformation model (CTM) creates the new target variable to estimate the uplift. • Uplift-RF: This model modifies existing random forest algorithms to directly infer the uplift. • DML: Double Machine Learning (DML) method uses the Neyman orthogonal score and cross-fitting to construct the uplift estimator. • DRL: Doubly Robust Learning (DRL) method combines the error imputation and the inverse propensity score estimator to address the bias problem. • NetDeconf: It uses the graph to minimize confounding bias in the task of estimating treatment effects. • GNUM-GCN/GAT: To show the effectiveness of partial label learning, we replace the graph representation learning method with GCN and GAT respectively for comparison.
+A.3.3 Parameter Settings. We adopt the deep neural networks [55] with two 64-unit hidden layers as the building block for the Two-Model and CTM methods. For uplift random forest, we set the number of estimators as 50 and the depth of the tree as 5. For NetDeconf and our proposed method, we use two layers of GNN with units of 128 − 64. All the weight matrices are initialized using Xavier initialization [56]. We train the model for 5 epochs with a learning rate of 0.0001 and batch size of 256. Note that we use grid search to get the best hyper-parameters. For each dataset, we randomly sampled 70% of the users as the training set, 10% as the validation set, and 20% as the test set. The models are trained on a cluster of 10 Dual-CPU servers with AGL [57] framework. For
+the largest dataset, containing 573.8K nodes and 2.6M edges, the proposed method took about 17 minutes to train on a cluster of 10 Dual-CPU servers. We run each algorithm 5 times and report the average result.

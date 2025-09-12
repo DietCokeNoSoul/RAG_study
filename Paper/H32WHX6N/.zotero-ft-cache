@@ -1,0 +1,267 @@
+arXiv:2406.18380v2 [cs.LG] 1 Jul 2024
+KAGNNs: Kolmogorov-Arnold Networks meet
+Graph Learning
+Roman Bresson1 bresson@kth.se
+Giannis Nikolentzos2 nikolentzos@uop.gr
+George Panagopoulos3
+georgios.panagopoulos@uni.lu
+Michail Chatzianastasis4
+michail.chatzianastasis@polytechnique.edu
+Jun Pang3
+jun.pang@uni.lu
+Michalis Vazirgiannis1,4
+mvazirg@lix.polytechnique.fr
+1KTH Royal Institute of Technology, Sweden 2University of Peloponnese, Greece 3University of Luxembourg, Luxembourg 4E ́cole Polytechnique, IP Paris, France
+Abstract
+In recent years, Graph Neural Networks (GNNs) have become the de facto tool for learning node and graph representations. Most GNNs typically consist of a sequence of neighborhood aggregation (a.k.a., message passing) layers. Within each of these layers, the representation of each node is updated from an aggregation and transformation of its neighbours representations at the previous layer. The upper bound for the expressive power of message passing GNNs was reached through the use of MLPs as a transformation, due to their universal approximation capabilities. However, MLPs suffer from well-known limitations, which recently motivated the introduction of Kolmogorov-Arnold Networks (KANs). KANs rely on the Kolmogorov-Arnold representation theorem, rendering them a promising alternative to MLPs. In this work, we compare the performance of KANs against that of MLPs in graph learning tasks. We perform extensive experiments on node classification, graph classification and graph regression datasets. Our preliminary results indicate that while KANs are on-par with MLPs in classification tasks, they seem to have a clear advantage in the graph regression tasks. Code is available at https://github.com/RomanBresson/KAGNN.
+1 Introduction
+Graphs are structural representations of information which are useful for modeling many types of data. They arise naturally in a wide range of application domains, and their abstract nature offers increased flexibility. Typically, the nodes of a graph represent entities, while the edges capture the interactions between them. For instance, in social networks, nodes represent individuals, and edges represent their social interactions. In chemo-informatics, molecules are commonly modeled as graphs, with nodes corresponding to atoms and edges to chemical bonds. In other settings, molecules can also be nodes, with edges capturing their ability to bond with one another.
+1
+
+
+In many cases where graph data is available, there exist problems that cannot be solved efficiently using conventional tools (e. g., graph algorithms) and require the use of machine learning techniques. For instance, in the field of chemo-informatics, the standard approach for estimating the quantum mechanical properties of molecules leverages computationally expensive density functional theory computations [12]. Machine learning methods could serve as a more efficient alternative to those methods. Recently, Graph Neural Networks (GNNs) have been established as the dominant approach for learning on graphs [36]. Most GNNs consist of a series of message passing layers. Within a message passing layer, each node updates its feature vector by aggregating the feature vectors of its neighbors and combining the emerging vector with its own representation.
+A lot of recent work has focused on investigating the expressive power of GNNs [22]. There exist different definitions of expressive power, however, the most common definition is concerned with the number of pairs of non-isomorphic graphs that a GNN model can distinguish. Two graphs are isomorphic if there exists an edge-preserving bijection between their respective sets of nodes. In this setting, a model is more expressive than another model if the former can distinguish all pairs of non-isomorphic graphs that the latter can distinguish, along with other pairs that the latter cannot [27]. Furthermore, an equivalence has also been established between the ability of GNNs to distinguish non-isomorphic graphs and their ability to approximate permutation-invariant functions on graphs [3]. This line of work gave insights into the limitations of different models [38, 29], but also led to the development of more powerful architectures [27, 24, 26].
+Most maximally-expressive GNN models rely on multi-layer perceptrons (MLPs) as their main building blocks, due to their universal approximation capabilities [5, 15]. The theorem states that any continuous function can be approximated by an MLP with at least one hidden layer, given that this layer contains enough neurons. Having said that, in practice the models suffer from several limitations due to non-convex loss functions, algorithms without convergence guarantees and a notorious lack of interpretability that hinders their applicability in several domains. Recently, KolmogorovArnold Networks (KANs) [23] have emerged as promising alternatives to MLPs. They are based on the Kolmogorov-Arnold representation theorem [21] which states that a continuous multivariate function can be represented by a composition and sum of a fixed number of univariate functions. KANs substitute the learnable weights and pre-defined activation functions of MLPs, with learnable activations based on B-splines and summations. The initial results demonstrate that KANs have the potential to be more accurate than MLPs in low dimensions, while simultaneously being more interpretable.
+In this paper, we present a thorough empirical comparison between GNNs that use KANs to update node representations and GNNs that utilize MLPs to that end. Our work is orthogonal to prior work that studies the expressive power of GNNs. Here, we empirically compare models that are theoretically equally expressive in terms of distinguishing non-isomorphic graphs against each other, and we study the impact of the different function approximation modules (i. e., KANs or MLPs) on the model’s performance. We evaluate the different GNN models on several standard node classification, graph classification and graph regression datasets.
+The rest of this paper is organized as follows. Section 2, provides an overview of the tasks we address in this paper, as well as a description of message passing GNNs and Kolmogorov-Arnold networks. In Section 3, we introduce the KAGIN (Kolmogorov-Arnold Graph Isomorphism Network) and KAGCN (Kolmogorov-Arnold Graph Convolution Network) models, which are variants of existing GNNs, and which leverage KANs to update node features within each layer. In Section 4, we present extensive empirical results comparing the above models with their vanilla counterparts in several tasks. Finally, Section 5 concludes the paper.
+2
+
+
+2 Background
+2.1 Considered Graph Learning Tasks
+Before presenting the tasks on which we focus in this study, we start by introducing some key notation for graphs. Let N denote the set of natural numbers, i. e., {1, 2, . . .}. Then, [n] = {1, . . . , n} ⊂ N for n ≥ 1. Let G = (V, E) be an undirected graph, where V is the vertex set and E is the edge set. We denote by n the number of vertices and by m the number of edges, i. e., n = |V | and m = |E|. Let g : V → [n] denote a bijective mapping from the space of nodes to set [n]. Let N (v) denote the the neighbourhood of vertex v, i. e., the set {u | {v, u} ∈ E}. The degree of a vertex v is deg(v) = |N (v)|. Each node v ∈ V is associated with a d-dimensional feature vector xv ∈ Rd, and the feature matrix
+for all nodes is represented as X ∈ Rn×d. Thus, xv is equal to the g(v)-th row of X.
+In node classification, each node v ∈ V is associated with a label yv that represents a class. The task is to learn a function that maps nodes to their class labels, i. e., to learn a function fnode such that fnode(v, G, X) = yv. In graph regression/classification, the dataset consists of a collection of N graphs G1, . . . , GN along with their class labels/targets yG1, . . . , yGN . The task is then to learn a function that maps graphs to their class labels/targets, i. e., to learn a function fgraph such that fgraph(G, X) = yG, which can be discrete or continuous, for graph classification or graph regression, respectively.
+The standard approach for learning such predictors (both for node- and graph-level tasks) is to first embed the nodes of the graph(s) into some vector space. That is, we aim to learn H = EMBEDDING(G, X) ∈ Rn×de where de denotes the embedding dimension. Then, the g(v)-th row of matrix H represents the embedding of node v. Let hv denote this embedding. For node-level tasks, we can use hv to predict directly the class label/target of node v. For graph-level tasks, we also need to apply a readout function on all the representations of the graph’s nodes to obtain a representation hG = READOUT(H) for the entire graph.
+One particularly desirable property of such models is permutation invariance. That is, the embedding hG of a graph needs to be the same regardless of the ordering of its nodes . Indeed, these orderings do not hold any semantic meaning and different orderings give rise to isomorphic graphs. Permutation invariance is achieved at the readout step by utilizing a permutation invariant operation over the rows of H, such as the sum, max or mean operators.
+2.2 Graph Neural Networks
+One of the most widely-used paradigms for designing such permutation invariant models is the message passing framework [12] which consists of a sequence of layers and whithin each layer the embedding of each node is computed as a learnable function of its neighbors’ embeddings. Formally, the embedding h(vl) ∈ Rdl at layer l is computed as follows:
+h(vl) = φ(l)
+
+h(l−1)
+v ,⊕
+u∈N (v)
+h(l−1)
+u
+
+ (1)
+where ⊕ is a permutation-invariant aggregation function (e. g., mean, sum), and φ(l) is a differentiable function (e. g., linear transformation, MLP) that combines and transforms the node’s previous embedding with the aggregated vector of its neighbors.
+3
+
+
+As discussed above, in this paper, we focus on the functions that different GNN models employ to update node representations. Many existing GNNs use a 1-layer perceptron (i. e., a linear mapping followed by a non-linear activation function) within each neighborhood aggregation layer to update node features [7, 20, 40]. For instance, each layer of the the Graph Convolutional Network (GCN) [20] is defined as follows:
+h(vl) = σ
+
+W(l) ∑
+u∈N (v)∪{v}
+h(l−1)
+u
+√(deg(v) + 1)(deg(u) + 1)
+
+ (2)
+where σ is a non-linear activation and W(l) is a trainable weight matrix.
+However, the 1-layer perceptron is not a universal approximator of multiset functions [38]. Thus, the emerging GNN might not be expressive enough for some tasks. Thus, more recent models use MLPs instead of 1-layer perceptrons to update node representations [2, 6, 28, 29]. It is well-known that standard message passing GNNs are bounded in expressiveness by the Weisfeiler-Leman (WL) test of isomorphism [38]. While two isomorphic graphs will always be mapped to the same representation by such a GNN, some non-isomorphic graphs might also be assigned identical representations.
+A model that can achieve the same expressive power as the WL test, given sufficient width and depth of the MLP, is the Graph Isomorphism Network (GIN) [38], which is defined as follows:
+h(vl) = MLP(l)
+
+(1 + ǫ(l)) · h(l−1)
+v +∑
+u∈N (v)
+h(l−1)
+u
+
+ (3)
+where ǫ(l) denotes a trainable parameter, and MLP(l) a trainable MLP.
+The GIN model can achieve its full potential if proper weights (i. e., for the different MLP(l) layers and ǫ(l)) are learned. However, in practice, GIN might fail to learn those weights due to limited training data and due to limitations of the employed training algorithm (e. g., stochastic gradient descent). This has motivated a series of works which focused on improving the training procedure of GNNs. For example, Ortho-GConv is an orthogonal feature transformation that can address GNNs’ unstable training [13]. Other works have studied how to initialize the weights of the MLPs of the message passing layers of GNNs. It was shown that by adopting the weights of converged MLPs as the weights of corresponding GNNs can lead to performance improvements in node classification tasks [14]. On the other hand, there exist settings where there is no need of complex learning models. This has led to the development of methods for simplifying GNNs. This can be achieved by removing the nonlinearities between the neighborhood aggregation layers and collapsing the resulting function into a single linear transformation [35] or by feeding the node features into a neural network which generates predictions and then propagate those predictions via a personalized PageRank scheme [9].
+2.3 Kolmogorov-Arnold Networks
+Presented as an alternative to the MLP, the Kolmogorov-Arnold Network (KAN) architecture has recently attracted a lot of attention in the machine learning community [23]. As mentioned above, this model relies on the Kolmogorov-Arnold representation theorem, which states that any multivariate
+function f : [0, 1]d → R can be written as:
+f (x) =
+2d+1
+∑
+i=1
+Φi
+
+
+d
+∑
+j=1
+φij (xj )
+
+ (4)
+4
+
+
+where all Φ and φ functions are univariate, and the sum is the only multivariate operator.
+Equation (4) can be seen as a two-step process. First, a different set of univariate non-linear activation functions is applied to each dimension of the input, and then the output of those functions are summed up. The authors rely on this interpretation to define a Kolmogorov-Arnold Network (KAN) layer, which is a mapping between a space A ⊆ Rd and a different space B ⊆ Rd′, (identical in use to an MLP layer). Such a layer consists of d×d′ trainable functions {φij , 1 ≤ i ≤ d′, 1 ≤ j ≤ d}. Then, for x ∈ A, we compute its image x′ as:
+x′i =
+d
+∑
+j=1
+φij (xj ) (5)
+Stacking two such layers, one with input dimension d and output dimension 2d+ 1, and another with input dimension 2d + 1 and output dimension 1, we obtain Equation (4), and the derived model is a universal function approximator.
+This seemingly offers a complexity advantage compared to MLPs, since the number of univariate
+functions required to represent any multivariate function from [0, 1]d to Rd′ is at most (2d2 + d) × d′, whereas the universal approximation theorem for the MLP requires a possibly infinite number of neurons. However, as stated by the original paper, the behavior of such univariate functions might be arbitrarily complex (e. g., fractal, non-smooth), thus leading to them being non-representable, and non-learnable.
+MLPs relax the arbitrary-width constraint by stacking finite-width layers. Likewise, KANs relax the arbitrary-complexity constraints on the non-linearities by stacking KAN layers. Thus, the output of a function is given by: y = KAN(x) = ΦL ◦ ΦL−1 ◦ · · · ◦ Φ1(x) (6)
+where Φ1, . . . , ΦL are KAN layers.
+The original paper uses splines (i. e., trainable piecewise-polynomial functions) as nonlinearities. This allows to retain a high expressivity for a relatively small number of parameters, at the cost of enforcing some local smoothness. A layer l is thus a dl × dl−1 grid of splines. The degree used for each spline (called spline order ), as well as the number of splines used for each function (called grid size) are both hyperparameters of the architecture.
+Even though KANs were introduced very recently, they have already been applied to different problems such as in the task of satellite image classification [4] and for predicting the pressure and flow rate of flexible electrohydrodynamic pumps [31]. So far, most efforts have focused on time series data [39]. For instance, KANs have been evaluated in the satellite traffic forecasting task [34]. Furthermore, they have been combined with architectures that are traditionally leveraged in time series forecasting tasks such as the Long Short-Term Memory Network [11] and the Transformer [10]. The work closest to ours is the one reported in [37], where the authors propose FourierKAN-GCF. This is a GNN model designed for the task of graph collaborative filtering where the feature transformation in the neighborhood aggregation layers is performed by KANs.
+3 KAN-based GNN Layers
+We next derive variants of the GIN and GCN models which use KANs to transform the node features instead of fully-connected layers or MLPs.
+5
+
+
+3.1 The KAGIN Layer
+To achieve its maximal expressivity, the GIN model relies on the MLP architecture and its universal approximator property. Since KAN is also a universal function approximator, we could achieve the same expressive power using KANs in lieu of MLPs. We thus propose the KAGIN model which is defined as follows:
+h(vl) = KAN(l)
+
+(1 + ǫ) · h(l−1)
+v +∑
+u∈N (v)
+h(l−1)
+u
+
+ (7)
+With theoretically-sound KANs (i. e., with arbitrarily complex components), this architecture is exactly as expressive as the vanilla GIN model with arbitrary layer width. While this is not guaranteed with the spline-based implementation with limited grid size, the empirical results in the original paper demonstrate the great expressive power of KANs [23], especially of small models and setting where regularity is expected.
+3.2 The KAGCN Layer
+GCN-based architectures have achieved great success in node classification tasks. While in our experiments we evaluate KAGIN on node classification datasets, the objective advantage of GCN over GIN on some of the datasets does not facilitate a fair estimation of KANs’ potential in this context. To this end, we also propose a variant of the GCN model. Specifically, we substitute the parameters and ReLU function of the standard GCN [20] model with a single KAN layer (defined in Equation (6)) to obtain the KAGCN layer:
+h(vl) = Φ(l)
+
+
+∑
+u∈N (v)∪{v}
+h(l−1)
+u
+√(deg(v) + 1)(deg(u) + 1)
+
+ (8)
+where Φ(l) denotes a single KAN layer. In the familiar matrix formulation, where A ̃ = A + I is the
+adjacency matrix with self-loops and D ̃ the diagonal degree matrix of  ̃A, the node update rule of KAGCN can be written as:
+H(l) = Φ(l)(  ̃D− 1
+2  ̃AD ̃ − 1
+2 H(l−1))
+(9)
+where the different rows of H(l) store the representations of the different nodes of the graph.
+4 Empirical Evaluation
+In this section, we compare the KAGIN and KAGCN models with the GIN and GCN models in the following tasks: node classification, graph classification and graph regression. The code for reproducing the results is available at https://github.com/RomanBresson/KAGNN. All models are implemented with PyTorch [30]. For KAN layers, we rely on a publicly available implementation1.
+1https://github.com/Blealtan/efficient-kan
+6
+
+
+Table 1: Average classification accuracy (± standard deviation) of the KAGIN, GIN, KAGCN, and GCN models on the 7 node classification datasets. Dataset KAGIN GIN KAGCN GCN
+Cora 0.7620 ± 0.0077 0.5528 ± 0.1112 0.7826 ± 0.0177 0.7566 ± 0.0718 Citeseer 0.6837 ± 0.0117 0.4748 ± 0.0574 0.6409 ± 0.0185 0.6891 ± 0.0074 Ogbn-arxiv 0.2450 ± 0.0806 0.2110 ± 0.0628 0.2997 ± 0.0274 0.2777± 0.0699
+Cornell 0.5243 ± 0.0813 0.4000 ± 0.1414 0.4892 ± 0.0547 0.4162 ± 0.0737 Texas 0.5973 ± 0.0505 0.6054 ± 0.0516 0.5811 ± 0.0440 0.5892 ± 0.0415 Wisconsin 0.5510 ± 0.0720 0.4961 ± 0.1532 0.5196 ± 0.1020 0.5216 ± 0.0729 Actor 0.2890 ± 0.0139 0.2817 ± 0.0110 0.2755 ± 0.0134 0.2852 ± 0.0129
+4.1 Node classification
+Datasets. To evaluate the performance of GNNs with KAN layers in the context of node classification, we use 7 well-known datasets of varying sizes and types, including homophilic (Cora, Citeseer [20] and Ogbn-arxiv [16]) and heterophilic (Cornell, Texas, Wisconsin, Actor) networks. The homophilic networks are already split into training, validation and test sets, while the heterophilic datasets are accompanied by fixed 10-fold cross validation indices.
+Experimental setup. For every dataset and model, we tune the values of the hyperparameters. Specifically, we choose the values that perform best on the validation set (i. e., lowest validation error). To find these values, we use the Optuna package [1]. We set the number of iterations of Optuna equal to 100 trials.
+For all models, the learning rate is chosen from [10−3, 10−2], the number of message passing layers from {1, 2, 3, 4}, the hidden dimension size from {8, 9, . . . , 128} and the weight decay from {0, 0.0005}. For KAGIN and KAGCN, we also choose the grid size from {3, 4, 5} and the spline order from {1, 2, 3, 4}. Once the best hyperparameter values are found, we evaluate the models on the test set. For the homophilic networks, we initialize and train 10 different models (we use 10 different random seeds). We then evaluate the 10 models on the test set and report the average accuracy. For the heterophilic datasets, we tune each model’s hyperparameters within each fold and we report the average accuracy across the 10 folds.
+Results. The results are given in Table 1. We can see that KAGIN outperforms GIN on all but one datasets. On some datasets, the difference in performance between the two models is significant. For example, on Citeseer and Cora, KAGIN offers a respective absolute improvement of 20.89% and 20.9% in accuracy over GIN. On the other hand, KAGCN outperforms GCN on 3/7 considered datasets, albeit being the best in 2/3 homophilic networks and exhibiting very similar accuracy in 3/4 heterophilic ones. The KAGIN and GIN models exhibit the best performance in heterophilic networks while the KAGCN and GCN models achieve the highest accuracy on the homophilic. The use of KANs in the GIN architecture brings performance improvements on 6/7 datasets, but 5/7 experiments overlap in the confidence intervals, an overlap that is more prevalent with GCN-based models in 6/7. Overall we can contend that KAN has a more positive impact on the GIN architecture than on the GCN architecture. Moreover, the introduction of KAN does not alleviate the inherent disadvantage of the
+7
+
+
+Table 2: Training time per epoch on the Ogbn-arxiv dataset.
+Architecture Message Passing
+Layers
+Hidden
+Dimension Grid Size Spline Order # Parameters Training time
+(s/epoch)
+GIN 2 16 NA NA 5,336 0.035 GIN 2 64 NA NA 27,368 0.041 GIN 4 16 NA NA 6,936 0.037 GIN 4 64 NA NA 52,200 0.056 KAGIN 2 16 1 1 31,232 0.046 KAGIN 2 64 1 1 63,488 0.048 KAGIN 2 16 4 1 54,656 0.059 KAGIN 2 16 4 3 70,272 0.146 KAGIN 4 16 1 1 38,400 0.056 KAGIN 4 64 1 1 116,736 0.072 KAGIN 4 64 4 1 204,288 0.109 KAGIN 4 64 4 3 262,656 0.298
+model e.g. GCN accuracy with heterophilic networks [41], however, it improves the models in the majority of the results i.e. 5/7.
+With regards to the optimal hyperparameters, we found that KAGIN required a larger grid size on average compared to KAGCN. In general, a grid size of 4 was chosen in 8/14 experiments and the predominant spline order was 1, appearing in 8/14 experiments while 3 appears 2 times and 4 only once. The number of hidden layers and their sizes varied significantly through datasets but overall KAGIN had a substantially larger average hidden layer size i. e., 75.4 compared to 48 for KAGIN, as 128 was chosen for 3 datasets compared to only 1 for KAGCN. This is in contrast to previous findings contending that GIN-based models requires more complex learning procedures, a pattern that seems to withstand with KANs.
+Training times. We present in Table 2 the training time per epoch for different configurations of the KAGIN and GIN models. We observe that for a given number of message passing layers and hidden dimension size, the KAGIN model is computationally more expensive than GIN. If the grid size and spline order hyperparameters of KAGIN are set to 1, the difference in running time between the two models is very small (less than 0.02 seconds per epoch for all configurations). However, the complexity of KAGIN increases are the grid size and spline order increase. Overall, our results suggest that the running time of KAGIN is slightly greater than that of GIN, and by no means prohibitive.
+4.2 Graph Classification
+Datasets. In this set of experiments, we compare the KAGIN model against GIN on standard graph classification benchmark datasets [25]. We experiment with the 7 following datasets: (1) MUTAG, (2) DD, (3) NCI1, (4) PROTEINS, (5) ENZYMES, (6) IMDB-B, (7) IMDB-M. The first 5 datasets come from bio- and chemo-informatics, while the last 2 are social interaction datasets.
+Experimental setup. We follow the experimental protocol proposed in [8]. Thus, we perform 10-fold cross-validation to obtain an estimate of the generalization performance of each method,
+8
+
+
+Table 3: Average classification accuracy (± standard deviation) of the KAGIN and GIN models on the 6 graph classification datasets.
+MUTAG DD NCI1 PROTEINS
+GIN 85.09 ± 5.97 73.68 ± 3.89 79.57 ± 1.27 70.26 ± 3.62 KAGIN 85.45 ± 7.38 75.46 ± 4.16 79.72 ± 1.79 71.78 ± 3.12
+ENZYMES IMDB-B IMDB-M
+GIN 53.72 ± 9.23 73.03 ± 2.86 49.78 ± 3.38 KAGIN 42.94 ± 5.69 73.83 ± 4.35 49.78 ± 4.69
+while within each fold a model is selected based on a 90%/10% split of the training set. We use the splits provided in [8]. We use the Optuna package to select the model that achieves the lowest validation error. We set the number of iterations of Optuna equal to 100.
+For a fair comparison, we set the number of message passing layers of both models to a fixed value for each dataset. Based on preliminary experiments, on MUTAG, PROTEINS, IMDB-B and IMDB-M, we set the number of layers to 2. On DD, we set it to 3. On ENZYMES, we set it to 4 and finally, on NCI1, we set it to 5. To produce graph representations, we use the sum operator. The produced graph representations are fed to an MLP (for GIN) or a KAN (for KAGIN) layer which computes the output. We train each model for 1, 000 epochs by minimizing the cross entropy loss. We use the Adam optimizer for model training [19]. We apply batch normalization [17] and dropout [33] to the output of each message passing layer. We also use early stopping with a patience of 20 epochs. For both models, we choose the number of hidden layers from {2, 3, 4} and the dropout rate from [0.0, 0.5]. For GIN, we choose the hidden dimension size from {8, 9, . . . , 256} and the learning rate from [10−5, 10−2]. For KAGIN, we choose the hidden dimension size from {2, 3, . . . , 128}, the grid size from {1, 2, . . . , 16}, the spline order from {1, 2, . . . , 8} and the learning rate from [10−4, 10−2]. For the IMDB-B and IMDB-M datasets, where there are no node features, we annotate nodes with one-hot encodings of their degrees, up to 35 (all degrees above 35 are set equal to 35). Once the best hyperparemeters are found for a given split, we train 3 different models on the training set of the split (in order to limit the impact of random initialization) and evaluate them on the test set of the split. This yields 3 test accuracies, and we compute their average.
+Results. Table 3 illustrates the average classification accuracies and the corresponding standard deviations of the two models on the different datasets. We observe that the two models achieve similar levels of performance. KAGIN outperforms GIN on 5 out of the 7 datasets. However, the difference in performance between the two models is very small. This suggests that the two models are similar in terms of expressive power. On ENZYMES, however, KAGIN was found to perform much worse than GIN. Note that ENZYMES consists of more classes (6 classes in total) than the rest of the datasets, while ENZYMES and PROTEINS are the only datasets where the nodes of the graphs are annotated with continuous features (on the rest of the datasets, they are annotated with one-hot encodings). We hypothesize that the difference in performance is due to the inability of KANs to handle those continuous features. We thus normalized the node features within each fold by removing the mean of each feature (computed from the training samples) and then dividing by the corresponding standard deviation. We re-conducted the experiment and the average accuracy increased by approximately 6% (48.77% instead of 42.94%). Therefore, it turns out that in some
+9
+
+
+Table 4: Training time per epoch on NCI1 dataset (i. e., only the forward and backward pass, looped over all batches, averaged over 50 epochs). All compared models consist of 5 message passing layers, and of 2 hidden layers in their respective MLP/KAN. Batch size is set to 128.
+Architecture Hidden
+Dimension Grid Size Spline Order # Parameters Training time
+(s/epoch)
+GIN 16 NA NA 3,522 0.368 GIN 64 NA NA 44,802 0.372 GIN 256 NA NA 670,722 0.433 GIN 512 NA NA 2,652,162 0.742 KAGIN 16 1 1 6,752 0.474 KAGIN 32 1 1 21,696 0.475 KAGIN 64 1 1 76,160 0.475 KAGIN 256 1 1 1,091,072 0.732 KAGIN 16 1 3 10,048 0.658 KAGIN 32 1 3 32,384 0.659 KAGIN 64 1 3 113,920 0.792 KAGIN 256 1 3 1,635,328 2.159 KAGIN 16 4 1 11,696 0.476 KAGIN 32 4 1 37,728 0.478 KAGIN 64 4 1 132,800 0.485 KAGIN 256 4 1 1,907,456 1.074 KAGIN 16 4 3 14,992 0.662 KAGIN 32 4 3 48,416 0.726 KAGIN 64 4 3 170,560 1.005 KAGIN 256 4 3 2,451,712 3.092
+settings it might be harder for KAN layers to handle continuous features than for MLPs.
+Training times. We give in Table 4 an overview of the training times for different GIN and KAGIN architectures. We provide the number of parameters of each architecture. We notice that, for the same number of parameters, KAN is slower than its MLP counterpart. This is particularly sensitive to grid size and spline order. This makes sense since, using splines, each parameter involves more complex computations than the usual multiplication/summation of traditional MLP neurons. Moreover, some of this performance difference might come from how optimized the implementation is. It would be an interesting next step to study the relation of size to performance for KANs and MLPs, since, intuitively, the expressivity of splines should allow for smaller networks.
+4.3 Graph Regression
+Datasets. We experiment with two molecular datasets: (1) ZINC-12K [18], and (2) QM9 [32]. ZINC-12K consists of 12, 000 molecules. The task is to predict the constrained solubility of molecules,
+10
+
+
+Table 5: Average MAE (± standard deviation) of the KAGIN and GIN models on the ZINC-12K and QM9 datasets.
+ZINC-12K QM9
+GIN 0.4131 ± 0.0215 0.0969 ± 0.0017 KAGIN 0.3000 ± 0.0332 0.0618 ± 0.0007
+an important chemical property for designing generative GNNs for molecules. The dataset is already split into training, validation and test sets (10, 000, 1, 000 and 1, 000 graphs in the training, validation and test sets, respectively). QM9 contains approximately 134, 000 organic molecules. Each molecule consists of Hydrogen (H), Carbon (C), Oxygen (O), Nitrogen (N), and Flourine (F) atoms and contain up to 9 heavy (non Hydrogen) atoms. The task is to predict 12 target properties for each molecule. The dataset was divided into a training, a validation and a test set according to a 80%/10%/10% split.
+Experimental setup. We perform grid search to select values for the different hyperparameters. For both models, we choose the number of hidden layers from {2, 3, 4}, and the learning rate from {10−3, 10−4}. For GIN, we choose the hidden dimension size from {32, 64, 128, 256, 512, 1024}, while for KAGIN, we choose it from {4, 8, 16, 32, 64, 128, 256}. For KAGIN, we also select the grid size from {1, 3, 5, 8, 10} and the spline order from {3, 5}. To produce graph representations, we use the sum operator. The emerging graph representations are finally fed to a 2-layer MLP (for GIN) or a 2-layer KAN (for KAGIN) which produces the output. We set the batch size equal to 128 for all models. We train each model for 1, 000 epochs by minimizing the mean absolute error (MAE). We use the Adam optimizer for model training [19]. We also use early stopping with a patience of 20 epochs. For ZINC-12K, we also use an embedding layer which maps node features into 100-dimensional vectors. We choose the configuration that achieves the lowest validation error. Once the best configuration is found, we run 10 experiments and report the average performance on the test set. For both datasets and models, we set the number of message passing layers to 4. On QM9, we performed a joint regression of the 12 targets.
+Results. The results are shown in Table 5. We observe that on both considered datasets, KAGIN significantly outperforms the GIN model. Note that these datasets are significantly larger (in terms of number of samples) compared to the graph classification datasets of Table 3. More specifically, KAGIN offers an absolute improvement of approximately 0.11 and 0.03 in MAE over GIN. Those improvements suggest that KANs might be more effective than MLPs in regression tasks.
+5 Conclusion
+In this paper, we have investigated the potential of Kolmogorov-Arnold networks in graph learning tasks. Since the KAN architecture is a natural alternative to the MLP, we developed two GNN architectures, KAGCN and KAGIN, respectively analogous to the GCN and GIN models. We then compared those architectures against each other in both node- and graph-level tasks. In the classification tasks, there does not appear to be a clear winner, with both architectures outperforming each other on some datasets. In the graph regression task, however, preliminary results seem to indicate that KAN has an advantage over MLP. This paper shows, through its preliminary results,
+11
+
+
+that such KAN-based GNNs are valid alternatives to the traditional MLP-based models. We thus believe that these models deserve the attention of the graph machine-learning community.
+Finally, we discuss potential advantages that KANs might have over MLPs, and leave their investigation for future work. First, their ability to accurately fit smooth functions could prove highly relevant on datasets where variables interact with some regular patterns. Second, their interpretability could be leveraged to provide explanations on learned models, giving insights into the nature of interactions among entities. Finally, a thorough study of the effect of the different hyperparameters could be leveraged, allowing to fully exploit the richness of splines while retaining small networks.
+6 Acknowledgements
+This work was partially supported by the The Wallenberg AI, Autonomous Systems and Software Program (WASP) funded by the Knut and Alice Wallenberg Foundation and partner Swedish universities and industry.
+References
+[1] Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, and Masanori Koyama. Optuna: A next-generation hyperparameter optimization framework. In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pages 2623–2631, 2019.
+[2] Muhammet Balcilar, Pierre H ́eroux, Benoit Gauzere, Pascal Vasseur, S ́ebastien Adam, and Paul Honeine. Breaking the limits of message passing graph neural networks. In Proceedings of the 38th International Conference on Machine Learning,, pages 599–608, 2021.
+[3] Zhengdao Chen, Soledad Villar, Lei Chen, and Joan Bruna. On the equivalence between graph isomorphism testing and function approximation with gnns. In Advances in Neural Information Processing Systems, 2019.
+[4] Minjong Cheon. Kolmogorov-arnold network for satellite image classification in remote sensing. arXiv preprint arXiv:2406.00600, 2024.
+[5] George Cybenko. Approximation by superpositions of a sigmoidal function. Mathematics of Control, Signals and Systems, 2(4):303–314, 1989.
+[6] George Dasoulas, Ludovic Dos Santos, Kevin Scaman, and Aladin Virmaux. Coloring graph neural networks for node disambiguation. In Proceedings of the 29th International Conference on International Joint Conferences on Artificial Intelligence, pages 2126–2132, 2021.
+[7] David K Duvenaud, Dougal Maclaurin, Jorge Iparraguirre, Rafael Bombarell, Timothy Hirzel, Al ́an Aspuru-Guzik, and Ryan P Adams. Convolutional networks on graphs for learning molecular fingerprints. In Advances in Neural Information Processing Systems, 2015.
+[8] Federico Errica, Marco Podda, Davide Bacciu, and Alessio Micheli. A fair comparison of graph neural networks for graph classification. In Proceedings of the 8th International Conference on Learning Representations, 2020.
+12
+
+
+[9] Johannes Gasteiger, Aleksandar Bojchevski, and Stephan G ̈unnemann. Predict then propagate: Graph neural networks meet personalized pagerank. In Proceedings of the 7th International Conference on Learning Representations, 2019.
+[10] Remi Genet and Hugo Inzirillo. A temporal kolmogorov-arnold transformer for time series forecasting. arXiv preprint arXiv:2406.02486, 2024.
+[11] Remi Genet and Hugo Inzirillo. Tkan: Temporal kolmogorov-arnold networks. arXiv preprint arXiv:2405.07344, 2024.
+[12] Justin Gilmer, Samuel S Schoenholz, Patrick F Riley, Oriol Vinyals, and George E Dahl. Neural message passing for quantum chemistry. In Proceedings of the 34th International Conference on Machine Learning, pages 1263–1272, 2017.
+[13] Kai Guo, Kaixiong Zhou, Xia Hu, Yu Li, Yi Chang, and Xin Wang. Orthogonal graph neural networks. In Proceedings of the 36th AAAI Conference on Artificial Intelligence, pages 39964004, 2022.
+[14] Xiaotian Han, Tong Zhao, Yozen Liu, Xia Hu, and Neil Shah. MLPInit: Embarrassingly simple gnn training acceleration with mlp initialization. In Proceedings of the 11th International Conference on Learning Representations, 2023.
+[15] Kurt Hornik, Maxwell Stinchcombe, and Halbert White. Multilayer feedforward networks are universal approximators. Neural Networks, 2(5):359–366, 1989.
+[16] Weihua Hu, Matthias Fey, Marinka Zitnik, Yuxiao Dong, Hongyu Ren, Bowen Liu, Michele Catasta, and Jure Leskovec. Open graph benchmark: Datasets for machine learning on graphs. Advances in Neural Information Processing Systems, 33:22118–22133, 2020.
+[17] Sergey Ioffe and Christian Szegedy. Batch normalization: Accelerating deep network training by reducing internal covariate shift. In Proceedings of the 32nd International Conference on Machine Learning, pages 448–456, 2015.
+[18] John J Irwin and Brian K Shoichet. Zinc- a free database of commercially available compounds for virtual screening. Journal of chemical information and modeling, 45(1):177–182, 2005.
+[19] Diederik P Kingma and Jimmy Ba. Adam: A method for stochastic optimization. In Proceedings of the 3rd International Conference on Learning Representations, 2015.
+[20] Thomas N Kipf and Max Welling. Semi-supervised classification with graph convolutional networks. In Proceedings of the 5th International Conference on Learning Representations, 2017.
+[21] Andrei Nikolaevich Kolmogorov. On the representation of continuous functions of many variables by superposition of continuous functions of one variable and addition. Doklady Akademii Nauk, 114(5):953–956, 1957.
+[22] Pan Li and Jure Leskovec. The expressive power of graph neural networks. Graph Neural Networks: Foundations, Frontiers, and Applications, pages 63–98, 2022.
+[23] Ziming Liu, Yixuan Wang, Sachin Vaidya, Fabian Ruehle, James Halverson, Marin Soljaˇci ́c, Thomas Y Hou, and Max Tegmark. Kan: Kolmogorov-arnold networks. arXiv preprint arXiv:2404.19756, 2024.
+13
+
+
+[24] Haggai Maron, Heli Ben-Hamu, Hadar Serviansky, and Yaron Lipman. Provably Powerful Graph Networks. In Advances in Neural Information Processing Systems, volume 33, pages 2156–2167, 2019.
+[25] Christopher Morris, Nils M Kriege, Franka Bause, Kristian Kersting, Petra Mutzel, and Marion Neumann. Tudataset: A collection of benchmark datasets for learning with graphs. arXiv preprint arXiv:2007.08663, 2020.
+[26] Christopher Morris, Gaurav Rattan, and Petra Mutzel. Weisfeiler and leman go sparse: Towards scalable higher-order graph embeddings. In Advances in Neural Information Processing Systems, pages 21824–21840, 2020.
+[27] Christopher Morris, Martin Ritzert, Matthias Fey, William L Hamilton, Jan Eric Lenssen, Gaurav Rattan, and Martin Grohe. Weisfeiler and leman go neural: Higher-order graph neural networks. In Proceedings of the 33rd AAAI Conference on Artificial Intelligence, pages 46024609, 2019.
+[28] Ryan Murphy, Balasubramaniam Srinivasan, Vinayak Rao, and Bruno Ribeiro. Relational pooling for graph representations. In Proceedings of the 36th International Conference on Machine Learning,, pages 4663–4673, 2019.
+[29] Giannis Nikolentzos, George Dasoulas, and Michalis Vazirgiannis. K-hop graph neural networks. Neural Networks, 130:195–205, 2020.
+[30] Adam Paszke, Sam Gross, Francisco Massa, Adam Lerer, James Bradbury, Gregory Chanan, Trevor Killeen, Zeming Lin, Natalia Gimelshein, Luca Antiga, et al. Pytorch: An imperative style, high-performance deep learning library. In Advances in Neural Information Processing Systems, 2019.
+[31] Yanhong Peng, Miao He, Fangchao Hu, Zebing Mao, Xia Huang, and Jun Ding. Predictive modeling of flexible ehd pumps using kolmogorov-arnold networks. arXiv preprint arXiv:2405.07488, 2024.
+[32] Raghunathan Ramakrishnan, Pavlo O Dral, Matthias Rupp, and O Anatole Von Lilienfeld. Quantum chemistry structures and properties of 134 kilo molecules. Scientific Data, 1(1):1–7, 2014.
+[33] Nitish Srivastava, Geoffrey Hinton, Alex Krizhevsky, Ilya Sutskever, and Ruslan Salakhutdinov. Dropout: a simple way to prevent neural networks from overfitting. The Journal of Machine Learning Research, 15(1):1929–1958, 2014.
+[34] Cristian J Vaca-Rubio, Luis Blanco, Roberto Pereira, and Ma`rius Caus. Kolmogorov-arnold networks (kans) for time series analysis. arXiv preprint arXiv:2405.08790, 2024.
+[35] Felix Wu, Amauri Souza, Tianyi Zhang, Christopher Fifty, Tao Yu, and Kilian Weinberger. Simplifying graph convolutional networks. In Proceedings of the 36th International Conference on Machine Learning, pages 6861–6871, 2019.
+[36] Zonghan Wu, Shirui Pan, Fengwen Chen, Guodong Long, Chengqi Zhang, and S Yu Philip. A comprehensive survey on graph neural networks. IEEE Transactions on Neural Networks and Learning Systems, 32(1):4–24, 2020.
+14
+
+
+[37] Jinfeng Xu, Zheyu Chen, Jinze Li, Shuo Yang, Wei Wang, Xiping Hu, and Edith C-H Ngai. Fourierkan-gcf: Fourier kolmogorov-arnold network–an effective and efficient feature transformation for graph collaborative filtering. arXiv preprint arXiv:2406.01034, 2024.
+[38] Keyulu Xu, Weihua Hu, Jure Leskovec, and Stefanie Jegelka. How Powerful are Graph Neural Networks? In Proceedings of the 7th International Conference on Learning Representations, 2019.
+[39] Kunpeng Xu, Lifei Chen, and Shengrui Wang. Kolmogorov-arnold networks for time series: Bridging predictive power and interpretability. arXiv preprint arXiv:2406.02496, 2024.
+[40] Muhan Zhang, Zhicheng Cui, Marion Neumann, and Yixin Chen. An end-to-end deep learning architecture for graph classification. In Proceedings of the 32nd AAAI Conference on Artificial Intelligence, pages 4438–4445, 2018.
+[41] Jiong Zhu, Ryan A Rossi, Anup Rao, Tung Mai, Nedim Lipka, Nesreen K Ahmed, and Danai Koutra. Graph neural networks with heterophily. In Proceedings of the AAAI conference on artificial intelligence, volume 35, pages 11168–11176, 2021.
+15

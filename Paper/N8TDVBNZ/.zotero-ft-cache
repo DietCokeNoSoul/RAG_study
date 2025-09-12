@@ -1,0 +1,260 @@
+Dual Intent Enhanced Graph Neural Network for Session-based New Item Recommendation
+Di Jin College of Intelligence and Computing, Tianjin University China jindi@tju.edu.cn
+Luzhi Wang∗ College of Intelligence and Computing, Tianjin University China wangluzhi@tju.edu.cn
+Yizhen Zheng Department of Data Science and AI, Faculty of IT, Monash University Australia yizhen.zheng1@monash.edu
+Guojie Song School of Intelligence Science and Technology, Peking University China gjsong@pku.edu.cn
+Fei Jiang Meituan China f91.jiang@gmail.com
+Xiang Li Beijing China leo.lx007@qq.com
+Wei Lin Beijing China lwsaviola@163.com
+Shirui Pan Griffith University Australia s.pan@griffith.edu.au
+ABSTRACT
+Recommender systems are essential to various fields, e.g., e-commerce, e-learning, and streaming media. At present, graph neural networks (GNNs) for session-based recommendations normally can only recommend items existing in users’ historical sessions. As a result, these GNNs have difficulty recommending items that users have never interacted with (new items), which leads to a phenomenon of information cocoon. Therefore, it is necessary to recommend new items to users. As there is no interaction between new items and users, we cannot include new items when building session graphs for GNN session-based recommender systems. Thus, it is challenging to recommend new items for users when using GNN-based methods. We regard this challenge as “GNN Session-based New Item Recommendation (GSNIR)”. To solve this problem, we propose a dual-intent enhanced graph neural network for it. Due to the fact that new items are not tied to historical sessions, the users’ intent is difficult to predict. We design a dual-intent network to learn user intent from an attention mechanism and the distribution of historical data respectively, which can simulate users’ decision-making process in interacting with a new item. To solve the challenge that new items cannot be learned by GNNs, inspired by zero-shot learning (ZSL), we infer the new item representation in GNN space by using their attributes. By outputting new item probabilities, which contain recommendation scores of the corresponding items, the new items with higher scores are recommended to users. Experiments on two representative real-world datasets show the superiority of our proposed method. The case study from the real-world verifies interpretability benefits brought by the dual-intent module and the new item reasoning module.
+∗Corresponding author.
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for components of this work owned by others than the author(s) must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specific permission and/or a fee. Request permissions from permissions@acm.org. WWW ’23, May 1–5, 2023, Austin, TX, USA
+© 2023 Copyright held by the owner/author(s). Publication rights licensed to ACM. ACM ISBN 978-1-4503-9416-1/23/04. . . $15.00 https://doi.org/10.1145/3543507.3583526
+CCS CONCEPTS
+• Information system → Data mining.
+KEYWORDS
+GNN; Session-based Recommendation; New Item Recommendation
+ACM Reference Format:
+Di Jin, Luzhi Wang, Yizhen Zheng, Guojie Song, Fei Jiang, Xiang Li, Wei Lin, and Shirui Pan. 2023. Dual Intent Enhanced Graph Neural Network for Session-based New Item Recommendation. In Proceedings of the ACM Web Conference 2023 (WWW ’23), May 1–5, 2023, Austin, TX, USA. ACM, New York, NY, USA, 10 pages. https://doi.org/10.1145/3543507.3583526
+1 INTRODUCTION
+Recommender systems have a major impact on a variety of fields, including e-commerce [11, 16], e-business [8], and media streaming services [2], which can influence our purchasing decisions and even lifestyles. In recommender systems, the session-based recommendation is a common task [27, 29]. Based on the previous items a user has interacted with in a session (i.e., a sequence of items), sessionbased recommendations aim at predicting the next item a user will interact with. Early approaches are based on identifying frequent sequential patterns, which are used for next-item recommendations in e-commerce or music domains [1, 12]. Such methods are computationally expensive because they are parameter-sensitive algorithms [4]. In recent years, some works have used Recurrent Neural Networks (RNNs) for a session-based recommendation. For example, Hidasi et al. [3] use Gated Recurrent Units (GRUs) as a special form of RNNs to model sparse session data to predict the next user interactions in a session. However, recommender systems based on RNNs have some limitations. For example, the number of interactions a user makes in a session is limited. It is difficult for RNNs to accurately estimate each user’s preference from each session [29]. Recently, graph neural networks (GNNs) are developing very fast and have been applied in many real-world applications [10, 35–37]. In session-based recommendations, GNNbased approaches become increasingly popular as they can address the aforementioned issues and improve prediction results. Currently, there are many GNN-based methods for session-based recommendation, such as SR-GNN [29], GCE-GNN [27] and GCSAN [32]. These GNN-based models typically construct a user’s
+arXiv:2305.05848v1 [cs.IR] 10 May 2023
+
+
+WWW ’23, May 1–5, 2023, Austin, TX, USA Jin et al.
+Figure 1: Difference between session-based next item recommendation and GSNIR. The dashed line points to the ground truth items. In (a), the session is v1 → v2 → v3 → v1 → v4, and v3 is the ground truth item. SR-GNN calculates the probability of each item that is liked by the user. In (b), v1, v2, v3 are old items, v4, v5, v6 are candidate new items, where v4 is the ground truth new item. NirGNN calculates the selected probability by user for every candidate new items.
+historical sessions as a session graph. Then, a well-designed graph neural network learns the representations of users’ intent and items from the historical session graph, and computes user-item matching scores. Finally, the recommender system calculates the probability that the user’s preference for items based on the match score. However, these methods only recommend items that already exist in the session (old items), which can easily reduce the desire of users to interact with items and lead to information cocoons. Specifically, these methods take in the items in the user’s historical session as input and output the probability of historical items to be recommended as the next recommended items. For example, in Fig. 1 (a), the input of SR-GNN is v1, v2, v3, v4, and its output is the probability of v1, v2, v3, v4. Therefore, users can be tired of the old items easily. To expand users’ selection for session-based recommendations, we introduce a new challenge “GNN Session-based New Item Recommendation (GSNIR)”. In specific, GSNIR refers to predicting whether a user will interact with a new item in the future (e.g., purchase and click) based on his or her previous interaction. In Fig. 1, we present the comparison between the traditional GNN-based methods (e.g. SR-GNN) for session-based recommendation and our proposed new setting. Even though new item recommendation is very important to improve user experience, existing GNN-based models perform poorly in this setting. As we mentioned before, these GNN methods recommend old items, and they learn old item embeddings in session graphs. But for a new item that the user has not interacted with, it is not in the session, so it cannot use topology information to learn the embedding. Therefore, it is necessary to design a new GNN-based recommender system to solve the GSNIR. The GSNIR meets many challenges: Challenge 1. How to simulate the decision-making process of users when they choose new items? When a user interacts with a new item, the user may tend to substitute the old item with its relevant attributes or look for
+substitutes in a large taxonomy. For example, if a user often buys coca-cola, when he/she buys a new product, he/she may choose pepsi as a substitution. Moreover, he/she may look for alternatives under the taxonomy subtree for beverages and choose coconut water. By learning user intent, we can filter new items that match the user’s preference. However, human behavior is ever-changing, which makes it difficult to learn user intent accurately from the user’s historical session. Challenge 2. How can we obtain effective new item representations by GNNs? The new item recommendation problem poses a challenge to learning representation based on limited information. As there is no interaction between new items and users, it is difficult to include new items when building a session graph for GNN encoding. To address the aforementioned problem, in this paper, we propose a novel GNN-based model, namely New Item Recommendation Graph Neural Network (NirGNN). This model can be divided into two components. The first component is to learn the user intent effectively. To do this, NirGNN proposes a dual-intent learning method. NirGNN introduces the taxonomy tree of each item to determine the general direction of the user intent. By using both the attention mechanism and the β distribution on taxonomy data, the method predicts whether the user prefers the taxonomy for the interaction guide or the item itself. The second component is to obtain new item representation. Inspired by zero-shot learning (ZSL), we design a reasoning method to map the independent new items into the GNN space by using item attributes, which enables new-item recommendation. To evaluate the effectiveness of NirGNN, we provide two new real-world datasets for the new item recommendation setting and conduct experiments on both datasets. Experimental results demonstrate the effectiveness of our method. Besides, we provide a case study in a commercial recommendation environment, which demonstrates the interpretability and practicability of our model. In summary, the contributions of
+this paper can be summarised as follows: • To the best of our knowledge, we are the first to propose the GNN session-based new item recommendation for the session-based recommendation scenario. • We propose a dual-intent enhanced graph neural network to tackle GSNIR. The dual-intent strategy learns user intent from users’ attention and data distribution respectively, which provides a different perspective on user preference. • We introduce zero-shot learning into a session-based recommender system for the first time, which solves the problem that new items cannot be encoded by GNN-based methods due to the lack of interaction with users. • Extensive experiments conducted on session-based recommendation datasets show the superiority of NirGNN. Moreover, we present a real-world case study to demonstrate our method’s interpretability and effectiveness.
+2 RELATED STUDY
+GNNs for session-based recommendation. Many types of sessionbased recommendation methods have been proposed, e.g., Markov chains [14, 28, 38], and Recurrent Neural Networks (RNNs) [20, 39]. In recent years, to improve session-based recommendation, GNNs [17, 19, 31, 34] have been incorporated into session-based recommender systems to model complex relations between adjacent items.
+
+
+Dual Intent Enhanced Graph Neural Network for Session-based New Item Recommendation WWW ’23, May 1–5, 2023, Austin, TX, USA
+For example, as the first work introduces GNNs into the sessionbased recommendation, SR-GNN [29] transforms each session into a session graph and uses a GNN to capture the complex relations of items in the graph. GC-SAN [32] extends SR-GNN by incorporating multi-layer self-attention with residual connection to model the long-term preference. GCE-GNN [27] combines the global session graph with the local session graph and position embedding to better represent the feature of items. COTREC [30] utilizes contrastive learning and develops a self-supervised learning with co-training method for session-based recommendations. Zero-shot learning. ZSL simulates the way of human reasoning to recognize new things that have never been seen before in CV [6, 15, 26], NLP [7, 13, 22], and GNN [9, 21, 24]. For example, through the shape information of horses, and stripe information of tigers, the ZSL model is capable of identifying zebra images. Lampert et al. [18] encodes attribute representations of images and then uses these attribute embeddings to do classification inference based on human-specified attribute descriptions of the test images. ABS-Net [23] generates pseudo feature representations for unseen images. With the pseudo feature as a data augmentation approach, ABS-Net can tackle both zero-shot learning and conventional supervised learning.
+3 PROBLEM STATEMENT
+3.1 Preliminary
+A user historical session S = {v1, v2, v3, ..., vn } consists of items that the user has interacted with (old items), each item vi in S is sorted by timestamp, which rigidly indicates the order of items occurring in the S. The historical session can be modeled as a directed session graph G = (V , E) where |V | = n, and an edge e (vi, v j ) ∈ E represents that the user interacts vertex v j after interacting vertex vi . Given a set of new items C = {c1, c2, ..., cm } that have never been interacted with, the GSNIR aims to recommend new items to users. Specifically, for any session graph G, the output of the session-based new item recommendation model is a ranked new item list with the predicted likelihood of each new item. The top − k new items with the highest probability in C will be recommended to the user. Each item vi contains a taxonomy tree, including three different levels, namely ti1, ti2, ti3, representing different granularity levels from large to small. For example, in a food recommender system, the three taxonomy levels of a brand of coconut water are ‘Beverages’, ‘Bottled Beverages’, and ‘Coconut water’. The taxonomy information provides external information, which makes GNNs limit-free to ontology information of items in learning. In addition, each item contains a set of attribute information A = {ai1, ..., aik }. For example, the attribute of a coconut water vi may include its brand and price attributes. Attribute information is beneficial for us to infer new item embeddings. The embedding of the three-level taxonomy tree of item vi can be regarded as ti1, ti2, ti3, and the global taxonomy embedding of vi is ti = W (ti1, ti2, ti3), where W ∈ R3d×d is a Multi-layer Perceptron (MLP) to compress ti1, ti2, ti3 into the latent space Rd . For attributes of items in the session and the attributes of the new items, we use the word2vec model to process them. The attribute embedding of old items and new items are atr and atr ∗ respectively.
+Figure 2: A constructed session graph and the adjacency matrices.
+3.2 Construct Session Graph
+We follow the method proposed by SR-GNN to construct the session graph. The items in the session sequence are arranged in order. Each item is denoted as a vertex of the session graph, and each item and its next interacted item form an edge. Edges are divided into indegree and out-degree. For example, in v1 → v2, v1 is a start node and v2 is an end node of the edge. This edge is the outgoing edge of v1 and the incoming edge of v2. Therefore, two adjacency matrices are needed to represent the session graph. Each edge is assigned a normalized weight. The weight is calculated as the occurrence of the edge divided by the indegree/outdegree of that edge’s start node. For example, given a session v1 → v2 → v3 → v1 → v4, Fig. 2 (a) (b) shows the details of session graph constructing. In the outgoing adjacency matrix, the out-degree of v1 is 2, and v1 → v2 occurs once,
+then the weight of v1 → v2 is 1
+2 . An example of an adjacency matrix is shown in Fig. 2. Fig. 2 (c) (d) is the outgoing adjacency matrix and incoming adjacency matrix of (b), respectively. The outgoing adjacency matrix and incoming adjacency matrix together construct adjacency matrices for the session graph.
+3.3 Problem Setting
+The general session-based GNN recommender system is usually the next item recommendation. That is, the input is a session containing items, and the output is the predicted score for each item in the session. However, the input of GSNIR is the historical session, and the output is the predicted score of the candidate new items, which have not appeared in the historical records. Since we cannot know what new items the user will interact with, we take the last item of the historical session as the new item (ground truth) of recommendation and mask it from the session. To ensure that the new item appears for the first time to the user, we delete it from the historical session and reconnect the historical session in the order in which the item was interacted with by the user.
+
+
+WWW ’23, May 1–5, 2023, Austin, TX, USA Jin et al.
+Figure 3: Overview of NirGNN. In the first part of inputs (a), the taxonomy tree of each item and the session graphs are fed into a GNN encoder (b) to obtain the representation, and then (c) the dual-intents of the user are learned from the perspective of attention and data distribution. In the second part of inputs (a), attributes of items in the session graph and new item attributes are input into a word embedding encoder (b). Then, the semantic information of every item can be learned. Through a new item reasoning network (c), the learned semantic information is used to infer new item embedding. Finally, the new item embedding and user intent are used to calculate the score of each new item (d), and the new item with the highest score is regarded as the final recommendation. We introduce the four modules separately in the following sections.
+4 METHOD
+This section details our proposed New Item Recommendation Graph Neural Network (NirGNN) model. Fig. 3 shows the overview of NirGNN.
+4.1 Item Embedding
+Since both the session graph and the taxonomy tree are directed graphs, we use the session graphs constructing approach of SRGNN [29] to process the adjacency matrix of directed graphs. Then, we use a gated graph session neural network (GGNN) as the core encoder to learn the representation of each item and its taxonomy tree. The learning process of GGNN can be summarised as follows [29]:
+a (t)
+i = Ai:
+h
+v (t−1)
+1 , . . . , v (t−1)
+n
+i⊤
+H + b,
+z (t)
+i = σ Wza (t)
+i + Uzv (t−1)
+i
+,
+r (t)
+i = σ Wr a (t)
+i + Ur v (t−1)
+i
+,
+v (gt)
+i = tanh Woa (t)
+i + Uo r (t)
+i ⊙ v (t−1)
+i
+,
+v (t)
+i = 1 − z (t)
+i ⊙ v (t−1)
+i + z (t)
+i ⊙ v (gt)
+i
+,
+(1)
+where
+h
+v (t−1)
+1 , . . . , v (t−1)
+n
+i
+is the list of item vectors in session s, t is
+the training step, Ai: ∈ R1×2n is the i-th row in matrix, H ∈ Rd×2d
+and b ∈ Rd are weight and bias parameter respectively, zi ∈ Rd×d and ri ∈ Rd×d are the reset and update gates respectively, σ (·) is the sigmoid function, and ⊙ denotes element-wise multiplication. For each session graph G, the GGNN model propagates information between neighboring items.
+4.2 Dual-Intent Nets
+We learn the intent of the user from the perspective of an attention mechanism and data distribution in the session graph respectively. The following is a detailed introduction.
+4.2.1 User α Intent Net. We first learn user intent from a softattention mechanism perspective. Since most items interacted by the user recently are more likely to reflect the short-term preferences of the user than the items interacted at an earlier time, we extract the information of the last-interacted item vn and add it to each item. In addition, the taxonomy tree information also provides a macro guide for user intent. For a session graph, the intent of the user Iα can be learned as:
+Iα =
+n ∑︁
+i =1
+σ ((vi ⊕ ti ) ∗ W1 + (vn ⊕ tn) ∗ W2) (vi ⊕ ti ), (2)
+where σ (·) is a sigmoid function, ⊕ is a concatenation function, tn is the global taxonomy embedding of vn, W1 and W2 are the two
+
+
+Dual Intent Enhanced Graph Neural Network for Session-based New Item Recommendation WWW ’23, May 1–5, 2023, Austin, TX, USA
+intent filtering matrix. By applying the soft-attention mechanism to the session graph, we obtain the α intent of the user.
+4.2.2 User β Intent Net. In a recommender system, the historical session of the user, and the taxonomy tree/attributes of every item may be incomplete. To effectively mine the user’s intent, only using the user α intent net is inadequate. The Bayesian inference method is often used to make the information complete by reasoning on new information. However, Bayesian inference is a very complicated process that requires complex calculations. It is possible to reduce the computational difficulty of the Bayesian inference if we use the β distribution. The β distribution is conjugated before the binomial likelihood. We can use the β distribution in place of the prior distribution, since the posterior distribution also follows the β distribution, which reduces the cost of computation. Moreover, the β distribution is a superposition of multiple binomial distributions, which is also reflected in the conjugation of the binomial distribution. For example, the daily behavior of users (interacting or not interacting) is a binomial distribution, and many days are superimposed together to form a β distribution. Thus, NirGNN calculates the posterior distribution by item embedding vi and taxonomy embedding ti without multiplying the likelihood by the prior assignment for user intent. We consider the user’s preference from the perspectives of vi and ti , and learn whether the user prefers the item itself or its taxonomy tree. vi and ti constitute a set of joint distribution probabilities. The β distribution represents the probability that the user likes the joint distribution probability of vi and ti , that is, the probability that the user likes vi and ti in a certain distribution state. For each vertex vi , user intent distribution bi is:
+bi = S (δ (vi, ti )xφ (ρ (vi ))−1 (1 − x )φ (ρ (ti ))−1),
+δ = Γ(φ (ρ (vi )) + φ (ρ (ti )))
+Γ(φ (ρ (vi )))Γ(φ (ρ (ti ))) ,
+(3)
+where S(·) is the sample function, x is a variable, Γ(·) is the Gamma distribution, ρ (·) is a Softplus activation function, φ (x) = log(1+ex ) is a normalization function used to adjust the distribution interval of the data. Specifically, we use the activation function Softplus to process the embeddings of vi and ti and normalize them to the range of (0, 1). We mainly consider whether the user is more interested in the representation of vi or the representation of ti . The joint probability of the representation of vi and the representation of ti constitutes a set of probability density functions. The β distribution shows the probability distribution that users are interested in vi or ti under different parameters. We find the closest probability to the user’s true intent with sampling on β distribution. Therefore, from the perspective of data distribution, β distribution reflects the joint probability distribution of item and taxonomy tree. From the perspective of multiple cumulative distributions, it also reflects the intent of the user. In a session graph, the recently interacted items are often more reflective of the user’s recent interest than the items that interacted a long time ago. Therefore, we add a soft-attention mechanism with β distribution to increase the priority of recently interacted item vi .
+v′
+i = bi ∗ (vi ⊕ ti ) + bn ∗ (vn ⊕ tn), (4)
+Figure 4: The processing of new item reasoning. The left is the attribute space, and the right is the embedding space.
+where v ′
+i is the embedding of vi that is prioritized. However, the above Eq.4 will weaken the probability of vi , so we readjust the probability distribution of each vertex so that they re-obey the β distribution, which is equivalent to obtaining the attention that obeys the β distribution. The attention modified β distribution of each item vi is:
+βi =
+v′
+i−1
+n
+Ín
+i=1 (bi ∗ (vi ⊕ ti ))
+√︃ Ín
+i=1 (bi −avg(b))2
+n
+W3, (5)
+where avg(·) is the average function, and W3 is a MLP to dimensionality reduction. After we get the modified β distribution, we can get the user intent expressed by items in the session graph. The β intent of the user can be defined as:
+Iβ =
+n ∑︁
+i =1
+(vi ⊕ ti ) ∗ βi . (6)
+By combining the intent from the two perspectives of α intent and β distribution intent, we design a weighted intent I :
+I = λIα + (1 − λ)Iβ, (7)
+where λ ∈ [0, 1] is a parameter that controls the weight of each intent.
+4.3 New Item Reasoning Network
+Since the new items are time-independent, we cannot directly use GNN to embed the new item, which makes it impossible to calculate the similarity of user intent to the new item. To this end, we try to use the semantic information of the new item attribute to infer the embedding of the new item. Inspired by zero-shot learning, we can establish the spatial transformation relationship between item semantic attributes and item embedding. Specifically, given the attribute semantics atri of old items vi , we learn a transformation function θ to map the semantic attribute information to the item embedding space. Specifically, the generated item embedding can be calculated as v∗
+i = θ (atri ). We implement θ as a MLP layer. In order to ensure that the generated item embedding is in the same space as the original embedding, we try to reduce the gap between original embedding vi and generated embedding v∗
+i . We measure the gap between them with an improved Bhattacharyya distance, which gives an upper bound on the minimum error rate for the separability of the two discrete probability distributions.
+
+
+WWW ’23, May 1–5, 2023, Austin, TX, USA Jin et al.
+The improved Bhattacharyya distance BCimp is:
+BCimp (vi, v∗
+i) =
+(
+−log(
+√︃
+vi ∗ v∗
+i) ,
+√︃
+vi ∗ v∗
+i ≠ ∅.
+0 , otherwise.
+(8)
+Fig. 4 shows the process of reasoning. To improve the transformation function θ from semantics attribute space to item embedding space, we design a loss function Lzero to optimize the difference between the original item embedding and the generated item embedding from the item semantics attributes.
+Lzero (vi, v∗
+i ) = BCimp (vi, v∗
+i ). (9)
+Then we use this transformation function to reason the new item embedding by the attribute information of the new item. The embedding of the new item ci can be inferred by the spatial transform function ci = θ (atr ∗
+i ), where atr ∗
+i is the attribute embedding of new item ci .
+4.4 Prediction
+Now, we obtain the new item embedding ci and user intent from the above process. The recommendation score for each new item can be calculated by multiplying new item embeddings ci by user intent I , which can be defined as:
+Zˆi = softmax(I ⊤ ∗ ci ). (10)
+The final loss consists of the CrossEntropy Loss Lce , which is used to calculate the difference between the new item score and the ground truth, and Lzero , which is used to optimize the inference ability of the spatial transfer function:
+L = γLce (Z, Zˆ) + (1 − γ) (
+n ∑︁
+i =1
+Lzero (vi, θ (atri ))), (11)
+where Z is the one-hot encoding vector of the ground truth item, Zˆ denotes the recommendation scores for overall new items, and γ ∈ [0, 1] is the weight to control the importance of losses.
+Table 1: Dataset Description
+Datasets Items Train sessions Test sessions Average length
+Amazon G&GF 18889 51958 37813 8.394 Yelpsmall 14726 19035 2311 4.666
+5 EXPERIMENT
+We run NirGNN on an NVIDIA GeForce RTX 3090 24G GPU for experiments. In the following section, we will introduce the description of the dataset, and present the experiment results of NirGNN for the new item recommendation, ablation study, and parameter analysis on these datasets.
+5.1 Dataset Description
+5.1.1 Datasets. The session-based user-oriented new item recommendation problem is a brand new problem and there are no public datasets suitable for it yet. Thus, we construct two real-world datasets to evaluate our model, including Amazon Grocery and Gourmet Food (Amazon G&GF) dataset and Yelpsmall dataset.
+• Amazon G&GF. The Amazon G&GF dataset is the subset of the Amazon dataset released in 20181. Item attributes are obtained from item data, including brands and prices. The Amazon dataset describes the merchant with taxonomy, which uses a hierarchical taxonomy relationship, such as [‘Sports & Outdoors’, ‘Other Sports’, ‘Dance’]. These taxonomy relationships can be obtained directly. • Yelpsmall. The Yelpsmall dataset is from the 2021 release version of Yelp stored on the Kaggle2. The Yelpsmall is created by randomly selecting 6000 users from the Yelp dataset with the review time in 2016. Based on the comment data of the two datasets, we obtained the session of user transactions and merchants sorted by time. The taxonomy in the Yelp dataset does not contain a hierarchical relationship. We use the following steps to generate the corresponding taxonomy tree. First, we pre-train the GoogleNews-vectorsnegative300 by word2vec [25] to obtain the word vectors of each taxonomy and then use K-Means++[5] to cluster word vectors. The same taxonomy’s word vectors are averaged before being clustered once more. We first clustered 100 taxonomy and then added the vectors of each taxonomy. These 100-word vectors are clustered into 50 taxonomy and then clustered into 10 taxonomy, thus the three-level taxonomy tree is obtained. A three-level taxonomy tree is created after three clustering iterations.
+Based on the comment data of the two datasets, we obtained the session of user transactions and merchants sorted by time. In a session, a new item is defined as an item that has not appeared in the session. Therefore, we take the last item visited by the user according to timestamp as the ground truth for the new item recommendation, and delete it from the session to ensure that it is unique and new to the user. Following the data division method of SR-GNN, the session with a timestamp before 7 days is divided into a training set, and the session after 7 days is the test set. Table 1 shows the details.
+5.1.2 Baselines. To evaluate the performance of the proposed method, we compare NirGNN with the following state-of-the-art baselines. For baselines, we use new items to calculate recommendation scores.
+• SR-GNN [29] is the first GNN-based model for the sessionbased recommendation. It uses gated GNN to encode items in each session and employs the attention mechanism to encode the global session preference. • SR-GNN-ATT is SR-GNN with an attention mechanism. • GC-SAN [32] uses a gated GNN to encode items in each session and uses multi-layer self-attention with residual connection to encode the global session preference. • GCE-GNN [27] uses a global session graph and a local session graph with position embedding. • COTREC [30] is a self-supervised graph co-training framework. COTREC reports that the effect of COTREC is higher than that of the supervised SOTA session-based GNN model.
+1 http://jmcauley.ucsd.edu/data/amazon/ 2 https://www.kaggle.com/datasets/yelp-dataset/yelp-dataset?datasetId=10100
+
+
+Dual Intent Enhanced Graph Neural Network for Session-based New Item Recommendation WWW ’23, May 1–5, 2023, Austin, TX, USA
+Table 2: Experiments on Amazon G&GF and Yelpsmall dataset.
+Methods Amazon G&GF Yelpsmall
+P@20 MRR@20 P@10 MRR@10 P@20 MRR@20 P@10 MRR@10
+SR-GNN 1.438±0.134 0.336±0.025 0.086±0.078 0.297±0.021 0.764±0.534 0.192±0.118 0.476±0.346 0.180±0.111 SR-GNN-ATT 0.678±0.202 0.157±0.038 0.375±0.144 0.136±0.040 1.631±0.353 0.410±0.089 0.989±0.183 0.366±0.078 GC-SAN 2.028±0.108 0.580±0.093 1.288±0.059 0.529±0.090 0.793±0.115 0.174±0.094 0.418±0.144 0.165±0.103 GCE-GNN 1.650±0.291 0.478±0.082 1.053±0.200 0.441±0.076 1.702±0.462 0.789±0.224 1.428±0.563 0.776±0.229 COTREC 1.681±0.837 0.434±0.229 1.078±0.583 0.393±0.213 0.833±0.417 0.256±0.199 1.021±0.583 0.269±0.222
+NirGNN(Ours) 2.420±0.039 0.599±0.017 1.578±0.056 0.543±0.018 1.817±0.087 1.092±0.017 0.779±0.043 0.299±0.049
+5.1.3 Metrics. The following metrics are used to evaluate the comparative methods. P@k (Precision@k) is widely used as a measure of prediction accuracy. It predicts the correct correlation result as a proportion of all returned results. k represents the precision of the first k items in the list. MRR@k (Mean Reciprocal Rank) is the reciprocal rating of the re-averaged correctly recommended item. A large P value or a large MRR value indicates that the correct recommendation is at the top of the ranking list. In our experiments, we take the k = {10, 20} as the evaluation index respectively. We use percentages to represent these data.
+Table 3: Ablation study on Amazon G&GF.
+Methods P@20 MRR@20 P@10 MRR@10 NirGNN 2.420±0.039 0.599±0.017 1.578±0.056 0.543±0.018 NirGNN w/o α intent 2.410±0.030 0.596±0.021 1.508±0.048 0.538±0.014 NirGNN w/o β intent 2.375±0.019 0.589±0.018 1.512±0.008 0.538±0.009 NirGNN w/o Lzero 2.237±0.119 0.598±0.009 1.599±0.005 0.541±0.010
+5.2 Evaluation Results
+5.2.1 Overall Performance. To demonstrate the overall performance of the proposed model, we compare it with five state-of-the-art session-based GNN recommendation methods. Here, we show new results on our proposed NirGNN framework along with baseline methods for different metrics. We show experimental results on Amazon G&GF and Yelpsmall datasets in Table 2, where the optimal solution for each metric is highlighted in bold and ‘±’ indicates a numerical range. We observe that NirGNN achieves significant performance gains under different metrics compared to the baseline. In particular, on the Amazon G&GF dataset, in the case of k = 20, NirGNN can improve by up to 19.33% on P metrics and improve 3.28% on MRR metrics which is compared to the secondbest baseline. In the case of k = 10, NirGNN can improve by up to 22.52% on P metrics and 2.65 on MRR metrics. On the Yelpsmall dataset, in the case of k = 20, NirGNN can be improved by up to 38.40% on MRR metrics, and improved by up to 6.75% on P metrics compared to the second-best baseline. These experimental results demonstrate that the NirGNN model can effectively improve the learning performance for the new item recommendation.
+5.2.2 Ablation Study. The ablation study is conducted on the Amazon G&GF dataset. To clarify the key component of NirGNN, we report the ablation study of the α intent, β intent, and the Lzero in Table 3. NirGNN w/o α means that NirGNN is without user α intent and only with user β intent. NirGNN w/o β means that NirGNN
+0.1 0.3 0.5 0.7 0.9
+2.30
+2.35
+2.40
+P@20
+(a) λ.
+0.1 0.3 0.5 0.7 0.9
+2.30
+2.35
+2.40
+P@20
+(b) γ .
+Figure 5: Parametric sensitivity on λ and γ.
+is without user β intent and only with user α intent. NirGNN w/o Lzero means that NirGNN is without Lzero and only with Lce Loss. The experimental setup is the same as the overall experiment. The results show that our NirGNN model is improved after combining all key components. This reveals the effectiveness of each component.
+5.2.3 Parameter Sensitivity. Parameter sensitivity analysis experiments are conducted on the Amazon G&GF dataset. There are two key hyperparameters that should be tuned in our objective function. The first is λ, which is used to balance α intent and β intent in the overall intent I . Another hyperparameter is γ, which is used to balance the cross-entropy loss and Lzero . By varying λ and γ from 0.1 to 0.9 in 0.2 intervals, the corresponding hyperparameter sensitivity analysis under P@20 metrics is shown in Fig. 5. We find that the effect of using a combination of α intent and β intent has fluctuated, but is efficacious. The proposed NirGNN model performs best when γ = 0.3. Although the two intents under the λ parameter appear to be conflicting, our ablation experiments demonstrate that in the case of only α or only β intent, the effect is not as good as the combination of the two. So they don’t cancel each other out.
+5.3 Case Study
+We provide a case study in a real recommendation scenario to demonstrate the interpretability and utility of our model NirGNN. We take a private commercial dataset provided by a food takeaway company, Meituan, as an example to demonstrate the interpretability of the NirGNN model. The dataset is generated by the food orders of Meituan within 30 days in a certain region. The dataset
+
+
+WWW ’23, May 1–5, 2023, Austin, TX, USA Jin et al.
+Table 4: Infomation of a session in Meituan dataset.
+Item A historical session Candidate new items
+1 2 3 4546 7 8
+t1 Gourmet Fruit Gourment Drinks Gourmet Drinks Gourmet Gourmet Gourmet t2 Fast food Packaged fruit Chinese Cuisine Milk Tea Fast food Milk Tea Fast food Fast food Chinese cuisine t3 Hamburger Unknown Northwestern Cuisine Unknown Porridge Unknown Donburi Meal packages Beijing cuisine a1 1 3 4 2 5 2 6 1 1 a2 Merchant Company Company Company Company Company Merchant Company Company
+Figure 6: A commercial case study on the Meituan dataset.
+includes a sequence of users buying takeaway food items, a threelevel taxonomy tree for each item, and two attributes for each item. We use the dataset provided by Meituan to train the model and randomly select a session from the Meituan dataset to explain our model. Table 4 shows information about the case session in the Meituan dataset. The item row shows the ID of each item in this session. item1, item2, item3, item4, item5 are the takeaway item that the user has visited in the history. item6, item7, item8 are candidate new items, where item7 is the ground truth. t1, t2, t3 represent the three-level taxonomy tree, and we show the ID of each taxonomy. a1, a2 represent the two natural attributes of each takeaway food, including the brand ID and delivery type of the takeaway food. Delivery types include professional delivery (Company) provided by Meituan, and delivery provided by merchants (Merchant). We provide one session for the case study. This session
+is item1 → item2 → item3 → item4 → item5 → item4. A user’s
+purchase session is shown in Fig. 6 (a), where item1 is the starting item and item4 is the ending item. We introduce the interpretability of NirGNN in terms of the interpretability of user intent and the interpretability of reasoning respectively.
+5.3.1 Intent interpretability. Fig. 6 (a) shows the interpretability of the user dual-intent. In the figure, Each item contains a dual-intent score. We find that item5 has the highest score. Intuitively, item4 is more in accordance with the user’s preferences than others because it is purchased by the user twice recently. However, our intent scores show that the score of item4 is lower than item5. We observe from Table 4 that the data of item5 is closer to the ground truth item7 than item4, which highlights the effectiveness of learning user dual-intent. In addition, Fig. 6 (b) shows the interpretability
+of the recommendation process. After we learn the user’s total intent, the total intent and each candidate new item are used to calculate the matching score for a recommendation. The highest score generated by new items multiplied by user intent will be recommended. We find that the candidate new item item7 has the highest score than others under the same intent, so it is considered as the recommended item. The above-mentioned process illustrates the interpretability of the NirGNN recommendation process.
+5.3.2 New item reasoning. Fig. 6 (c) shows the interpretability of new item embedding reasoning. We put candidate items into the session and obtain their embedding via a GNN encoder. Then we compare the embedding θ (atr ∗
+7 ) generated by the attributes of item7 with the embeddings of other candidate items. We use the Bhattacharyya distance to measure them. We find that the distance between θ (atr ∗
+7 ) between item7 embedding is smaller than the distance between item6 or item8, which confirms the interpretability of new item reasoning.
+6 CONCLUSION
+In this paper, we propose a novel GNN-based model, NirGNN, for the GSNIR problem. To effectively learn user intent, we design a dual intent learning network from both the attention perspective and data distribution perspective. At the same time, to solve the problem that the new item has no interaction with the user, we design a zero-shot-based new item reasoning method, which reasons unknown new item embeddings by using attributes of new items. Experimental results show that NirGNN is superior to SOTA methods. A real-world case study shows that NirGNN is interpretable and can be applied in the real world.
+
+
+Dual Intent Enhanced Graph Neural Network for Session-based New Item Recommendation WWW ’23, May 1–5, 2023, Austin, TX, USA
+ACKNOWLEDGMENTS
+This work is supported by the Natural Science Foundation of China under grants 62272340, 62276006 and Meituan Project.
+REFERENCES
+[1] Geoffray Bonnin, and Dietmar Jannach. Automated Generation of Music Playlists: Survey and Experiments. ACM Computing Surveys, 26:1–26:35, 2014. [2] Wenjie Wang, Fuli Feng, Xiangnan He, Hanwang Zhang, and Tat-Seng Chua. Clicks can be cheating: Counterfactual recommendation for mitigating clickbait issue. International ACM SIGIR Conference on Research and Development in Information Retrieval, 2021.
+[3] Balázs Hidasi, Alexandros Karatzoglou, Linas Baltrunas, and Domonkos Tikk. Session-based Recommendations with Recurrent Neural Networks In International Conference on Learning Representations, 2016.
+[4] Malte Ludewig, and Dietmar Jannach. Evaluation of session-based recommendation algorithms. User Modeling and User-Adapted Interaction, 28:331–390, 2018. [5] David Arthur and Sergei Vassilvitskii. k-means++: The advantages of careful seeding. Technical report, Stanford, 2006. [6] Shiming Chen, Wenjie Wang, Beihao Xia, Qinmu Peng, Xinge You, Feng Zheng, and Ling Shao. Free: Feature refinement for generalized zeroshot learning. In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 122–131, 2021. [7] Ruizhe Cheng, Bichen Wu, Peizhao Zhang, Peter Vajda, and Joseph E Gonzalez. Data-efficient language-supervised zero-shot learning with self-distillation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 3119–3124, 2021.
+[8] M Benjamin Dias, Dominique Locher, Ming Li, Wael El-Deredy, and Paulo JG Lisboa. The value of personalised recommender systems to e-business: a case study. In Proceedings of the 2008 ACM conference on Recommender systems, pages 291–294, 2008.
+[9] Junyu Gao and Changsheng Xu. Ci-gnn: Building a category-instance graph for zero-shot video classification. IEEE Transactions on Multimedia, 22(12):3088–3100, 2020. [10] Yizhen Zheng, Shirui Pan, Vincent CS Lee, Yu Zheng and Philip S Yu. Rethinking and Scaling Up Graph Contrastive Learning: An Extremely Efficient Approach with Group Discrimination Advances in Neural Information Processing Systems, 2022.
+[11] Yingqiang Ge, Shuya Zhao, Honglu Zhou, Changhua Pei, Fei Sun, Wenwu Ou, and Yongfeng Zhang. Understanding echo chambers in e-commerce recommender systems. In Proceedings of the 43rd international ACM SIGIR conference on research and development in information retrieval, pages 2261–2270, 2020. [12] Wenjie Wang, Fuli Feng, Xiangnan He, Liqiang Nie, and Tat-Seng Chua. Denoising Implicit Feedback for Recommendation. International Conference on Web Search and Data Mining, 2021.
+[13] Yuxia Geng, Jiaoyan Chen, Zhuo Chen, Jeff Z Pan, Zhiquan Ye, Zonggang Yuan, Yantao Jia, and Huajun Chen. Ontozsl: Ontology-enhanced zero-shot learning. In Proceedings of the Web Conference 2021, pages 3325–3336, 2021. [14] He Zhang, Bang Wu, Xingliang Yuan, Shirui Pan, Hanghang Tong, and Jian Pei. Trustworthy Graph Neural Networks: Aspects, Methods and Trends. In arXiv preprint, 2022. [15] Zongyan Han, Zhenyong Fu, Shuo Chen, and Jian Yang. Contrastive embedding for generalized zero-shot learning. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 2371–2381, 2021. [16] Barrie Kersbergen and Sebastian Schelter. Learnings from a retail recommendation system on billions of interactions at bol. com. In 2021 IEEE 37th International Conference on Data Engineering (ICDE), pages
+2447–2452. IEEE, 2021. [17] Di Jin, Luzhi Wang, Yizhen Zheng, Xiang Li, Fei Jiang, Wei Lin, and Shirui Pan. CGMN: A Contrastive Graph Matching Network for SelfSupervised Graph Similarity Learning. Proceedings of the Thirty-First International Joint Conference on Artificial Intelligence, pages 2101–2107, 2022. [18] Christoph H Lampert, Hannes Nickisch, and Stefan Harmeling. Learning to detect unseen object classes by between-class attribute transfer. In 2009 IEEE conference on computer vision and pattern recognition, pages 951–958. IEEE, 2009. [19] Di Jin, Cuiying Huo, Chundong Liang, Liang Yang. Heterogeneous Graph Neural Network via Attribute Completion. The Web Conference, pages 391–400, 2021. [20] Lin Liu, Li Wang, and Tao Lian. Case4sr: Using category sequence graph to augment session-based recommendation. Knowledge-Based Systems, 212:106558, 2021. [21] Lu Liu, Tianyi Zhou, Guodong Long, Jing Jiang, and Chengqi Zhang. Attribute propagation network for graph zero-shot learning. In Proceedings of the AAAI Conference on Artificial Intelligence, volume 34, pages 4868–4875, 2020. [22] Zhe Liu, Yun Li, Lina Yao, Xianzhi Wang, and Guodong Long. Task aligned generative meta-learning for zero-shot learning. In Conference on Artificial Intelligence (AAAI), 2021.
+[23] Jiang Lu, Jin Li, Ziang Yan, Fenghua Mei, and Changshui Zhang. Attribute-based synthetic network (abs-net): Learning more from pseudo feature representations. Pattern Recognition, 80:129–142, 2018. [24] Massimiliano Mancini, Muhammad Ferjad Naeem, Yongqin Xian, and Zeynep Akata. Learning graph embeddings for open world compositional zero-shot learning. IEEE Transactions on Pattern Analysis and Machine Intelligence, 2022.
+[25] Tomas Mikolov, Kai Chen, Greg Corrado, and Jeffrey Dean. Efficient estimation of word representations in vector space. arXiv preprint arXiv:1301.3781, 2013.
+[26] Muhammad Ferjad Naeem, Yongqin Xian, Federico Tombari, and Zeynep Akata. Learning graph embeddings for compositional zeroshot learning. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 953–962, 2021.
+[27] Ziyang Wang, Wei Wei, Gao Cong, Xiao-Li Li, Xian-Ling Mao, and Minghui Qiu. Global context enhanced graph neural networks for session-based recommendation. In Proceedings of the 43rd International ACM SIGIR Conference on Research and Development in Information Retrieval, pages 169–178, 2020. [28] Di Jin, Zhizhi Yu, Pengfei Jiao, Shirui Pan, Dongxiao He, Jia Wu, Philip S. Yu, Weixiong Zhang. A Survey of Community Detection Approaches: From Statistical Modeling to Deep Learning. In IEEE Transactions on Knowledge and Data Engineering, pages 1149–1170, 2023.
+[29] Shu Wu, Yuyuan Tang, Yanqiao Zhu, Liang Wang, Xing Xie, and Tieniu Tan. Session-based recommendation with graph neural networks. In Proceedings of the AAAI conference on artificial intelligence, volume 33, pages 346–353, 2019. [30] Xin Xia, Hongzhi Yin, Junliang Yu, Yingxia Shao, and Lizhen Cui. Selfsupervised graph co-training for session-based recommendation. In Proceedings of the 30th ACM International Conference on Information & Knowledge Management, pages 2180–2190, 2021. [31] Luzhi Wang, Yizhen Zheng, Di Jin, Fuyi Li, Yongliang Qiao, and Shirui Pan. Contrastive Graph Similarity Networks. ACM Transactions on the Web, 2023. [32] Chengfeng Xu, Pengpeng Zhao, Yanchi Liu, Victor S Sheng, Jiajie Xu, Fuzhen Zhuang, Junhua Fang, and Xiaofang Zhou. Graph contextualized self-attention network for session-based recommendation. In IJCAI, volume 19, pages 3940–3946, 2019.
+
+
+WWW ’23, May 1–5, 2023, Austin, TX, USA Jin et al.
+[33] Yang Xu, Lei Zhu, Zhiyong Cheng, Jingjing Li, Zheng Zhang, and Huaxiang Zhang. Multi-modal discrete collaborative filtering for efficient cold-start recommendation. IEEE Transactions on Knowledge and Data Engineering, 2021.
+[34] Zhizhi Yu, Di Jin, Ziyang Liu, Dongxiao He, Xiao Wang, Hanghang Tong, and Jiawei Han. AS-GCN: Adaptive Semantic Architecture of Graph Convolutional Networks for Text-Rich Networks. IEEE International Conference on Data Mining, pages 837–846, 2021.
+[35] Yizhen Zheng, Yu Zheng, Xiaofei Zhou, Chen Gong, Vincent C. S. Lee, and Shirui Pan. Unifying Graph Contrastive Learning with Flexible Contextual Scopes. 2022 IEEE International Conference On Data Mining. pages, 793–802, 2022. [36] Yue Tan, Yixin Liu, Guodong Long, Jing Jiang, Qinghua Lu, and Chengqi Zhang. Federated Learning on Non-IID Graphs via Structural Knowledge Sharing. Proceedings Of The AAAI Conference On Artificial Intelligence, 2023.
+[37] Yue Liu, Wenxuan Tu, Sihang Zhou, Xinwang Liu, Linxuan Song, Xihong Yang, & En Zhu. Deep Graph Clustering via Dual Correlation Reduction. Proceedings Of The AAAI Conference On Artificial Intelligence,
+7603-7611, 2022. [38] Lu Yu, Chuxu Zhang, Shangsong Liang, and Xiangliang Zhang. Multiorder attentive ranking model for sequential recommendation. In Proceedings of the AAAI conference on artificial intelligence, volume 33, pages 5709–5716, 2019. [39] Xiaokang Zhou, Yue Li, and Wei Liang. Cnn-rnn based intelligent recommendation for online medical pre-diagnosis support. IEEE/ACM Transactions on Computational Biology and Bioinformatics, 18(3):912–921, 2020. [40] Yongchun Zhu, Ruobing Xie, Fuzhen Zhuang, Kaikai Ge, Ying Sun, Xu Zhang, Leyu Lin, and Juan Cao. Learning to warm up cold item embeddings for cold-start recommendation with meta scaling and shifting networks. In Proceedings of the 44th International ACM SIGIR Conference on Research and Development in Information Retrieval, pages 1167–1176, 2021. [41] Ziwei Zhu, Jingu Kim, Trung Nguyen, Aish Fenton, and James Caverlee. Fairness among new items in cold start recommender systems. In Proceedings of the 44th International ACM SIGIR Conference on Research and Development in Information Retrieval, pages 767–776, 2021.

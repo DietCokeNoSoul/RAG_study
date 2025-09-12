@@ -1,0 +1,484 @@
+ForPeerReview
+Multi-scale topology and position feature learning and relationship-aware graph reasoning for prediction of drugrelated microbes
+Journal: Bioinformatics
+Manuscript ID BIOINF-2023-1850.R1
+Category: Original Paper
+Date Submitted by the
+Author: n/a
+Complete List of Authors: Xuan, Ping; Heilongjiang University, School of Computer Science and Technology; Shantou University, Department of Computer Science Gu, Jing; Heilongjiang University, School of Computer Science and Technology Cui, Hui; La Trobe University, Computer Science and Information Technology Wang, Shuai; Yanshan University, School of Information Science and Engineering Toshiya, Nakaguchi; Chiba University, Center for Frontier Medical Engineering Liu, Cheng; Shantou University, Department of Computer Science Zhang, Tiangang; Heilongjiang University, School of Mathematical Science
+Portal Keywords: Deep learning, Bioinformatics, Machine learning
+Keywords:
+Microbe-drug association prediction, Multi-scale topology and position feature learning, Fully-connected autoencoders based embedding enhancement strategy, Position- and topology-sensitive heterogeneous graph neural network, Relationship-aware graph transformer
+Bioinformatics
+
+
+ForPeerReview
+i
+i
+“output” — 2023/12/24 — 12:02 — page 1 — #1 i
+i
+i
+i
+i
+i
+Bioinformatics Advance Access Publication Date: Day Month Year Manuscript Category
+Data and text mining
+Multi-scale topology and position feature learning
+and relationship-aware graph reasoning for
+prediction of drug-related microbes
+Ping Xuan 1, 2, Jing Gu 1, Hui Cui 3, Shuai Wang 4, Toshiya Nakaguchi 5, Cheng Liu 2, Tiangang Zhang 1, 6,∗
+1School of Computer Science and Technology, Heilongjiang University, Harbin 150080, China, 2Department of Computer Science, Shantou University, Shantou 515063, China, 3Department of Computer Science and Information Technology, La Trobe University, Melbourne 3083, Australia, 4School of Information Science and Engineering, Yanshan University, Qinhuangdao 066004, China, 5Center for Frontier Medical Engineering, Chiba University, Chiba 2638522, Japan, 6School of Mathematical Science, Heilongjiang University, Harbin 150080, China
+∗To whom correspondence should be addressed.
+Associate Editor: XXXXXXX
+Received on XXXXX; revised on XXXXX; accepted on XXXXX
+Abstract
+Motivation: The human microbiome may impact the effectiveness of drugs by modulating their activities and toxicities. Predicting candidate microbes for drugs can facilitate the exploration of the therapeutic effects of drugs. Most recent methods concentrate on constructing of the prediction models based on graph reasoning. They fail to sufficiently exploit the topology and position information, the heterogeneity of multiple types of nodes and connections, and the long-distance correlations among nodes in microbe-drug heterogeneous graph. Results: We propose a new microbe-drug association prediction model, NGMDA, to encode the position and topological features of microbe (drug) nodes, and fuse the different types of features from neighbors and the whole heterogeneous graph. First, we formulate the position and topology features of microbe (drug) nodes by t-step random walks, and the features reveal the topological neighborhoods at multiple scales and the position of each node. Second, as the features of nodes are high-dimensional and sparse, we designed an embedding enhancement strategy (ES) based on supervised fully-connected autoencoders to form the embeddings with representative features and the more discriminative node distributions. Third, we propose an adaptive neighbor feature fusion (NFF) module which fuses features of neighbors by the constructed position- and topology-sensitive heterogeneous graph neural networks (HGNN). A novel self-attention mechanism is developed to estimate the importance of the position and topology of each neighbor to a target node. Finally, a heterogeneous graph feature fusion (GFF) module is constructed to learn the long-distance correlations among the nodes in the whole heterogeneous graph by a relationship-aware graph transformer (RAGT). RAGT contains the strategy for encoding the connection relationship types among the nodes, which is helpful for integrating the diverse semantics of these connections. The extensive comparison experimental results demonstrates NGMDA’s superior performance over five state-of-the-art prediction methods. The ablation experiment shows the contributions of the multi-scale topology and position feature learning, the embedding enhancement strategy, the neighbor feature fusion, and the heterogeneous graph feature fusion. Case studies over three drugs further indicate that NGMDA has ability in discovering the potential drug-related microbes. Availability: Source codes and supplementary materials are available at https://github.com/pingxuan-hlju/NGMDA. Contact: zhang@hlju.edu.cn Supplementary information: Supplementary data are available at Bioinformatics online.
+1 Introduction
+The human microbiome is a collection of all microbiota that reside in or on human organs, including bacteria, viruses, protists, fungi, and archaea. Previous human microbiome studies demonstrated that interactions between the human microbes and corresponding hosts regulate human health, such as controlling immune function, providing resistance to pathogens, and even influencing brain physiology and behavior [1, 2]. An imbalance of human microbiota and some diseases are closely related, including chronic inflammation, neurological disorders, and breast cancer [3, 4].
+Microbes can change the toxicity and inhibitory activity of drugs [5, 6] and impact the effectiveness of disease treatments by biologically altering a drug’s chemical structure [7]. Hucioglu et al. suggested that cooperation between Staphylococcus aureus and Candida albicans leads to drug resistance by strengthening biofilm formation [8]. Also, the gut microbiome produces large quantities of bacterial enzymes that affect therapeutic efficacy [9]. Therefore, discovering new microbe-drug associations is essential in drug functional studies and precision medicine. Recently, the computational methods were proposed for predicting the drugtarget interactions [10], incRNA-miRNA interactions [11], miRNA-disease associations [12], metabolite-disease associations [13], and incRNA-disease
+© The Author 2023. Published by Oxford University Press. All rights reserved. For permissions, please e-mail: journals.permissions@oup.com 1
+Page 1 of 9 Bioinformatics
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+
+
+ForPeerReview
+i
+i
+“output” — 2023/12/24 — 12:02 — page 2 — #2 i
+i
+i
+i
+i
+i
+2 P. Xuan et al.
+associations [14]. Computational methods have also shown the ability to determine potential microbe-drug associations and identify reliable drug-related candidates for wet experiments. Microbe-drug association probabilities can be inferred by prediction models using Conditional Random Field (CRF) and Graph Convolutional Network (GCN) [15]. Long et al. proposed EGTMDA to learn node features for microbes and drugs using meta-paths and hierarchical attention mechanism [16]. SCSMDA enhanced representations of drugs and microbes using graph contrastive learning and elaborate meta-paths [17]. However, shortcomings exist in these methods. GCNMDA used vanilla homogeneous models to learn representations of drugs and microbes without considering abundantly available heterogeneous information. In addition, these methods based on meta-paths focus on neighbors originating from meta-paths while ignoring other non-neighboring nodes across the entire heterogeneous graph. We proposed NGMDA to predict candidate microbes for drugs by learning the features of drugs and microbes from neighbors and the whole heterogeneous graph. Our contributions are summarized as follows:
+• The multi-scale topology information of nodes reflects neighbor regions of different ranges, which is important for microbe-drug association prediction. Therefore, topology features of microbe (drug) nodes are designed based on t-step random walks to obtain multi-scale topological neighborhoods of nodes. We also extracted node position features to form the position of each node in the entire heterogeneous graph. • An embedding enhancement strategy based on fully-connected autoencoders with node class labels is proposed to extract important low-dimensional features of the microbe or drug nodes. This strategy also enhances the differences of feature distributions among different types of nodes by determining the node class. • In the microbe-drug heterogeneous graph, different neighbor nodes often have special topological neighborhoods and positional features that affect the importance of neighbors with a target node. A new positionsensitive and topology-sensitive self-attention mechanism (PTA) adaptively distinguishes the contributions of different neighbor nodes. Also, NFF models heterogeneity of the graph and aggregates the representations of nodes based on HGNN with PTA. • A microbe or drug node may be closely related to distant nodes due to the heterogeneity of the microbe-drug graph. We have designed GFF based on a relationship-aware graph transformer (RAGT) to reveal the diverse connections between the target node and all other nodes in the heterogeneous graph. Comprehensive experiments suggest the superiority of NGMDA by comparing it with advanced methods.
+2 Materials and methods
+We propose a microbe-drug association prediction model called NGMDA (Figure 1) that consists of an embedding enhancement strategy (ES), neighbor feature fusion module (NFF), and heterogeneous graph feature fusion module (GFF). A heterogeneous graph is constructed to describe the diverse connectivity relationships between drugs and microbes (Figure 1 (a)). The node features of these drugs and microbes are projected into a low-dimensional feature space, and their differences are enhanced to obtain a fine node embedding (Figure 1 (a)). NFF learns similarity, position, and topology representations between nodes based on position-sensitive and topology-sensitive HGNN (Figure 1(b)). We use GFF to learn multi-modal representations of various nodes across the heterogeneous graph by a relationship-aware graph transformer (Figure 1(c)). These four representations are combined into fully-connected layers to predict microbe-drug association probabilities.
+2.1 Dataset
+Associations between drugs and microbes, similarities between drugs, and the attribute features of the microbes Xmicr are collected from previously published microbe-drug association prediction work [16]. We extracted 2470 microbedrug association data from the Microbe-Drug Associations Database (MDAD) [18], which contains 173 microbes and 1373 drugs. Drugbank [19] provides the interactions among the drugs. On the basis of the biological hypothesis that the drugs with similar treatment functions are more likely interact with the similar
+microbes, EGTMDA calculated the Gaussian kernel similarities of drugs based on their interactions. The structural similarity of two drugs was measured based on the common subgraphs within their chemical structures [20]. The final drug similarities were obtained by the weighted sum of the drug Gaussian kernel similarities and the drug structure similarities. The sequences of microbes were extracted from NCBI database, and then principal component analysis (PCA) was utilized to obtain their important features.
+2.2 Calculation of microbe similarity
+As two microbes with similar gene sequences are typically similar, we calculate the cosine similarity on the attribute characteristics for each microbe. The similarity between microbe mi and mj is Kmicr
+ij ∈ [0, 1],
+K micr
+ij = 1
+2 ( Xmicr
+i (X micr
+j )T
+∥X micr
+i ∥ X micr
+j
++ 1), (1)
+where Xmicr
+i is the i-th row of Xmicr, which contains the main gene sequence characteristics of mi, and (X)T is a transposition of X. The microbe similarities were listed in the supplementary file SF1.
+2.3 Microbe-drug heterogeneous graph
+We constructed a microbe-drug heterogeneous graph G = (V, E) as shown in Figure 1 (a). The node set V consists the drug node subset V drug and microbe node subset V micr and < i, j >∈ E represents an edge from node vj to vi. The drug similarity matrix and drug-microbe association matrix are expressed as Kdrug and Bbipa ∈ RNd×Nm , respectively, where Nd (or Nm) denotes the number of drugs (or microbes). If there is a known association exists between drugs di and mj , then Bbipa
+i,j = 1. Further, Bbipa
+i,j = 0 indicates that no connection has yet been found. There are many low similarity data in the similarity matrix, which might be noise in microbe-drug association prediction. When constructing microbe-microbe (or drug-drug) adjacent matrix, connecting edges are added between the microbe (or drug) nodes with a similarity not less than a threshold β. The adjacency matrix of the heterogeneous graph G is represented as Bhete ∈ R(Nd+Nm)×(Nd+Nm), such that
+Bhete =
+K ̃ drug Bbipa
+(Bbipa)T K ̃ micr , (2)
+where K ̃ drug (or K ̃ micr) is the drug (or microbe) similarity matrix after thresholding.
+2.4 Heterogeneous graph node feature construction and enhancement
+2.4.1 Heterogeneous graph node feature construction
+The heterogeneous graph node features are constructed by a drug-drug similarity matrix, microbe-microbe similarity matrix, and drug-microbe association matrix. The similarity feature matrix is formed by combining the drug and microbe similarities defined above as
+Hsimi = Kdrug
+Kmicr , (3)
+where Kdrug
+i (or Kmicr
+j ) contains the similarities between di (or mj) and other drugs (or microbes). The multi-modal feature matrix Hmoda ∈ R(Nd+Nm)×(Nd+Nm) can be represented as
+Hmoda = Kdrug Bbipa
+(Bbipa)T Kmicr , (4)
+where the i-th row in Hmoda records the similarities between di and all other drugs and the associations between di and all other microbes. The association with drugs and similarities between microbes are contained in the (Nd + j)-th row. Because similarity and multi-modal features are common node attributes for microbe-drug association prediction [21–24, 29], we designate these as the original features of the nodes. Existing GNN models fail to fully consider the position and topology information of nodes, so we construct position and topology features of the microbe and drug nodes. The position of vi within
+Bioinformatics Page 2 of 9
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+
+
+ForPeerReview
+i
+i
+“output” — 2023/12/24 — 12:02 — page 3 — #3 i
+i
+i
+i
+i
+i
+Microbe-drug association prediction 3
+Fig. 1: Framework of the proposed NGMDA model. (a) construct microbe-drug heterogeneous graph and enhance similarity and multi-modal embeddings. (b) fuse features of neighbor nodes by position-sensitive and topology-sensitive HGNN. (c) learn long distance connection from the entire heterogeneous graph based on RAGT.
+Fig. 2: Enhancing node embeddings of microbes and drugs by supervised autoencoders.
+the heterogeneous graph is determined by the connection between vi and other nodes. The position feature matrix is defined as Hposi = Bhete, where the position feature of vi is Hposi,i. A random walk of t-steps contains a t-hop topological neighborhood of nodes within a heterogeneous graph [25] and is defined as
+RW t = (Bhete(Dhete)−1)t, (5)
+where t is the number of walking steps and Dhete is degree matrix of Bhete. RW t
+i,j represents the probability of visiting vi to vj in the t-th step random walk and contains the topological neighborhood information of the t-th step of vi. The topology feature Htopo,i ∈ Rt of vi is defined as
+Htopo,i = [RWi,i, RW 2
+i,i, · · · , RW t
+i,i], (6)
+which contains the multi-scale topological neighborhood information of vi.
+2.4.2 Enhancing node embedding
+The original features specified above are high-dimensional sparse and contain some noise. A projection operation maps drug and microbe node features into the same embedding space, which drops information about the differences in the embedding distributions of different types of nodes. Figure 2 outlines our node embedding enhancement strategy to learn representative embeddings and enhance the embedding distribution differences of the microbe and drug nodes. As autoencoders could effectively reduce the noise component in these embeddings, we learn important low-dimensional node embeddings based on fully-connected autoencoders. The projection and reconstruction process of multi-modal and similarity features are similar, and we use similarity features as an example to describe the process here. The similarity feature of vi, Hsimi,i, is projected into Np dimensional space to form
+H enco,1
+simi,i = σ(Linear_enco(1)
+simi,φ(vi)(Hsimi,i)), (7)
+where Linear_enco is a linear layer, σ represents the nonlinear activation function ReLU, and φ(vi) indicates the type of vi. The similarity embedding of vi is learned from the l-th fully-connected encoding layer as
+H enco,l
+simi,i = σ(Linear_enco(l)
+simi,φ(vi)(H enco,l−1
+simi,i )),
+l = 1, 2, · · · , Lenco,
+(8)
+where Lenco is the total number of encoding layers. Henco,Lenco
+simi,i is used as the input of the decoder, and the output of the l-th fully-connected decoding layer is
+H deco,l
+simi,i = σ(Linear_deco(l)
+simi,φ(vi)(H deco,l−1
+simi,i )),
+l = 1, 2, · · · , Ldeco,
+(9)
+where Ldeco is total number of decoding layers, Linear_deco denotes the linear layer and Hdeco,0
+simi,i = H enco,Lenco
+simi,i . After projection, the multi-modal embedding
+Page 3 of 9 Bioinformatics
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+
+
+ForPeerReview
+i
+i
+“output” — 2023/12/24 — 12:02 — page 4 — #4 i
+i
+i
+i
+i
+i
+4 P. Xuan et al.
+Fig. 3: Calculation of position-sensitive and topology-sensitive self-attention of vj to vi.
+H enco,Lenco
+moda ∈ R(Nd+Nm)×(Np) can be learned. The mean square error (MSE) estimates the reconstruction loss of the node similarity features as
+γreco,simi = 1
+|T |
+X
+i∈T
+Hsimi,i − H Ldeco
+simi,i
+2
+, (10)
+where T is the batch of nodes in the training set. Similarly, the reconstruction loss of the multi-modal feature is γreco,moda. We classify the projected node embedding to enhance the differences between the drug and microbe embedding distributions. Considering a multi-modal embedding, as an example, is the input of the classify and labeli is the corresponding classification labels. The classification loss of the multi-modal embedding in the training samples is estimated by the cross-entropy loss function
+γclas,moda = 1
+|T |
+X
+i∈T
+2
+X
+k=1
+−labeli,k · log(Linear_clasmoda(Henco,Lenco
+moda,i )k),
+(11) where Linear_clasmoda ∈ RNp×2. The classification loss of the similarity embedding is represented as γinty,simi. The total loss of the embedding classification of the drug and microbe nodes is
+γproc = γreco,simi + γreco,moda + γinty,simi + γinty,moda. (12)
+2.5 Neighbor feature fusion
+The topological neighborhood and position information of the neighboring nodes impact their importance with a target node. We propose a neighbor feature fusion (NFF) module based on heterogeneous graph neural networks (HGNN) with a position-sensitive and topology-sensitive self-attention mechanism (PTA) to learn representative similarity and the position and topology representations of each microbe and drug nodes. The relationship types between the nodes are critical auxiliary features, so we also calculate the importance of the integrated features, as shown in Figure 3. The type of relationship between nodes contains the similarity relationship between drugs (or microbes) and the association relationship between drugs (or microbes) and microbes (or drugs). The relationship type of vj to vi is represented as
+ψ(< i, j >) =
+
+  
+  
+0, if vi, vj ∈ V drug
+1, if vi ∈ V micr, vj ∈ V drug 2, if vi ∈ V drug, vj ∈ V micr 3, if vi, vj ∈ V micr
+. (13)
+Then, the importance of the relationship type of vj to vi is rl
+ψ(<i,j>), which is learned during the training process at the l-th layer, and r0
+ψ(<i,j>) = 1.
+Multi-head attention can reasonably stabilize the learning process of selfattention by allocating the attention value of each head [26]. After obtaining the similarity representations Hl−1
+simi,j and H l−1
+simi,i of vi and vj , respectively, at l − 1-th layer, we compute the importance of the similarity representation of vj to vi in the next layer by
+sl
+i,j,k = (sof tmax(W l
+p(k)W l
+φ(vi),k H l−1
+simi,i))T norm(W l
+φ(vj ),k H l−1
+simi,j ),
+l = 1, 2, · · · , Lnff and k = 1, 2, · · · , Knff ,
+(14) where Lnff is the total layer number, Knff is the head number, H0
+simi,i = H enco,Lenco
+simi,i , W l
+φ(vi),k and W l
+p(k) ∈ RNp×Np are weight matrices, and norm represents L2 normalization. The Hl−1
+simi,i and H l−1
+simi,j terms are transformed into latent representations W l
+φ(vi),k H l−1
+simi,i and W l
+φ(vj ),k H l−1
+simi,j .
+Then, W l
+p(k)W l
+φ(vi),k H l−1
+simi,i is the distribution of the similarity representation importance, which is converted to a probability distribution using the softmax function. As the magnitude of the latent representation affects the importance score of vj to vi, we standardize W l
+φ(vj ),k H l−1
+simi,j with L2 normalization. The importance score of vj to vi is calculated by the inner product of the importance distribution of vi and the representation of vj. The multiple neighbors of node vi have their various topological neighborhoods and positions, so these neighbors have different importance for vi’s feature learning. Therefore, the importance of each neighbor node for vi was calculated before the vi’s features were updated. We calculate the importance cl
+i,j ∈ [0, 1] of the position and topology of vj to vi by
+cl
+i,j = [τ ·cosine(Hl−1
+posi,i, H l−1
+posi,j )+(1−τ )·cosine(Hl−1
+topo,i, H l−1
+topo,j )+1]/2, (15) where Hl−1
+posi,i and H l−1
+topo,i are the position and topology representations of vi, respectively, H0
+posi,i = Hposi,i, and H 0
+topo,i = Htopo,i. The parameter τ ∈ [0, 1] balances the contributions between the position and topology representations. The importance score of vj to vi is then
+al
+i,j,k = sof tmaxj∈N(i)(rl
+ψ(<i,j>) · sl
+i,j,k · cl
+i,j ). (16)
+Here, al
+i,j,k is position and topology sensitive by integrating the importance of the neighbor position and topology. As residuals can alleviate over-smoothing and vanishing gradients [27], we add a node residual for every attention head. The similarity representation of vi is then updated as
+Hl
+simi,i,k = σ(
+X
+j∈N (i)
+al
+i,j,k · W l
+φ(vi),k · H l−1
+simi,j + W l
+res(k) · H l−1
+simi,i), (17)
+where W l
+res(k) ∈ RNp×Np is the weight matrix. The similarity representations of the different heads are aggregated at the l-th layer to obtain
+Hl
+simi,i = 1
+Knf f
+Knf f X
+k=1
+Hl
+simi,i,k, (18)
+where Knff is the head number of the NFF. As the similarity, position, and topology representations have the same update procedure, the position and topology representations are updated as Hl
+posi,i and H l
+topo,i in the l-th layer, respectively.
+2.6 Heterogeneous graph feature fusion
+2.6.1 Relationship type encoding
+Relationship types of similarity and association can reflect diverse semantic connections between drug and microbe nodes. The relationship type ψ(< i, j >) of vj to vi is represented as a one-hot vector that is linearly transformed to obtain the embedding of the relationship type eψ(<i,j>) ∈ RNp .
+2.6.2 Relationship-aware graph transformer
+To capture the connection between the target node and distant nodes, we designed a heterogeneous graph feature fusion (GFF) module presented in Figure 1 (c). A relationship-aware graph transformer (RAGT) is proposed within the GFF and
+Bioinformatics Page 4 of 9
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+
+
+ForPeerReview
+i
+i
+“output” — 2023/12/24 — 12:02 — page 5 — #5 i
+i
+i
+i
+i
+i
+Microbe-drug association prediction 5
+inspired by these methods [28–30]. To embed the relationship type ψ(< i, j >) of vj to vi into the query, key, and value vectors, we concatenate a multi-modal feature of vi (or vj) and the relationship type embedding eψ(<i,j>). We obtain the query, key, and value vectors of the h-th head in the l-th layer by linear transformations such that
+ql
+i,j,h = [H enco,l−1
+moda,i , eψ(<i,j>)]W l
+φ(vi ),Q,h ,
+kl
+i,j,h = [H enco,l−1
+moda,j , eψ(<i,j>)]W l
+φ(vj ),K,h,
+vl
+i,j,h = [H enco,l−1
+moda,j , eψ(<i,j>)]W l
+φ(vj ),V,h,
+l = 1, 2, · · · , Lgff and h = 1, 2, · · · , Kgff ,
+(19)
+where W l
+φ(vi),Q,h, W l
+φ(vi),K,h, W l
+φ(vi),V,h ∈ R2×Np, Np
+Kgff are weight
+matrices, HG,0
+enc,i = H G
+enc,i, Lgff is the total layer number, and Kgff indicates the head number of GFF. The importance of vj to vi is
+fl
+i,j,h = sof tmaxj∈V ( (ql
+i,j,h)T kl
+i,j,h
+pNp /Kgf f
+). (20)
+After aggregating the neighbor representations of vi in the h-th head, we concatenate the representations from each head to form
+ml
+i=
+Kgf f
+∥
+h=1
+(
+|V |
+X
+j=1
+fl
+i,j,h · vl
+i,j,h), (21)
+where ∥ is the concatenation operation. The application of layer normalization (LayerNorm) is crucial for this training process and for expressing the capacity of attention [31]. The multi-modal representation Hl
+moda,i of vi is updated based on LayerNorm, such that
+nl
+i = LayerN orm(W l
+1 ml
+i + H l−1
+moda,i ),
+Hl
+moda,i = LayerN orm(σ(W l
+2 nl
+i)W l
+3 + nl
+i),
+(22)
+where W l
+1, W l
+2, W l
+3 ∈ RNp×Np represent weight matrices.
+2.7 Representation integration and optimization
+The original features and representations learned from shallower layers retain the detailed information of the nodes, along with more abstract information are learned from deeper layers. By concatenating the original features and representations from each layer of NFF and GFF, the final representation of the drug di is are formed as
+H ̃i = [Hsimi,i,
+Lnf f
+∥
+l=0
+[H l
+posi,i, H l
+topo,i, H l
+simi,i], Hmoda,i,
+Lgf f
+∥
+l=0
+Hl
+moda,i ].
+(23) Likewise, we obtain the final representation H ̃j+Nd of microbe mj. Following
+the stack of linear layers and the non-linear activation function, H ̃i and H ̃j+Nd are combined to compute the association prediction score predi,j ∈ R2, such that
+ui,j = σ(Wattr[H ̃i, H ̃j+Nd ] + battr),
+predi,j = sof tmax(Wpredui,j + bpred),
+(24)
+where Wattr (or Wpred) is the weight matrix and battr (or bpred) is a bias vector. Then, predi,j = [(predi,j )0, (predi,j )1], where (predi,j )0 represents the unrelated probability between di and mj, and the associated probability is (predi,j)1. The loss of the association prediction is represented by
+γpred = 1
+|B|
+X
+(i,j)∈B
+2
+X
+k=1
+−(label(i, j)k · log((predi,j)k), (25)
+where B is the training example set and label(i, j) is the association label of di and mj. The final loss of NGMDA γ is the weighted sum of the ES loss γproc and the association prediction loss γpred, such that
+γ = ε · γproc + (1 − ε) · γpred, (26)
+where the balance factor ε ∈ [0, 1] is a hyper parameter.
+3 Experimental Evaluation and Discussion
+3.1 Evaluation metrics
+The performance of NGMDA and other comparison methods is evaluated with five-fold cross-validation. All known associations between drugs and microbes are classified as positive samples, with associations equally divided into five parts. All unobserved microbe-drug associations are taken as negative samples to form a set of negative samples. Four positive examples and an equal number of negative examples are randomly selected from the negative sample to be utilized for training, and the remainder are test examples. The area under the receiver operating characteristic curve (AUC) [32], the area under the precision-recall curve (AUPR) [33], and the recall rate of the top k candidate microbes associated with drugs are selected as our evaluation indicators. If the association score between di and mj is less than a threshold θ, then it is considered a negative sample. Otherwise, it is identified as a positive sample. The TPRs, FPRs, precisions, and recalls of each drug were calculated at different threshold θ, we calculated the average AUCs and average AUPRs of 1373 drugs for each fold. The five fold AUCs (or AUPRs) were averaged as the final AUC (or AUPR). Considering that high-ranking candidates may be chosen by biologists for humidity experiments, more positive samples are expected to appear as top-rank candidates. Hence, we compute a recall rate of the top k candidate microbes of drug di.
+3.2 Parameter settings
+NGMDA runs on a 2080ti server based on the PyTorch framework and is optimized with the Adam algorithm. The proposed model has some hyperparameters including the steps of random walking, the layer numbers of NFF and that of GFF, and the balance factor of loss ε. We firstly establish the variation range for each hyper-parameter, and then select the value which obtains the best performance for the model as the final value of the hyper-parameter. To assess the effect of random walk step size on the prediction performance, the step size was selected from {1, 2, 4, 8, 16, 32}. The model achieves the highest AUC (AUC=0.944) and AUPR (AUPR=0.728) when step size is 2 (supplementary table ST1). The random walk steps are set to 2 for the topological embedding formation. For NFF and GFF, we fine-tuned the layer number within a range, {1, 2, 3}, and performed all the combinations of the layer number of NFF and GFF. As shown in the supplementary table ST2, the model gets the best performance when their layer numbers are 2. The balance factor ε regulates the importance of the loss of embedding enhancement strategy and that of the association prediction loss, and it was chosen from the range of {0, 0.1, · · · , 0.5}. The supplementary table ST3 demonstrated the corresponding results and ε was set to 0.2 finally. The drug (microbe) similarity threshold, β, was selected from {0.5, 0.6, · · · , 0.9}, and it was set to 0.9 in our experiment (supplementary table ST4). Parameter τ is utilized to balance the importance of the topology and position features, and τ varies from 0 to 1 with a step size of 0.2. The supplementary table ST5 indicates τ value of 0.4 is more favorable for the prediction performance of the model.
+3.3 Ablation experiments
+We perform ablation experiments to evaluate the contributions of position and topology feature learning (PTL), ES, NFF and GFF as listed in Table 1. For NGMDA without GFF, the AUC and AUPR metrics drop by 1.1% and 6.0%, respectively. The AUC and AUPR of NGMDA without NFF decrease by 1.0% and 5.3%, respectively, compared to the whole model. The AUC and AUPR decrease by 0.6% and 4.6%, respectively, if NGMDA has no ES. The AUC and AUPR of our model achieve 0.9% and 1.5%, respectively, higher than NGMDA without PTL. We built the prediction model without multi-scale topological feature learning and the one without position feature learning, respectively. Their AUCs decreased by 0.8% and 0.4%, and their AUPR decreased by 1% and 0.5%, respectively. After the relationship type integration was eliminated from the prediction model, its AUC and AUPR decreased by 0.6% and 2.7%. The ablation experiments indicate that merging node features of the heterogeneous graph contributes the most to model performance (Table 1). A possible reason is that some non-neighbouring nodes exist across the entire heterogeneous graph that are also closely related to the target node. NFF achieves the second most significant contribution, suggesting that the neighbouring node information of the target node is also important. The embedding enhancement strategy boosts the prediction performance, which suggests its value in reducing
+Page 5 of 9 Bioinformatics
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+
+
+ForPeerReview
+i
+i
+“output” — 2023/12/24 — 12:02 — page 6 — #6 i
+i
+i
+i
+i
+i
+6 P. Xuan et al.
+Table 1. Results of the ablation studies.
+Networks Average AUC Average AUPR NGMDA 0.944 0.728 NGMDA w/o PTL 0.935 0.713 NGMDA w/o ES 0.938 0.682 NGMDA w/o NFF 0.934 0.675 NGMDA w/o GFF 0.933 0.668 NGMDA w/o Topo 0.936 0.718 NGMDA w/o Posi 0.94 0.723 NGMDA w/o Rel 0.938 0.701
+noise in the node embeddings and enhancing differences in the node distributions. Multi-scale topology and position features indicated the neighbors with multiple ranges and the location information of each node were important for the improved prediction performance. The experimental results (Table 1) also demonstrated the relationship type integration is helpful for improving the prediction performance.
+3.4 Comparison with other methods
+NGMDA is compared with five state-of-the-art microbe-drug association prediction methods, including GCNMDA [15], EGATMDA [16], GACNNMDA [34], GSAMDA [35], and SCSMDA [17]. NGMDA and five compared methods were trained and tested by using the same data separation during five-fold crossvalidation. The hyper-parameters of these methods are set according to their corresponding literature. We briefly describe these comparison methods in the following.
+• GCNMDA [15]. It established a microbe-drug heterogeneous network and integrated multiple kinds of similarities. These similarities were measured based on the chemical structures of drugs, the Gaussian interaction profiles of drugs (microbes), and the microbe sequences. The prediction model was constructed based on GCN and CRF. • EGATMDA [16]. It constructed a microbe-disease-drug network and then inferred the microbe-drug associations by a hierarchical attention mechanism. • GACNNMDA [34]. The multiple microbe-drug heterogeneous networks were constructed based on the Gaussian interaction and Hamming interaction profiles of drugs (microbes). The potential microbe-drug associations were identified by the convolutional neural networks. • GSAMDA [35]. The model calculated the drug (microbe) similarities based on the Gaussian interaction profiles and Hamming interaction profiles of drugs (or microbes), and learned the node features by the graph attention networks and sparse auto-encoder. • SCSMDA [17]. The model constructed the microbe-drug networks based on the microbe gene sequence information, the Gaussian kernel interaction profiles of drugs (or microbes), and the chemical structures of drugs. It learned the features of the microbe and drug nodes by graph contrastive learning.
+Table 2. AUCs and AUPRs of different methods in comparison all the 1373 drugs.
+Networks AUC AUPR NGMDA 94.4% 72.8% SCSMDA 91.6% 34.0% GSAMDA 90.2% 24.7% GACNNMDA 84.3% 19.6% EGATMDA 94.0% 30.7% GCNMDA 90.3% 31.5%
+We first compute the AUC and AUPR and then calculate the average AUC and AUPR over 1373 drugs. As shown in Table 2, NGMDA achieves the best average AUC of 0.944, which is 0.4% higher than the second-best EGATMDA model, 4.1% better than GCNMDA, 10.1% over GACNNMDA, 4.2% superior to GSAMDA, and 2.8% greater than SCSMDA. NGMDA also produces the best average AUPR of 72.8%, which is 38.8%, 41.3%, 42.1%, 53.2%, and 48.1% better than SCSMDA, GCNMDA, EGATMDA, GACNNMDA, and GASMDA, respectively. We compute the average AUCs (AUPRs) of 1373 drugs per fold
+Top3 Top6 Top9 Top12 Top15 Top18 Top21 Top24
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+Recall
+ngmda scsmda gsamda gacnnmda egatmda gcnmda
+Fig. 4: The average recalls of drugs at different top k settings.
+for NGMDA and each of the compared methods. To observe whether NGMDA’s prediction performance is significantly higher than each compared method, the statistical test was conducted. NGMDA has 1373 AUCs (AUPRs) for the 1373 drugs, and the compared methods also have 1373 AUCs (AUPRs) for these drugs. The paired wilcoxon test was executed on NGMDA’s AUCs (AUPRs) and the AUCs (AUPRs) of the compared methods (Table 3). The results indicated NGMDA obtained the significantly higher prediction performance than all the compared methods. The performances of GCNMDA, GACNNMDA, and GSAMDA are not as good as NGMDA, EGATMDA, and SCSMDA. This outcome is likely because these learn node representations using simple models (e.g., GCN and GAT) without considering node or edge types in the microbe-drug heterogeneous graph. EGATMDA and SCSMDA learn the features of drugs and microbes from semantic information based on meta-paths. These models only focus on learning features of the neighbour nodes derived from meta-paths and do not consider the remaining nodes across the entire heterogeneous graph. The average recalls under different top-k candidate microbes for all drugs are presented in Figure 4. NGMDA outperforms all other methods at different top cutoffs due to its enhanced embedding of the nodes and fusing the features of neighbor nodes and the whole heterogeneous graph. When k = 3, our model achieves the highest recall rate of 76.6%, where the second-best 48.7% is attained by EGATMDA. SCSMDA achieves the fourth-best result with a recall rate of 44.7%, which is 0.5% below GCNMDA. When k is 6, 9, and 12, NGMDA maintains the best recall values of 81.3%, 83.4%, and 85.7%, respectively. The second performer is EGATMDA with recall rates of 67.8%, 74.9% and 80.1%, respectively. SCSMDA surpasses GCNMDA with recall rates of 63.6%, 67.6%, and 71.4%, respectively, while the recall rates of GCNMDA are lower at 61.5%, 66.8%, and 70.8%, respectively. GSAMDA does not perform well with recall rates of 55.7%, 63.7%, and 68.4%, respectively, while still being consistently higher than GACNNMDA, which obtained the lowest recall rates of 42.5%, 49.9% and 56.2%, respectively.
+3.5 Case studies on three drugs
+To confirm NGMDA’s discovery potential of drug related microbial candidates, case studies with Ciprofloxacin, Moxifloxaxin, and Vancomycin are performed. Ciprofloxacin treats skin infections, typhoid fever, pneumonia, endocarditis, and other bacterial infections. Moxifloxacin treats pneumonia, tuberculosis, sinusitis, and chronic bronchitis. Vancomycin is an antibiotic that treats bloodstream infections, endocarditis, and orthopedic infections. All the known microbe-drug associations and the randomly selected equal number of unobserved microbedrug associations were utilized to train the model for case studies. Candidate microbes are obtained for each of these drugs, and we collected the top 20 candidates, as listed in Table 4, 5, and 6. The MDAD [18] provides microbe-drug associations that were verified by experimental or clinical studies. The aBiofilm database [36] organizes data on anti-biofilm agents disrupting biofilms, covering 1720 drugs and 140 microbes. We use MDAD, aBiofilm database, and literature to verify the microbedrug association prediction results of NGMDA. Among the top 20 candidate microbes related to Ciprofloxacin, six are recorded by MDAD, and four are contained in the aBiofilm database, which suggests that these microbes are
+Bioinformatics Page 6 of 9
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+
+
+ForPeerReview
+i
+i
+“output” — 2023/12/24 — 12:02 — page 7 — #7 i
+i
+i
+i
+i
+i
+Microbe-drug association prediction 7
+Table 3. The paired Wilcoxon test result on AUCs and AUPRs of 1373 drugs comparing NGMDA with other compared methods.
+GCNMDA EGATMDA GACNNMDA GSAMDA SCSMDA p-value of AUCs 4.21e-155 1.70e-59 7.26e-159 4.38e-150 1.40e-151 p-value of AUPRs 1.47e-186 2.26e-156 6.63e-196 1.30e-186 1.82e-215
+Table 4. The top-20 candidate microbes of Ciprofloxacin.
+Rank Microbe name Evidence Rank Microbe name Evidence 1 Candida albicans PMID: 31471074 11 Bacillus subtilis MDAD 2 Pseudomonas aeruginosa aBiofilm, MDAD 12 Actinomyces oris Unconfirmed 3 Staphylococcus aureus aBiofilm, MDAD 13 Human immunodeficiency virus 1 PMID: 9566552 4 Escherichia coli aBiofilm, MDAD 14 Streptococcus sanguis PMID: 11347679 5 Streptococcus mutans PMID: 30468214 15 Stenotrophomonas maltophilia aBiofilm, MDAD 6 Staphylococcus epidermis PMID: 10632381 16 Haemophilus influenzae MDAD 7 Staphylococcus epidermidis PMID: 28481197 17 Listeria monocytogenes PMID: 28355096 8 Salmonella enterica PMID: 26933017 18 Burkholderia cenocepacia PMID: 27799222 9 Vibrio harveyi PMID: 27247095 19 Streptococcus pneumoniae PMID: 26100702 10 Enterococcus faecalis PMID: 27790716 20 Serratia marcescens PMID: 23751969
+Table 5. The top-20 candidate microbes of Moxifloxacin.
+Rank Microbe name Evidence Rank Microbe name Evidence 1 Pseudomonas aeruginosa PMID: 31691651 11 Staphylococcus epidermidis PMID: 11249827 2 Staphylococcus aureus PMID: 31689174 12 Candida albicans aBiofilm, MDAD 3 Escherichia coli PMID: 31542319 13 Streptococcus pneumoniae PMID: 22407042 4 Vibrio harveyi Unconfirmed 14 Serratia marcescens Unconfirmed 5 Bacillus subtilis PMID: 30036828 15 Acinetobacter baumannii PMID: 12951327 6 Listeria monocytogenes PMID: 28739228 16 Actinomyces oris PMID: 26538502 7 Salmonella enterica PMID: 22151215 17 Clostridium perfringens PMID: 29486533 8 Stenotrophomonas maltophilia aBiofilm, MDAD 18 Klebsiella pneumoniae PMID: 27257956 9 Burkholderia cenocepacia PMID: 28355096 19 Burkholderia pseudomallei PMID: 15731198 10 Burkholderia multivorans Unconfirmed 20 Haemophilus influenzae MDAD
+Table 6. The top-20 candidate microbes of Vancomycin.
+Rank Microbe name Evidence Rank Microbe name Evidence 1 Staphylococcus aureus MDAD;aBiofilm 11 Streptococcus mutans PMID: 464571 2 Pseudomonas aeruginosa PMID: 26980934 12 Stenotrophomonas maltophilia Unconfirmed 3 Escherichia coli PMID: 33468474 13 Streptococcus pneumoniae PMID: 10376600 4 Staphylococcus epidermidis PMID: 20685088 14 Acinetobacter baumannii PMID: 23422916 5 Bacillus subtilis PMID: 14165485 15 Actinomyces oris PMID: 26538502 6 Enterococcus faecalis PMID: 15528891 16 Salmonella enterica Unconfirmed 7 Vibrio harveyi PMID: 25066453 17 Klebsiella pneumoniae Unconfirmed 8 Listeria monocytogenes PMID: 10588323 18 Clostridium perfringens PMID: 16870765 9 Burkholderia cenocepacia Unconfirmed 19 Serratia marcescens Literature [45] 10 Burkholderia multivorans Unconfirmed 20 Streptococcus sanguis PMID: 7287904
+indeed associated with the drug Ciprofloxacin, and these 13 candidates are further confirmed by the literature. For example, several microbes, including Candida albicans, Human immunodeficiency virus 1, Streptococcus mutans, and Streptococcus pneumoniae, are inhibited (or killed) by Ciprofloxacin [8, 37–39]. The two microbes, Staphylococcus epidermidis and Salmonella enterica, were validated to be highly susceptible to Ciprofloxacin [40, 41]. In addition, Vibrio harveyi, Enterococcus faecalis, and Listeria monocytogenes are identified as Ciprofloxacin-resistant microbes [42–44]. For the microbe candidates related to Moxifloxacin in Table 5, three candidates are included in MDAD, two in the aBiofilm database and 14 candidates are supported by the literature. Considering the candidate microbes of Vancomycin in Table 6, Staphylococcus is confirmed by the MDAD and aBiofilm databases, and 14 candidates are supported by literature. Among all 60 microbe candidates, nine are unconfirmed, which indicates that no relevant evidence is found to support their association. The above analysis demonstrates that NGMDA can discover potential candidate microbes for target drugs under study.
+3.6 Prediction of novel microbe-drug associations
+NGMDA is implemented to predict the potential candidate microbes for all drugs. The top-ranked 20 microbe candidates are listed in the supplementary file SF2, which can be leveraged by biologists to screen reliable candidate microbes.
+4 Conclusion
+We proposed a novel microbe-drug association prediction model to encode node neighborhood topologies across multiple scales and perform graph inference by propagating different types of connections and information about the nodes. The multi-scale topology feature is formed by estimating the probability that a random walker accesses itself in different steps. The established node embedding strategy enhances the representations of microbe and drug nodes that form the specific distribution of the corresponding node. The NFF combines the features of different types of neighbors and target nodes by adaptively evaluating the weights of the position features, topology features, and original features of the neighbor nodes. The long-distance connections and encoding of the relationship types between the nodes through GFF enable the knowledge propagation of the entire graph and the capture of diverse relationships. Cross-validation experimental results on public datasets suggest the superiority and effectiveness of NGMDA. The average recall rate of drugs and case analyses of experimental results further demonstrate that NGMDA provides reliable microbe candidates for related drugs under investigation.
+Funding
+This work is supported by the Natural Science Foundation of China (62372282, 61972135, 62172143), STU Scientific Research Initiation Grant (NTF22032), and the Natural Science Foundation of Heilongjiang Province (LH2023F044).
+Page 7 of 9 Bioinformatics
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+
+
+ForPeerReview
+i
+i
+“output” — 2023/12/24 — 12:02 — page 8 — #8 i
+i
+i
+i
+i
+i
+8 P. Xuan et al.
+References
+[1]Zhu S., Jiang Y., Xu K., et al. The progress of gut microbiome research related to brain disorders. J Neuroinflammation, 2020;17(1):25. [2]Duvallet C., Gibbons S. M., Gurry T., et al. Meta-analysis of gut microbiome studies identifies disease-specific and shared responses. Nat Commun, 2017;8(1):1784. [3]Rackaityte E., and Lynch S. V. The human microbiome in the 21st century. Nat Commun, 2020;11(1):5256. [4]Wang D., Guo Q., Yuan Y., and Gong Y. The antibiotic resistance of Helicobacter pylori to five antibiotics and influencing factors in an area of China with a high risk of gastric cancer. BMC Microbiol, 2019;19(1):152. [5]Nejman D., Livyatan I., Fuks G., et al. The human tumor microbiome is composed of tumor type-specific intracellular bacteria. Science, 2020;368(6494):973-980. [6]Algavi Y. M., and Borenstein E. A data-driven approach for predicting the impact of drugs on the human microbiome. Nat Commun, 2023;14(1):3614. [7]Yin B., Wang X., Yuan F., et al. Research progress on the effect of gut and tumor microbiota on antitumor efficacy and adverse effects of chemotherapy drugs. Front Microbiol, 2022;13:899111. [8]Hacioglu M., Haciosmanoglu E., Birteksoz-Tan A. S., et al. Effects of ceragenins and conventional antimicrobials on Candida albicans and Staphylococcus aureus mono and multispecies biofilms. Diagn Microbiol Infect Dis, 2019;95(3):114863. [9]Zimmermann M., Zimmermann-Kogadeeva M., Wegmann R., Goodman A. L. Mapping human microbiome drug metabolism by gut bacteria and their genes. Nature, 2019;570(7762):462-467. [10]Li F., Zhang Z., Guan J., and Zhou S. Effective drug-target interaction prediction with mutual interaction neural network. Bioinformatics, 2022;38(14):3582-3589. [11]Wang W., Zhang L., Sun J., et al. Predicting the potential human lncRNAmiRNA interactions based on graph convolution network with conditional random field. Briefings in Bioinformatics, 2022;23(6):bbac463. [12]Peng W, Che Z., Dai W, et al. Predicting miRNA-disease associations from miRNA-gene-disease heterogeneous network with multi-relational graph convolutional network model. IEEE/ACM Trans Comput Biol Bioinform, 2022. doi:10.1109/TCBB.2022.3187739. [13]Gao H., Sun J., Wang Y., et al. Predicting metabolite-disease associations based on auto-encoder and non-negative matrix factorization. Briefings in Bioinformatics, 2023;24(5):bbad259. [14]Wang S., Hui C., Zhang T., et al. Graph Reasoning Method Based on Affinity Identification and Representation Decoupling for Predicting lncRNADisease Associations. Journal of Chemical Information and Modeling. 2023;63(21):6947-6958. [15]Long Y., Wu M., Kwoh C. K., et al. Predicting human microbe-drug associations via graph convolutional network with conditional random field. Bioinformatics, 2020;36(19):4918-4927. [16]Long Y., Wu M., Liu Y., et al. Ensembling graph attention networks for human microbe-drug association prediction. Bioinformatics, 2020;36(Suppl2):i779-i786. [17]Tian Z., Yu Y., Fang H., et al. Predicting microbe-drug associations with structure-enhanced contrastive learning and self-paced negative sampling strategy. Briefings in Bioinformatics, 2023;bbac634.
+[18]Sun Y., Zhang D., Cai S., et al. MDAD: A Special Resource for MicrobeDrug Associations, Front. Cell. Infect. Microbiol, 2018;8:424. [19]Knox C., Wilson M., Klinger C.M., et al. DrugBank 6.0: the DrugBank Knowledgebase for 2024. Nucleic Acids Res. 2023. doi: 10.1093/nar/gkad976. [20]Hattori M., Tanaka N., Kanehisa M., and Goto S. SIMCOMP/SUBCOMP: chemical structure search servers for network analysis. Nucleic Acids Res, 2010;38(Web Server issue):W652-656. [21]Wang T., Sun J., and Zhao Q. Investigating cardiotoxicity related with hERG channel blockers using molecular fingerprints and graph attention mechanism. Computers in Biology and Medicine, 2023;153:106464.
+[22]Meng R., Yin S., Sun J., et al. scAAGA: Single cell data analysis framework using asymmetric autoencoder with gene attention. Computers in Biology and
+Medicine, 2023;165:107417. [23]Peng W., Chen T., and Dai W. Predicting Drug Response Based on MultiOmics Fusion and Graph Convolution. IEEE Journal of Biomedical and Health Informatics, 2022;26(3):1384-1393. [24]Peng W., Lan W., Zhong J., et al. A novel method of predicting microRNAdisease associations based on microRNA, disease, gene and environment factor networks. Methods, 2017;124:69-77. [25]Dwivedi V. P., Luu A. T., Laurent T., et al. Graph Neural Networks with Learnable Structural and Positional Representations. International Conference on Learning Representations, 2022.
+[26]Velicˇkovic ́ P., Gucurull G., Casanova A., et al. Graph attention networks. In International Conference on Learning Representations, 2018.
+[27]Lv Q. , Ding M., Liu Q., et al. Are we really making much progress? Revisiting, benchmarking and refining the Heterogeneous Graph Neural Networks. In Proceedings of the Twenty-Seventh ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, 2021.
+[28]Peng W., Tang Q., Dai W., and Chen T. Improving cancer driver gene identification using multi-task learning on graph convolutional network. Briefings in Bioinformatics, 2022;23(1):bbab432.
+[29]Peng W., Liu H., Dai W., et al. Predicting cancer drug response using parallel heterogeneous graph convolutional networks with neighborhood interactions. Bioinformatics, 2022;38(19):4546-4553. [30]Diao C., and Loynd R. Relational Attention: Generalizing Transformers for Graph-Structured Tasks. International Conference on Learning Representations, 2023.
+[31]Brody S., Alon U., and Yahav E. On the Expressivity Role of LayerNorm in Transformers’ Attention. In Proceedings of the 61th Annual Meeting of the Association of Computational Linguistics, 2023.
+[32]Huang J., and Ling C. Using AUC and accuracy in evaluating learning algorithms. IEEE Transactions on knowledge and Data Engineering, 2005;17(3):299-310. [33]Saito T., and Rehmsmeier M. The precision-recall plot is more informative than the ROC plot when evaluating binary classifiers on imbalanced datasets. PloS one, 2015;10(3):e0118432. [34]Ma Q., Tan Y., and Wang L. GACNNMDA: a computational model for predicting potential human microbe-drug associations based on graph attention network and CNN-based classifier. BMC bioinformatics, 24, 35 (2023). [35]Tan Y., Zou J., Kuang L., et al. GSAMDA: a computational model for predicting potential microbe-drug associations based on graph attention network and sparse autoencoder. BMC bioinformatics, 23, 492 (2022). [36]Rajput A., Thakur A., Sharma S., et al. Abiofilm: a resource of anti-biofilm agents and their potential implications in targeting antibiotic drug resistance. Nucleic Acids Res, 2018;46(D1):D894–900. [37]Gollapudi S., Kim C. H., Roshanravan B., and Gupta S. Ciprofloxacin inhibits activation of latent human immunodeficiency virus type 1 in chronically infected promonocytic U1 cells. AIDS Res Hum Retroviruses, 1998;14(6):499-504. [38]Zhang R., Jones M. M., Moussa H., et al. Polymer-antibiotic conjugates as antibacterial additives in dental resins. Biomater Sci, 2018;7(1):287-295. [39]Dridi B., Lupien A., Bergeron M. G., et al. Differences in antibioticinduced oxidative stress responses between laboratory and clinical isolates of Streptococcus pneumoniae. Antimicrob Agents Chemother, 2015;59(9):54205426. [40]Szczuka E., Jabłon ́ska L., and Kaznowski A. Effect of subinhibitory concentrations of tigecycline and ciprofloxacin on the expression of biofilmassociated genes and biofilm structure of Staphylococcus epidermidis. Microbiology (Reading). 2017;163(5):712-718.
+[41]Eibach D., Al-Emran H. M., Dekker D. M., et al. The Emergence of Reduced Ciprofloxacin Susceptibility in Salmonella enterica Causing Bloodstream Infections in Rural Ghana. Clin Infect Dis, 2016;62(Suppl 1):S32-S36. [42]Stalin N., and Srinivasan P. Molecular characterization of antibiotic resistant Vibrio harveyi isolated from shrimp aquaculture environment in the south east coast of India. Microb Pathog. 2016;97:110-118. [43]Kim M. C., and Woo G. J. Characterization of antimicrobial resistance and quinolone resistance factors in high-level ciprofloxacin-resistant
+Bioinformatics Page 8 of 9
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60
+
+
+ForPeerReview
+i
+i
+“output” — 2023/12/24 — 12:02 — page 9 — #9 i
+i
+i
+i
+i
+i
+Microbe-drug association prediction 9
+Enterococcus faecalis and Enterococcus faecium isolates obtained from fresh produce and fecal samples of patients. J Sci Food Agric, 2017;97(9):28582864. [44]Escolar C., Gómez D., Del Carmen Rota García M., et al. Antimicrobial Resistance Profiles of Listeria monocytogenes and Listeria innocua Isolated
+from Ready-to-Eat Products of Animal Origin in Spain. Foodborne Pathog Dis, 2017;14(6):357-363. [45]Ali A. Bacterial Sensitivity of Serratia Marcescens against Antibiotics. International Journal of Scientific & Engineering Research, 2018;9(9):361363.
+Page 9 of 9 Bioinformatics
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60

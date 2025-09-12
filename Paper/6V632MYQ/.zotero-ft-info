@@ -1,0 +1,17 @@
+Title:          KGANCDA: predicting circRNA-disease associations based on knowledge graph attention network
+Subject:        AcademicSubjects/SCI01060, DOI: 10.1093/bib/bbab494, Briefings in Bioinformatics, 00, 00, 00 00 0000. Abstract: Increasing evidences have proved that circRNA plays a significant role in the development of many diseases. In addition, many researches have shown that circRNA can be considered as the potential biomarker for clinical diagnosis and treatment of disease. Some computational methods have been proposed to predict circRNA-disease associations. However, the performance of these methods is limited as the sparsity of low-order interaction information. In this paper, we propose a new computational method (KGANCDA) to predict circRNA-disease associations based on knowledge graph attention network. The circRNA-disease knowledge graphs are constructed by collecting multiple relationship data among circRNA, disease, miRNA and lncRNA. Then, the knowledge graph attention network is designed to obtain embeddings of each entity by distinguishing the importance of information from neighbors. Besides the low-order neighbor information, it can also capture high-order neighbor information from multisource associations, which alleviates the problem of data sparsity. Finally, the multilayer perceptron is applied to predict the affinity score of circRNA-disease associations based on the embeddings of circRNA and disease. The experiment results show that KGANCDA outperforms than other state-of-the-art methods in 5-fold cross validation. Furthermore, the case study demonstrates that KGANCDA is an effective tool to predict potential circRNA-disease associations.
+
+Keywords:       
+Author:         
+Creator:        LaTeX with hyperref package
+Producer:       Acrobat Distiller 21.0 (Windows); modified using iTextSharp 4.1.6 by 1T3XT
+CreationDate:   11/27/21 21:04:56
+ModDate:        05/05/23 16:18:29
+Tagged:         yes
+Form:           none
+Pages:          13
+Encrypted:      no
+Page size:      521.56 x 719.975 pts (rotated 0 degrees)
+File size:      1459109 bytes
+Optimized:      no
+PDF version:    1.7

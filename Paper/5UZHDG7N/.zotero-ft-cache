@@ -1,0 +1,420 @@
+Correlative Preference Transfer with Hierarchical Hypergraph Network for Multi-Domain Recommendation
+Zixuan Xu‡, Penghui Wei‡, Shaoguo Liu∗, Weimin Zhang, Liang Wang and Bo Zheng Alibaba Group Beijing, China {xuzixuan.xzx,wph242967,shaoguo.lsg,dutan.zwm,liangbo.wl,bozheng}@alibaba-inc.com
+ABSTRACT
+Advanced recommender systems usually involve multiple domains (such as scenarios or categories) for various marketing strategies, and users interact with them to satisfy diverse demands. The goal of multi-domain recommendation (MDR) is to improve the recommendation performance of all domains simultaneously. Conventional graph neural network based methods usually deal with each domain separately, or train a shared model to serve all domains. The former fails to leverage users’ cross-domain behaviors, making the behavior sparseness issue a great obstacle. The latter learns shared user representation with respect to all domains, which neglects users’ domain-specific preferences. In this paper we propose H3Trans, a hierarchical hypergraph network based correlative preference transfer framework for MDR, which represents multi-domain user-item interactions into a unified graph to help preference transfer. H3Trans incorporates two hyperedge-based modules, namely dynamic item transfer (Hyper-I) and adaptive user aggregation (Hyper-U). Hyper-I extracts correlative information from multi-domain user-item feedbacks for eliminating domain discrepancy of item representations. Hyper-U aggregates users’ scattered preferences in multiple domains and further exploits the high-order (not only pair-wise) connections to improve user representations. Experiments on both public and production datasets verify the superiority of H3Trans for MDR.
+CCS CONCEPTS
+• Information systems → Personalization; Recommender systems; • Computing methodologies → Neural networks.
+KEYWORDS
+Multi-domain Recommendation, Preference Transfer, Hypergraph Learning, Behavior Sparseness
+†Co-first authorship. ∗Correspondence to: S. Liu.
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for components of this work owned by others than ACM must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specific permission and/or a fee. Request permissions from permissions@acm.org. WWW ’23, April 30–May 4, 2023, Austin, Texas, USA © 2023 Association for Computing Machinery. ACM ISBN 978-1-nnnn-nnnn-n/nn/nn. . . $15.00 https://doi.org/10.1145/nnnnnnn.nnnnnnn
+...
+...
+...
+User A User B
+...
+...
+...
+......
+...
+...
+...
+...
+Cate 1: Clothes
+Cate 2: Shoes
+Cate 3: Food
+Scenarios as domains Categories as domains
+Scenario 1: Homepage
+Scenario 3: Live Broadcast
+Scenario 2: Banner
+Figure 1: Multi-domain recommendation: the definition of domain can be recommendation scenario or item categories.
+1 INTRODUCTION
+Personalized recommender systems aim to make effective and satisfying choices for users. They usually involve multiple recommendation scenarios or domains, and each scenario contains a set of items that is related to the scenario’s topic and marketing strategy. Users interact with these scenarios to satisfy diverse demands. For example, the E-commerce platform Taobao1 provides diversified shopping spots including product search, homepage feed, banner, live broadcast and so on, as shown in the left part of Fig. 1. Baidu2 serves as a comprehensive website where users can read news, watch videos and more. Broadly speaking, different item categories can also be regarded as multiple domains. As in the right part of Fig. 1, users usually interact with various categories such as clothes, food and more for their different demands.
+Multi-domain recommendation (MDR) has attracted increasing research attention, the goal of which is to improve the recommendation performance of all domains simultaneously. There are both commonality and diversity among domains. For the commonality, multiple domains usually have common users and overlapped items, and a user may have similar behavior patterns across domains (for example, preferring ordinary or fashionable goods). The users’ domain-invariant preference and items’ static information can be shared across domains. For the diversity, the domains have different topics with specific items, thus attract different audiences and cause discrepant data distributions.
+1 https://www.taobao.com/
+2 https://www.baidu.com/
+arXiv:2211.11191v4 [cs.IR] 19 Apr 2023
+
+
+WWW ’23, April 30–May 4, 2023, Austin, Texas, USA Xu and Wei et al.
+Graph neural networks (GNNs) have proven to be powerful for recommendations because user-item interactions are naturally suitable for modeling as a graph. Conventional GNN-based methods for MDR can be divided into two types. The first type deals with domains separately. That is, for each domain we construct useritem interaction graph and train model independently, which learns separate representations for different domains to characterize users’ domain-specific preferences. However, the sparseness of interaction behaviors in emerging domains [3, 5] is a crucial obstacle. The second type alternatively constructs a unified interaction graph using multi-domain data and train a shared model to serve all domains [31]. Considering the intrinsic difference among domains’ data distributions, the shared model neglects domain-specific characteristics which results in limited performance. Researchers have proposed some advanced methods [1, 13, 19, 20, 32] that exert the prominent feature extracting ability of GNN and incorporate knowledge transfer to alleviate the sparseness. For example, pretrain-finetune diagram which transfers a pre-trained graph encoder to initialize the node embedding on the target domain is a widely used way [20]. Considering the pretrain-finetune paradigm only improves the recommendation accuracy on a single target domain, some works exploit to improve the recommendation accuracy on both domains simultaneously [13, 32]. Despite their effectiveness, these methods focus on knowledge transfer between only two domains. When employed in more than two domains, they only capture pair-wise relations between domains and dismiss the high-order connections. For effective MDR, the key is to learn from the interactions in all domains and acquire transferable knowledge to obtain better user representations that characterize their domain-specific preferences. In this paper we propose H3Trans, a hierarchical hypergraph network based correlative preference transfer framework to improve MDR. As a general topological structure, a hyperedge can connect an arbitrary number of nodes, and thus hypergraph provides a means for modeling high-order connections in multiple domains. We integrate users’ multi-domain behaviors into a unified graph and incorporate hyperedges to help preference transfer. Specifically, each user is viewed as multiple nodes w.r.t. to different domains, where the representation of each user node characterizes the domain-specific preference. For item nodes, because items’ properties are relatively static than users, we view each item as a single node shared by all domains. The core of the hypergraph structure constructed by H3Trans is two novel types of hyperedges for improving user and item representation learning. We first design a dynamic item transfer module named Hyper-I. For a given domain, we dynamically seek out related items from user-item interactions of other domains, and construct a hyperedge (named hyperedge-i) to connect them as cross-domain item relations. Hyperedge-i helps build relations between the items of different domains and capture users’ correlative preference from the cross-domain behaviors without interference information. Moreover, we propose a structure-aware aggregator with attention mechanism to model the message passing procedure through hyperedge-i, which adjusts item representations much more correlative to the target domain and thus improves the recommendation performance in multiple domains.
+We further introduce an adaptive user aggregation module named Hyper-U. Each user is viewed as a separate node per domain, that is, for a given user we can acquire separate user representations in multiple domains. We utilize a hyperedge (named hyperedge-u) to connect these separate user nodes of a given user, which aggregates the scattered user preferences among multiple domains. To effectively model the high-order connections among domains, we propose to employ attention mechanism into the message propagation within such hyperedges. Hyperedge-u contributes to transferring correlative preferences from source domains and capturing the commonality among multiple domains. Note that each domain can be viewed as the target domain (and the others as the sources), thus our proposed H3Trans can improve the quality of user representation for all domains simultaneously. The contributions are as follows: • We propose H3Trans, a hierarchical hypergraph network based correlative preference transfer framework for MDR. To our knowledge, this is the first work that investigates hypergraph-based preference transfer in MDR. • To improve item representations for cross-domain transfer, Hyper-I performs dynamic item transfer which helps extract correlative preference from the cross-domain behaviors without interference information. • To model the high-order connections among users’ multidomain behaviors, Hyper-U aggregates users’ scattered preferences in multiple domains and exploits the high-order connections with an attention based propagation layer. • Extensive experiments on large-scale production datasets and public datasets are conducted to analyze our proposed H3Trans, and the results demonstrate the superiority.
+2 PRELIMINARY
+2.1 Definition of Hypergraph
+Compared to an ordinary graph, a hypergraph is a more general topological structure where a hyperedge can connect an arbitrary number of nodes. Formally, a hypergraph is composed of a node set and a hyperedge set. The connectivity of a hypergraph can be represented by an incidence matrix H , where hve = 1 if the hyperedge e contains the node v, otherwise hve = 0. Besides, we use Ev to denote a set of hyperedges that connect to node v, and use Ve to denote a set of nodes connected to hyperedge e. Also, we can define the neighbors Nv of node v as a set of nodes that share at least one hyperedge with node v.
+2.2 Problem Definition Given domains {Dm }T
+m=1, where T denotes the number of domains.
+For domain Dm, we utilize Um and Im to denote its user ID set and item ID set respectively. Let Rm ∈ R|Um |×|Im | denotes the user-item interaction matrix of domain Dm. If its entry rm
+ui = 1, it means that the user u interacted with the item i under domain m. In this work, we consider click behavior as the interaction type. Given a specific domain Dm, the problem of single-domain recommendation is to estimate the scores of unobserved entries in one interaction matrix Rm, and we compute the score between a user and an item as:
+r^m
+u,i = f (zu, zi | Dm) (1)
+
+
+Correlative Preference Transfer with Hierarchical Hypergraph Network for Multi-Domain Recommendation WWW ’23, April 30–May 4, 2023, Austin, Texas, USA
+Graphormer Operation
+Linear
+MatMul
+Linear Linear
+Scale
+SoftMax
+MatMul
++
+Spatial Encoding
+<latexitsha1_base64="o+dvKo3Wsa7pEgeprIzbGdalQlk=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lEqseiF48V7Qe0oWy2m3bpZhN2J0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekEhh0HW/ncLa+sbmVnG7tLO7t39QPjxqmTjVjDdZLGPdCajhUijeRIGSdxLNaRRI3g7GtzO//cS1EbF6xEnC/YgOlQgFo2ilB9H3+uWKW3XnIKvEy0kFcjT65a/eIGZpxBUySY3pem6CfkY1Cib5tNRLDU8oG9Mh71qqaMSNn81PnZIzqwxIGGtbCslc/T2R0ciYSRTYzojiyCx7M/E/r5tieO1nQiUpcsUWi8JUEozJ7G8yEJozlBNLKNPC3krYiGrK0KZTsiF4yy+vktZF1atVvfvLSv0mj6MIJ3AK5+DBFdThDhrQBAZDeIZXeHOk8+K8Ox+L1oKTzxzDHzifP/a/jZc=</latexit> i 1
+<latexitsha1_base64="o+dvKo3Wsa7pEgeprIzbGdalQlk=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lEqseiF48V7Qe0oWy2m3bpZhN2J0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekEhh0HW/ncLa+sbmVnG7tLO7t39QPjxqmTjVjDdZLGPdCajhUijeRIGSdxLNaRRI3g7GtzO//cS1EbF6xEnC/YgOlQgFo2ilB9H3+uWKW3XnIKvEy0kFcjT65a/eIGZpxBUySY3pem6CfkY1Cib5tNRLDU8oG9Mh71qqaMSNn81PnZIzqwxIGGtbCslc/T2R0ciYSRTYzojiyCx7M/E/r5tieO1nQiUpcsUWi8JUEozJ7G8yEJozlBNLKNPC3krYiGrK0KZTsiF4yy+vktZF1atVvfvLSv0mj6MIJ3AK5+DBFdThDhrQBAZDeIZXeHOk8+K8Ox+L1oKTzxzDHzifP/a/jZc=</latexit> i 1
+<latexitsha1_base64="emggIGcBQaagugspnXDYRifHo3Q=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0mKqMeiF48V7Qe0oWy2k3bpZhN2N0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekAiujet+O4W19Y3NreJ2aWd3b/+gfHjU0nGqGDZZLGLVCahGwSU2DTcCO4lCGgUC28H4dua3n1BpHstHM0nQj+hQ8pAzaqz0wPu1frniVt05yCrxclKBHI1++as3iFkaoTRMUK27npsYP6PKcCZwWuqlGhPKxnSIXUsljVD72fzUKTmzyoCEsbIlDZmrvycyGmk9iQLbGVEz0sveTPzP66YmvPYzLpPUoGSLRWEqiInJ7G8y4AqZERNLKFPc3krYiCrKjE2nZEPwll9eJa1a1busevcXlfpNHkcRTuAUzsGDK6jDHTSgCQyG8Ayv8OYI58V5dz4WrQUnnzmGP3A+fwD4Q42Y</latexit> i 2
+<latexitsha1_base64="emggIGcBQaagugspnXDYRifHo3Q=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0mKqMeiF48V7Qe0oWy2k3bpZhN2N0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekAiujet+O4W19Y3NreJ2aWd3b/+gfHjU0nGqGDZZLGLVCahGwSU2DTcCO4lCGgUC28H4dua3n1BpHstHM0nQj+hQ8pAzaqz0wPu1frniVt05yCrxclKBHI1++as3iFkaoTRMUK27npsYP6PKcCZwWuqlGhPKxnSIXUsljVD72fzUKTmzyoCEsbIlDZmrvycyGmk9iQLbGVEz0sveTPzP66YmvPYzLpPUoGSLRWEqiInJ7G8y4AqZERNLKFPc3krYiCrKjE2nZEPwll9eJa1a1busevcXlfpNHkcRTuAUzsGDK6jDHTSgCQyG8Ayv8OYI58V5dz4WrQUnnzmGP3A+fwD4Q42Y</latexit> i 2
+<latexitsha1_base64="h5vWboJsXr3LuGimAcJHrh+pjs0=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lU1GPRi8eK9gPaUDbbTbt0swm7E6GE/gQvHhTx6i/y5r9x2+agrQ8GHu/NMDMvSKQw6LrfTmFldW19o7hZ2tre2d0r7x80TZxqxhsslrFuB9RwKRRvoEDJ24nmNAokbwWj26nfeuLaiFg94jjhfkQHSoSCUbTSg+id98oVt+rOQJaJl5MK5Kj3yl/dfszSiCtkkhrT8dwE/YxqFEzySambGp5QNqID3rFU0YgbP5udOiEnVumTMNa2FJKZ+nsio5Ex4yiwnRHFoVn0puJ/XifF8NrPhEpS5IrNF4WpJBiT6d+kLzRnKMeWUKaFvZWwIdWUoU2nZEPwFl9eJs2zqndZ9e4vKrWbPI4iHMExnIIHV1CDO6hDAxgM4Ble4c2Rzovz7nzMWwtOPnMIf+B8/gD5x42Z</latexit> i 3
+<latexitsha1_base64="h5vWboJsXr3LuGimAcJHrh+pjs0=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lU1GPRi8eK9gPaUDbbTbt0swm7E6GE/gQvHhTx6i/y5r9x2+agrQ8GHu/NMDMvSKQw6LrfTmFldW19o7hZ2tre2d0r7x80TZxqxhsslrFuB9RwKRRvoEDJ24nmNAokbwWj26nfeuLaiFg94jjhfkQHSoSCUbTSg+id98oVt+rOQJaJl5MK5Kj3yl/dfszSiCtkkhrT8dwE/YxqFEzySambGp5QNqID3rFU0YgbP5udOiEnVumTMNa2FJKZ+nsio5Ex4yiwnRHFoVn0puJ/XifF8NrPhEpS5IrNF4WpJBiT6d+kLzRnKMeWUKaFvZWwIdWUoU2nZEPwFl9eJs2zqndZ9e4vKrWbPI4iHMExnIIHV1CDO6hDAxgM4Ble4c2Rzovz7nzMWwtOPnMIf+B8/gD5x42Z</latexit> i 3
+<latexitsha1_base64="VxuMVJfVr8e286S5GpJjaqQjMtU=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0mkqMeiF48V7Qe0oWy2k3bpZhN2N0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekAiujet+O4W19Y3NreJ2aWd3b/+gfHjU0nGqGDZZLGLVCahGwSU2DTcCO4lCGgUC28H4dua3n1BpHstHM0nQj+hQ8pAzaqz0wPu1frniVt05yCrxclKBHI1++as3iFkaoTRMUK27npsYP6PKcCZwWuqlGhPKxnSIXUsljVD72fzUKTmzyoCEsbIlDZmrvycyGmk9iQLbGVEz0sveTPzP66YmvPYzLpPUoGSLRWEqiInJ7G8y4AqZERNLKFPc3krYiCrKjE2nZEPwll9eJa2LqndZ9e5rlfpNHkcRTuAUzsGDK6jDHTSgCQyG8Ayv8OYI58V5dz4WrQUnnzmGP3A+fwD7S42a</latexit> i 4
+<latexitsha1_base64="VxuMVJfVr8e286S5GpJjaqQjMtU=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0mkqMeiF48V7Qe0oWy2k3bpZhN2N0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekAiujet+O4W19Y3NreJ2aWd3b/+gfHjU0nGqGDZZLGLVCahGwSU2DTcCO4lCGgUC28H4dua3n1BpHstHM0nQj+hQ8pAzaqz0wPu1frniVt05yCrxclKBHI1++as3iFkaoTRMUK27npsYP6PKcCZwWuqlGhPKxnSIXUsljVD72fzUKTmzyoCEsbIlDZmrvycyGmk9iQLbGVEz0sveTPzP66YmvPYzLpPUoGSLRWEqiInJ7G8y4AqZERNLKFPc3krYiCrKjE2nZEPwll9eJa2LqndZ9e5rlfpNHkcRTuAUzsGDK6jDHTSgCQyG8Ayv8OYI58V5dz4WrQUnnzmGP3A+fwD7S42a</latexit> i 4
+<latexitsha1_base64="xs83RhhWV/l8ZuYJ0eGLBwrOTj8=">AAAB6nicbVDLSgNBEOyNrxhfUY9eBoPgKeyKr2PQi8eI5gHJEmYns8mQ2dllplcISz7BiwdFvPpF3vwbJ8keNLGgoajqprsrSKQw6LrfTmFldW19o7hZ2tre2d0r7x80TZxqxhsslrFuB9RwKRRvoEDJ24nmNAokbwWj26nfeuLaiFg94jjhfkQHSoSCUbTSg+hd9MoVt+rOQJaJl5MK5Kj3yl/dfszSiCtkkhrT8dwE/YxqFEzySambGp5QNqID3rFU0YgbP5udOiEnVumTMNa2FJKZ+nsio5Ex4yiwnRHFoVn0puJ/XifF8NrPhEpS5IrNF4WpJBiT6d+kLzRnKMeWUKaFvZWwIdWUoU2nZEPwFl9eJs2zqndZ9e7PK7WbPI4iHMExnIIHV1CDO6hDAxgM4Ble4c2Rzovz7nzMWwtOPnMIf+B8/gD8z42b</latexit> i 5
+<latexitsha1_base64="xs83RhhWV/l8ZuYJ0eGLBwrOTj8=">AAAB6nicbVDLSgNBEOyNrxhfUY9eBoPgKeyKr2PQi8eI5gHJEmYns8mQ2dllplcISz7BiwdFvPpF3vwbJ8keNLGgoajqprsrSKQw6LrfTmFldW19o7hZ2tre2d0r7x80TZxqxhsslrFuB9RwKRRvoEDJ24nmNAokbwWj26nfeuLaiFg94jjhfkQHSoSCUbTSg+hd9MoVt+rOQJaJl5MK5Kj3yl/dfszSiCtkkhrT8dwE/YxqFEzySambGp5QNqID3rFU0YgbP5udOiEnVumTMNa2FJKZ+nsio5Ex4yiwnRHFoVn0puJ/XifF8NrPhEpS5IrNF4WpJBiT6d+kLzRnKMeWUKaFvZWwIdWUoU2nZEPwFl9eJs2zqndZ9e7PK7WbPI4iHMExnIIHV1CDO6hDAxgM4Ble4c2Rzovz7nzMWwtOPnMIf+B8/gD8z42b</latexit> i 5
+<latexitsha1_base64="/KWRK2tQ+PCGoRvlbhoBc2ZQyac=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lEqseiF48V7Qe0oWy2k3bpZhN2N0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekAiujet+O4W19Y3NreJ2aWd3b/+gfHjU0nGqGDZZLGLVCahGwSU2DTcCO4lCGgUC28H4dua3n1BpHstHM0nQj+hQ8pAzaqz0wPu1frniVt05yCrxclKBHI1++as3iFkaoTRMUK27npsYP6PKcCZwWuqlGhPKxnSIXUsljVD72fzUKTmzyoCEsbIlDZmrvycyGmk9iQLbGVEz0sveTPzP66YmvPYzLpPUoGSLRWEqiInJ7G8y4AqZERNLKFPc3krYiCrKjE2nZEPwll9eJa2LqlereveXlfpNHkcRTuAUzsGDK6jDHTSgCQyG8Ayv8OYI58V5dz4WrQUnnzmGP3A+fwD+U42c</latexit> i 6
+<latexitsha1_base64="/KWRK2tQ+PCGoRvlbhoBc2ZQyac=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lEqseiF48V7Qe0oWy2k3bpZhN2N0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekAiujet+O4W19Y3NreJ2aWd3b/+gfHjU0nGqGDZZLGLVCahGwSU2DTcCO4lCGgUC28H4dua3n1BpHstHM0nQj+hQ8pAzaqz0wPu1frniVt05yCrxclKBHI1++as3iFkaoTRMUK27npsYP6PKcCZwWuqlGhPKxnSIXUsljVD72fzUKTmzyoCEsbIlDZmrvycyGmk9iQLbGVEz0sveTPzP66YmvPYzLpPUoGSLRWEqiInJ7G8y4AqZERNLKFPc3krYiCrKjE2nZEPwll9eJa2LqlereveXlfpNHkcRTuAUzsGDK6jDHTSgCQyG8Ayv8OYI58V5dz4WrQUnnzmGP3A+fwD+U42c</latexit> i 6
+<latexitsha1_base64="o+dvKo3Wsa7pEgeprIzbGdalQlk=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lEqseiF48V7Qe0oWy2m3bpZhN2J0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekEhh0HW/ncLa+sbmVnG7tLO7t39QPjxqmTjVjDdZLGPdCajhUijeRIGSdxLNaRRI3g7GtzO//cS1EbF6xEnC/YgOlQgFo2ilB9H3+uWKW3XnIKvEy0kFcjT65a/eIGZpxBUySY3pem6CfkY1Cib5tNRLDU8oG9Mh71qqaMSNn81PnZIzqwxIGGtbCslc/T2R0ciYSRTYzojiyCx7M/E/r5tieO1nQiUpcsUWi8JUEozJ7G8yEJozlBNLKNPC3krYiGrK0KZTsiF4yy+vktZF1atVvfvLSv0mj6MIJ3AK5+DBFdThDhrQBAZDeIZXeHOk8+K8Ox+L1oKTzxzDHzifP/a/jZc=</latexit> i 1
+<latexitsha1_base64="emggIGcBQaagugspnXDYRifHo3Q=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0mKqMeiF48V7Qe0oWy2k3bpZhN2N0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekAiujet+O4W19Y3NreJ2aWd3b/+gfHjU0nGqGDZZLGLVCahGwSU2DTcCO4lCGgUC28H4dua3n1BpHstHM0nQj+hQ8pAzaqz0wPu1frniVt05yCrxclKBHI1++as3iFkaoTRMUK27npsYP6PKcCZwWuqlGhPKxnSIXUsljVD72fzUKTmzyoCEsbIlDZmrvycyGmk9iQLbGVEz0sveTPzP66YmvPYzLpPUoGSLRWEqiInJ7G8y4AqZERNLKFPc3krYiCrKjE2nZEPwll9eJa1a1busevcXlfpNHkcRTuAUzsGDK6jDHTSgCQyG8Ayv8OYI58V5dz4WrQUnnzmGP3A+fwD4Q42Y</latexit> i 2
+<latexitsha1_base64="h5vWboJsXr3LuGimAcJHrh+pjs0=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lU1GPRi8eK9gPaUDbbTbt0swm7E6GE/gQvHhTx6i/y5r9x2+agrQ8GHu/NMDMvSKQw6LrfTmFldW19o7hZ2tre2d0r7x80TZxqxhsslrFuB9RwKRRvoEDJ24nmNAokbwWj26nfeuLaiFg94jjhfkQHSoSCUbTSg+id98oVt+rOQJaJl5MK5Kj3yl/dfszSiCtkkhrT8dwE/YxqFEzySambGp5QNqID3rFU0YgbP5udOiEnVumTMNa2FJKZ+nsio5Ex4yiwnRHFoVn0puJ/XifF8NrPhEpS5IrNF4WpJBiT6d+kLzRnKMeWUKaFvZWwIdWUoU2nZEPwFl9eJs2zqndZ9e4vKrWbPI4iHMExnIIHV1CDO6hDAxgM4Ble4c2Rzovz7nzMWwtOPnMIf+B8/gD5x42Z</latexit> i 3
+<latexitsha1_base64="VxuMVJfVr8e286S5GpJjaqQjMtU=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0mkqMeiF48V7Qe0oWy2k3bpZhN2N0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekAiujet+O4W19Y3NreJ2aWd3b/+gfHjU0nGqGDZZLGLVCahGwSU2DTcCO4lCGgUC28H4dua3n1BpHstHM0nQj+hQ8pAzaqz0wPu1frniVt05yCrxclKBHI1++as3iFkaoTRMUK27npsYP6PKcCZwWuqlGhPKxnSIXUsljVD72fzUKTmzyoCEsbIlDZmrvycyGmk9iQLbGVEz0sveTPzP66YmvPYzLpPUoGSLRWEqiInJ7G8y4AqZERNLKFPc3krYiCrKjE2nZEPwll9eJa2LqndZ9e5rlfpNHkcRTuAUzsGDK6jDHTSgCQyG8Ayv8OYI58V5dz4WrQUnnzmGP3A+fwD7S42a</latexit> i 4
+<latexitsha1_base64="xs83RhhWV/l8ZuYJ0eGLBwrOTj8=">AAAB6nicbVDLSgNBEOyNrxhfUY9eBoPgKeyKr2PQi8eI5gHJEmYns8mQ2dllplcISz7BiwdFvPpF3vwbJ8keNLGgoajqprsrSKQw6LrfTmFldW19o7hZ2tre2d0r7x80TZxqxhsslrFuB9RwKRRvoEDJ24nmNAokbwWj26nfeuLaiFg94jjhfkQHSoSCUbTSg+hd9MoVt+rOQJaJl5MK5Kj3yl/dfszSiCtkkhrT8dwE/YxqFEzySambGp5QNqID3rFU0YgbP5udOiEnVumTMNa2FJKZ+nsio5Ex4yiwnRHFoVn0puJ/XifF8NrPhEpS5IrNF4WpJBiT6d+kLzRnKMeWUKaFvZWwIdWUoU2nZEPwFl9eJs2zqndZ9e7PK7WbPI4iHMExnIIHV1CDO6hDAxgM4Ble4c2Rzovz7nzMWwtOPnMIf+B8/gD8z42b</latexit> i 5
+<latexitsha1_base64="/KWRK2tQ+PCGoRvlbhoBc2ZQyac=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lEqseiF48V7Qe0oWy2k3bpZhN2N0IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekAiujet+O4W19Y3NreJ2aWd3b/+gfHjU0nGqGDZZLGLVCahGwSU2DTcCO4lCGgUC28H4dua3n1BpHstHM0nQj+hQ8pAzaqz0wPu1frniVt05yCrxclKBHI1++as3iFkaoTRMUK27npsYP6PKcCZwWuqlGhPKxnSIXUsljVD72fzUKTmzyoCEsbIlDZmrvycyGmk9iQLbGVEz0sveTPzP66YmvPYzLpPUoGSLRWEqiInJ7G8y4AqZERNLKFPc3krYiCrKjE2nZEPwll9eJa2LqlereveXlfpNHkcRTuAUzsGDK6jDHTSgCQyG8Ayv8OYI58V5dz4WrQUnnzmGP3A+fwD+U42c</latexit> i 6
+......
+...
+...
+...
+Graphormer Op
+Multi-Head Attention Op
+Shared Graphormer Op
+... ......
+Readout Module:
+Embedding Module:
+Message Passing Module:
+Prediction Module:
+... Layer 1
+Layer 2
+Layer 3
+...
+<latexitsha1_base64="yOS81VZihRpd9TwxMVy9yUbPe1g=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lE1GPRi8eK9gPaUDbbTbt0swm7E6GG/gQvHhTx6i/y5r9x2+agrQ8GHu/NMDMvSKQw6LrfTmFldW19o7hZ2tre2d0r7x80TZxqxhsslrFuB9RwKRRvoEDJ24nmNAokbwWjm6nfeuTaiFg94DjhfkQHSoSCUbTS/VNP9MoVt+rOQJaJl5MK5Kj3yl/dfszSiCtkkhrT8dwE/YxqFEzySambGp5QNqID3rFU0YgbP5udOiEnVumTMNa2FJKZ+nsio5Ex4yiwnRHFoVn0puJ/XifF8MrPhEpS5IrNF4WpJBiT6d+kLzRnKMeWUKaFvZWwIdWUoU2nZEPwFl9eJs2zqndR9e7OK7XrPI4iHMExnIIHl1CDW6hDAxgM4Ble4c2Rzovz7nzMWwtOPnMIf+B8/gBllI3g</latexit> zi
+<latexitsha1_base64="tQwnR3McjJoofXAutWR0t02w8is=">AAAB7nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lE1GPRi8cK9gPaWDbbTbt0swm7E7GE/ggvHhTx6u/x5r9x2+agrQ8GHu/NMDMvSKQw6LrfTmFldW19o7hZ2tre2d0r7x80TZxqxhsslrFuB9RwKRRvoEDJ24nmNAokbwWjm6nfeuTaiFjd4zjhfkQHSoSCUbRS66mXpQ/epFeuuFV3BrJMvJxUIEe9V/7q9mOWRlwhk9SYjucm6GdUo2CST0rd1PCEshEd8I6likbc+Nns3Ak5sUqfhLG2pZDM1N8TGY2MGUeB7YwoDs2iNxX/8zophld+JlSSIldsvihMJcGYTH8nfaE5Qzm2hDIt7K2EDammDG1CJRuCt/jyMmmeVb2Lqnd3Xqld53EU4QiO4RQ8uIQa3EIdGsBgBM/wCm9O4rw4787HvLXg5DOH8AfO5w9gwY+Z</latexit> x u1
+<latexitsha1_base64="VpbbNlPZ9vIt4ZNSAOWRIuAoPR0=">AAAB7nicbVBNS8NAEJ34WetX1aOXxSJ4KkkR9Vj04rGC/YA2ls120i7dbMLuRiyhP8KLB0W8+nu8+W/ctjlo64OBx3szzMwLEsG1cd1vZ2V1bX1js7BV3N7Z3dsvHRw2dZwqhg0Wi1i1A6pRcIkNw43AdqKQRoHAVjC6mfqtR1Sax/LejBP0IzqQPOSMGiu1nnpZ+lCd9Eplt+LOQJaJl5My5Kj3Sl/dfszSCKVhgmrd8dzE+BlVhjOBk2I31ZhQNqID7FgqaYTaz2bnTsipVfokjJUtachM/T2R0UjrcRTYzoiaoV70puJ/Xic14ZWfcZmkBiWbLwpTQUxMpr+TPlfIjBhbQpni9lbChlRRZmxCRRuCt/jyMmlWK95Fxbs7L9eu8zgKcAwncAYeXEINbqEODWAwgmd4hTcncV6cd+dj3rri5DNH8AfO5w9iRo+a</latexit> x u2
+<latexitsha1_base64="2+/HAODYrpjfIZq3fuiktQJPDRQ=">AAAB7nicbVBNS8NAEJ34WetX1aOXxSJ4KomKeix68VjBfkAby2a7aZduNmF3IpbQH+HFgyJe/T3e/Ddu2xy09cHA470ZZuYFiRQGXffbWVpeWV1bL2wUN7e2d3ZLe/sNE6ea8TqLZaxbATVcCsXrKFDyVqI5jQLJm8HwZuI3H7k2Ilb3OEq4H9G+EqFgFK3UfOpm6cPZuFsquxV3CrJIvJyUIUetW/rq9GKWRlwhk9SYtucm6GdUo2CSj4ud1PCEsiHt87alikbc+Nn03DE5tkqPhLG2pZBM1d8TGY2MGUWB7YwoDsy8NxH/89ophld+JlSSIldstihMJcGYTH4nPaE5QzmyhDIt7K2EDaimDG1CRRuCN//yImmcVryLind3Xq5e53EU4BCO4AQ8uIQq3EIN6sBgCM/wCm9O4rw4787HrHXJyWcO4A+czx9jy4+b</latexit> x u3
+<latexitsha1_base64="VVXNta1eqTe98v1SX9szqB+VnVs=">AAAB7HicbVBNS8NAEJ3Ur1q/qh69LBbBU0lE1GPRi8cKphbaUDbbTbt0swm7E7GE/gYvHhTx6g/y5r9x2+agrQ8GHu/NMDMvTKUw6LrfTmlldW19o7xZ2dre2d2r7h+0TJJpxn2WyES3Q2q4FIr7KFDydqo5jUPJH8LRzdR/eOTaiETd4zjlQUwHSkSCUbSS/9TLxaRXrbl1dwayTLyC1KBAs1f96vYTlsVcIZPUmI7nphjkVKNgkk8q3czwlLIRHfCOpYrG3AT57NgJObFKn0SJtqWQzNTfEzmNjRnHoe2MKQ7NojcV//M6GUZXQS5UmiFXbL4oyiTBhEw/J32hOUM5toQyLeythA2ppgxtPhUbgrf48jJpndW9i7p3d15rXBdxlOEIjuEUPLiEBtxCE3xgIOAZXuHNUc6L8+58zFtLTjFzCH/gfP4AJ2WO6g==</latexit> x i
+Hyper-I
+Hyper-U
+Domain 1 Domain 2 Domain T
+QKV
+user node item node
+hyperedge-u hyperedge-i
+Node Representation
+(Target) (Sources)
+edge
+zu1
+rˆ1ui
+Figure 2: Overall architecture of H3Trans. It contains two hyperedge-based modules: adaptive user aggregation (Hyper-U) and dynamic item transfer module (Hyper-I). These two modules compose a hierarchical hypergraph neural network. Different colors refer to different domains. Here we regard the first domain D1 as target domain and the others are sources.
+Here zu and zi denote the learned representations of user u ∈ Um and item i ∈ Im for domain Dm, and f (·) is the similarity function. The problem of multi-domain recommendation is to estimate the unobserved scores for all interaction matrices {Rm }T
+m=1. Specifi
+cally, the user set U is shared among all T domains, i.e., U = U 1 = U 2 = · · · = UT , because each user may actively interact with all domains. For the item set I , each domain has its own set and we denote the total item candidate pool as I = I 1 ∪ I 2 ∪ · · · ∪ IT . Note that different domains may have overlapped items.
+3 METHODOLOGY
+Fig. 2 shows the overall architecture of H3Trans. We introduce the construction of multi-domain graph, and basic graph neural network in § 3.1 and 3.2. Two core modules, namely dynamic item transfer and adaptive user aggregation, compose a hierarchical hypergraph neural network, are introduced in § 3.3.1 and 3.3.2. Finally, § 3.4 gives training procedure and optimization.
+3.1 Unified Multi-domain Graph
+To improve recommendation performance in all domains, instead of constructing individual graph for each domain, we integrate users’ multi-domain behaviors into a unified graph G = (V, E). In details, the node set V consists of user nodes and item nodes, i.e., V = U ∪ I. For user nodes, considering the domain discrepancy and the diversity of users’ multi-domain behaviors, it is necessary to acquire separate representations for different domains. Thus we regard each user as separate nodes positioned in different domains. Specifically, for a given user u ∈ U , it corresponds to T nodes (u1, u2, · · · , uT ), thus the relation between user node set size |U | and user ID set size |U | meets the condition of |U| = |U | · T . Each
+user node representation characterizes user’s preference under a specific domain. Then for item nodes, items’ properties are relatively static than users. Thus we treat each item i ∈ I as a single node across various domains. In other words, each item i only corresponds to one node in the graph. The item i’s node is also denoted as i. The basic edge set collects the user-item history interactions from all domain, i.e. , R = (R1, R2, · · · , RT ), where Rm denotes the user-item interaction matrix of domain Dm. This work considers click behavior as the interaction type. For an entry rm
+ui = 1, it means that the user u has interacted with the item i under domain Dm, and we build an interaction edge between the corresponding user node um and item node i, denoted as e (um, i). To clarify which domain the edges belong to, we utilize distinct edge types for different domains. For domain Dm, the edge subset is denoted as Em, and the whole edge set is the union of all domains as well as hyperedges, i.e., E = E1 ∪ E2 ∪ · · · ∪ ET ∪ Ehyper. We detail the construction of hyperedge set in § 3.3. With access to user-item interactions in any domain, it is convenient to leverage hyperedges to build cross-domain relations and capture correlative knowledge.
+3.2 Basic Graph Neural Network
+We first introduce a base GNN that learns node representations without considering multi-domain relationships. The base GNN includes four modules: (1) embedding module that transforms nodes’ sparse attribute features into low-dimensional embeddings; (2) messagepassing module with several layers that learn node representations by aggregating information from neighbors; (3) readout module that generates nodes’ final representation; (4) prediction module that produces prediction score.
+
+
+WWW ’23, April 30–May 4, 2023, Austin, Texas, USA Xu and Wei et al.
+3.2.1 Embedding Module. This module maps each node into a d-dimensional embedding vector xum (or xi ). For each user node um ∈ U (or item node i ∈ I), we acquire its embedding xum (or xi ) from a learnable look-up table X ∈ R( |U |+|I |)×d . Each user corresponds to T nodes, and these nodes share the same initial embedding. Note that each user has attribute features, and the corresponding nodes share the same attribute embedding.
+3.2.2 Message Passing Module. The message-passing module consists of several layers that follow the neighborhood aggregation scheme. It can be taken as a two-stage process to learn node representations by aggregating information from neighbors. The two stages are neighbor aggregation and node update: Neighbor aggregation:
+h (l)
+N
+um = AGGU
+n
+h (l−1)
+i | i ∈ Num
+o
+h (l)
+N
+i
+= AGGI
+n
+h (l−1)
+um | um ∈ Ni
+o (2)
+Node update:
+h (l)
+um = UPU h (l−1)
+um , h (l)
+N
+um
+h (l)
+i = UPI h (l−1)
+i
+, h (l)
+N
+i
+(3)
+where l denotes the l-th message passing layer. h (l)
+um and h (l)
+i refer to the hidden representation of user node um and item node i respectively. AGGU and AGGI are the aggregation functions for user and item nodes. The same is to the node update function UPU and UPI. There are a lot of designs for aggregate and update function. Here we use mean pooling for the aggregator and linear transforming for node update. Noted that the initial representation is acquired from embedding module, i.e., h (0)
+um = xum , h (0)
+i = xi .
+3.2.3 Readout Module. After obtaining L layers representations, we utilize a readout layer to generate the final representation:
+zv = Readout h (l)
+v | l ∈ [1, . . . , L] , (4)
+where the subscript v can denote user node um or item node i. Common designs for the readout function include last-layer only, concatenation, and weighted sum. Here we adopt last-layer only.
+3.2.4 Prediction Module. The prediction module produces the prediction score that how likely a user u would interact with item i under domain Dm. It is formulated as:
+r^m
+u,i = f (zum , zi ) (5)
+where f is the score function and we usually adopt similarity function such as inner product and cosine function.
+3.3 Hierarchical Hypergraph Network
+The base GNN cannot model the multi-domain relation well. We propose H3Trans which utilizes hyperedge to exploit high-order connections among users’ multi-domain behaviors with two hyperedgebased modules: dynamic item transfer module (Hyper-I) & adaptive user aggregation module (Hyper-U). These two modules have a hierarchical connection structure and compose a hierarchical hypergraph neural network.
+3.3.1 Hyper-I: Dynamic Item Transfer Module. In MDR, each domain contains a set of items that is related to the domain’s topic and marketing strategy. Due to the intrinsic difference, directly transferring users’ cross-domain behaviors from multiple sources to the target is not a good approach. It will introduce interference information and degenerate user representations. To extract correlative preference from users’ cross-domain behaviors, we design a dynamic item transfer module, namely Hyper-I. It dynamically adjusts source item representations during transfer to be more relevant to a given target domain, that contributes to capturing correlative user preferences from sources. Take domain Dt as target domain, and the others as source domains. For each source domain Ds , before feeding item node hidden representation h (l)
+i into message passing layers that acquire user node representation by aggregating information from neighboring items, we adjust the item representations to eliminate domain discrepancy. Specifically, for each user’s interacted item under source domain Ds , we seek out similar items from the target domain Dt , and then construct a hyperedge (named hyperedge-i) to connect these item nodes. This hyperedge contains a two-level relationship. The first level is that the interacted source item is related to the picked target items. The second level is that the picked target items are also related to each other. We first introduce the method to seek out the related target items, and then we design a structure-aware hypergraph layer to adjust item representations.
+Hyperedge Construction. For a given interacted item i in a source domain Ds , we seek out a similar item set St
+i from the target domain Dt , and construct a hyperedge to connect the source item node i and the item nodes of picked item set St
+i . We offer two ways to get similar items: path-based and embedding-based.
+• Path-based: Utilize co-occurrence relation among items. We assume that: if there is a user u that clicked on both items i and j, then the two items are similar. We design a walk path (i → us → ut → j) and sample k items from the item set I
+t of target domain as similar items. To avoid noisy paths, we restrict that the click timestamp of each item in St
+i should lie in a range of the source item i’s click timestamp. • Embedding-based: Path-based method is an intuitive way but it seriously relies on the interaction history of users. Embedding-based method makes use of the hidden representation of items h (l−1)
+i . It leverages the appropriate nearest neighbor algorithm to find the top-k similar items from the target domain, where the source item node i is query and I
+t is candidate set.
+Graphormer Layer. To perform message passing within the hyperedge, UniGNN [8] and AllSet [4] propose a message passing paradigm on the hypergraph. UniGNN rethinks the messagepassing layer of the basic GNN as a two-stage aggregation process. In the first stage, for each hyperedge, use a permutation-invariant function to aggregate the information of the nodes within it. In the second stage, update each node with its incident hyperedges using another aggregating function. The method of AllSet is similar. We claim that the above message-passing paradigm fails to model the two-level relationship within hyperedge-i. Instead, we employ
+
+
+Correlative Preference Transfer with Hierarchical Hypergraph Network for Multi-Domain Recommendation WWW ’23, April 30–May 4, 2023, Austin, Texas, USA
+attention [18] to adjust the item representation. Moreover, to effectively exploit the topology structure within the hyperedge-i, we introduce the distance matrix of the shortest path among the picked nodes (denoted as B) into the attention layers, as introduced in [25]. Fig. 2 illustrates the details of this module. Specifically, it refines
+h (l−1)
+i before neighbor aggregation:
+h (l−1)
+i ← GHHyperI Concat h (l−1)
+i
+,
+n
+h (l−1)
+j | | j ∈ St
+i
+o
+[0]
+(6) where GHHyperI (·) is the graphormer layer for Hyper-I module:
+GHHyperI (HI) = Concat AttnI,1 (HI), · · · , AttnI,P (HI) W O
+I,
+AttnI,p (HI) = softmax
+QI,p KI,p
+⊤
+√︁
+dhi /P
++ Φ(B)
+!
+VI,p ,
+QI,p = HIW
+Q I,p
+, KI,p = HIW K
+I,p , VI,p = HIW V
+I,p
+(7)
+here Φ() is a learnable function shared across all layers that maps the distance between every paired nodes to a scalar. W
+Q
+∗ ,WK
+∗ ,WV
+∗, and W O
+∗ are training parameters.
+3.3.2 Hyper-U: Adaptive User Aggregation Module. After adjusting item representations with Hyper-I, we acquire the representations of separate user nodes by aggregating adjusted representation of their neighbor items. Each user corresponds with multiple nodes that characterize the user’s domain-specific preference. Next step is to transfer correlative user preferences from source domains to the target and refine the user representation of target domain. Noted that the preference transfer in MDR involves more than one source. The key point is how to aggregate users’ scattered preferences in multiple domains and adequately exploit the highorder connections among them. Here we integrate a hyperedgebased module: Hyper-U, to realize adaptive user aggregation.
+Hyperedge Construction. We utilize hyperedge to connect nodes that belong to the same user, and we name this hyperedge as hyperedge-u. Within hyperedge-u, each separate node representation characterizes user’s interest preference under a specific domain. The hyperedge-u connects these separate user nodes and bridges the information propagation across domains, thus realizing adaptive preference transfer. Moreover, benefiting from that hyperedge connects plural nodes, hyperedge-u can further exploit the highorder (more than pairwise) connections among multiple domains.
+Multi-head Attention Layer. We design a new message passing layer for the hyperedge-u to replace the original layer. For the l-th layer, we first acquire user’s separate representations under multiple domains, denoted as [h (l)
+u1 , h (l)
+u2 , · · · , h (l)
+uT ]. Hyper-U module take these separate representations as input, and then refine these representations by aggregating users’ scattered preferences and transferring knowledge from other domains. Considering the domain discrepancy and diversity of users’ multi-domain behaviors, we employ self-attention mechanism in the Hyper-U module to adaptively fuse users’ cross-domain interest representations. Specifically, it refines representations after node update:
+h
+h (l)
+u1 , h (l)
+u2 , · · · , h (l)
+uT
+i
+← MHAHyperU
+h
+h (l)
+u1 , h (l)
+u2 , · · · , h (l)
+uT
+i ,
+(8)
+where MHAHyperU (·) denotes the multi-head attention layer:
+MHAHyperU (HU) = Concat AttnU,1 (HU), · · · , AttnI,P (HU) W O
+U,
+AttnU,p (HU) = softmax
+QU,p KU,p
+⊤
+√︁
+dhu /P
+!
+VU,p ,
+QU,p = HUW
+Q U,p
+, KU,p = HUW K
+U,p , VU,p = HUW V
+U,p
+(9)
+here W
+Q
+∗ ,WK
+∗ ,WV
+∗ , and W O
+∗ are trainable parameters. The multihead attention layer takes users’ separate nodes representations as input and exploits the high-order connections with the selfattention mechanism. For each domain, the corresponding node can adaptively refine its preference representation by extracting the correlative information from other domains.
+3.4 Model Optimization and Time Complexity
+These two hyperedge-base modules: dynamic item transfer module (Hyper-I) and adaptive user aggregation module (Hyper-U), compose a hierarchical hypergraph neural network. It realizes correlative preference transfer and exploits the high-order connection among users’ multi-domain behaviors. For model optimization, we mix the multi-domain data and randomly select a sample (um, i) from domain Dm for each training step. Domain Dm is taken as the target domain and the others are source domains. We employ a contrastive loss InfoNCE [17] to optimize the model, which maximizes the agreements between positive pairs. Formally,
+L (u, i | Dm) = − log exp(sim(zum , zi )/τ)
+Í
+i− exp(sim(zum , zi− )/τ) (10)
+where sim(·) stands for similarity measure function and we use inner product. (um, i−) is a randomly sampled negative pair that
+rm
+u,i− = 0, and τ is the temperature hyperparameter.
+The time complexity of Hyper-U module is O (T 2d +Td2), where T is domain number and d is embedding dim. For Hyper-I module, the time complexity is O (T n(k2d + kd2)), where n is the number of sampled neighbors and k is the size of similar item set. The main limitation of H3Trans is computation cost and memory cost (incorporating hyperedges). Compared to the baselines that trains models for multiple domains in parallel, H3Trans unifies all domain data and training time increases. In future work, we shall focus on efficient algorithms, i.e., reducing memory cost via hyperedge dropout and reducing time complexity via accelerating self-attention.
+4 EXPERIMENTS
+In this section, we conduct both offline and online experiments to validate the effectiveness of our method. And the experiments are intended to answer the following research questions:
+• RQ1: How does our proposed method perform when compared with other state-of-the-art GNN-based methods? • RQ2: How do the different components (e.g., unified multidomain graph, adaptive user aggregation module, dynamic item transfer module) contribute to the model performance? • RQ3: Does our method help alleviate the behavior sparseness issue and improve recommendation performance for the relatively inactive users (with fewer interaction items)?
+
+
+WWW ’23, April 30–May 4, 2023, Austin, Texas, USA Xu and Wei et al.
+Table 1: Dataset Statistics
+Product Dataset Public Amazon Dataset Domains #user #item #click Domains #user #item #click
+MDR-A 84.6M 6.3M 3.1B Books 1.67M 0.99M 26.8M MDR-B 34.0M 1.4M 0.6B Music 0.11M 0.12M 1.5M MDR-C 24.7M 0.5M 0.3B Movie 0.23M 0.08M 3.1M MDR-D 29.1M 0.6M 0.2B - - - 
+• RQ4: Does H3Trans achieve improvement when deployed to our advertising system?
+4.1 Experimental Settings
+4.1.1 Datasets. We conduct extensive offline experiments on both the public dataset and the product dataset. Public Dataset: Amazon dataset [16] is a popular dataset to conduct experiments of multi-domain recommendation. The dataset provides dozens of domains and the frequently-used domains are Books, Movies and TV (Movie), and CDS and Vinyl (Music). Following existing research, we take binarize the ratings to 1 and 0 (the ratings higher or equal to 4 as positive and others as negative.) Besides, we filter the users and items with less than 5 interactions. Product Dataset: The product dataset is collected from four real-world scenarios from an industry advertising platform, named MDR-A, MDR-B, MDR-C, and MDR-D. These four sub-datasets share the same user set and have overlapped items. Each subset consists of users’ interacted items. We additionally filter the datasets to retain users/items with at least 5 interactions. Table 1 lists the statistics of both the product dataset and the public amazon dataset.
+4.1.2 Compared methods. We compare H3Trans with following strong baselines. Except for the base model, all baselines attempt to transfer information from other domains in different ways.
+• Base. Base method constructs a user-item bipartite graph and trains models individually for each domain with its user behavior data. • PPGN. PPGN [31] fuses the interaction information of multiple domains into a graph and shares the features of users learned from the joint interaction graph. Notes that one user only has one node within the joint graph. • MGNN. MGNN [29] integrates users’ multi-domain behaviors and constructs the unified multi-domain graph. Nodes belonging to the same user share the same attribute. MGNN learns domain-specific representation for user nodes. • PCRec. PCRec [20] adopts a pre-training and fine-tuning diagram to transfer knowledge from the source domain to the target. Here we first pre-train a graph model on the joint graph and then fine-tune it on each domain. • BiTGCF. BiTGCF [13] is proposed for dual-target recommendation. It connects common users of both domains as bridge and designs a feature transfer layer to realize the twoway transfer of knowledge across two domains. Here we randomly pick two domains to realize the combination layer. • BiTGCF+. BiTGCF+ is an extended version of BiTGCF. Here we modify the feature transfer layer and extend it to multidomain recommendation.
+4.1.3 Evaluation Protocol. We adopt the widely used leave-oneout evaluation method. Specifically, we take the last interaction
+from each user’s interaction history as the test set, and the remaining are utilized for training. For users in the test set, we follow the all-ranking protocol [22] to evaluate the top-K recommendation performance. For product dataset, we report the average HitRate@K (HR@K) and Mean Reciprocal Rank (MRR) on each domain. For public dataset, we report the HR@K and NDCG@K as these two metrics are more popular of public experiments.
+4.1.4 Implementation Details. We provide the implementation details of our proposed model and baselines. For fair comparison, each of graph neural network models has two layers, and the hidden embedding dimensions are set as [128, 64]. We sample k = 20 related items to build hyperedge-i in Hyper-I module. For model training, we set batch size N = 512 and adopt adam optimizer [11], where the learning rate is set to 0.01.
+4.2 Performance Comparison (RQ1)
+Table 2 and Table 3 present the experimental results of H3Trans compared with other baselines. From these two tables, we have the following observations.
+• Base method performs poorly on all domains, which indicates that individually training model for each domain limits the recommendation performance in multi-domain recommendation. • PPGN mixes the multi-domain data and constructs a joint graph for model training. As a result, it achieves large improvement in most domains. But it still has negative effects on some domains such as MDR-B, because different domains share the same user representation and neglect the user’s domain-specific preferences. The user representation is dominated by the data-rich domain. • MGNN takes account of both the common feature and the domainspecific feature for different domains. which brings improvement to the recommendation service. Note that common feature is only acquired by the shared node attributes. The information transfer among domains is limited. • PCRec performs transfer learning by adopting the pre-training and fine-tuning diagram. Pre-training on the joint graph helps learn users’ common preferences among domains. Then finetuning on domain’s individual graph make the user node representation more preferable for each domain. However, fine-tuning is more time- and space-consuming for multi-domain recommendation. • BiTGCF and BiTGCF+ are two competitive baselines in our experiments. BiTGCF leverages a combination layer to realize the two-way transfer across domains. Here we extend the feature transfer layer of BiTGCF to multiple domains as BiTGCF+. We can see that BitGCF+ achieves larger improvement than BitGCF because it introduces more domains to perform multi-domain recommendation. But the improvement is still limited because we just simply sum user’s multi-domain representations and neglect the high-order connections among them. • H3Trans achieves the best performance with significant improvement on all metrics of all domains. This indicates that H3Trans benefits from learning the high-order connections among multiple domains extracted by Hyper-U module and transferring correlative information via Hyper-I. The high-quality representations learned from the hypergraph enhance the recommendation performance in all domains.
+
+
+Correlative Preference Transfer with Hierarchical Hypergraph Network for Multi-Domain Recommendation WWW ’23, April 30–May 4, 2023, Austin, Texas, USA
+Table 2: Main results on product dataset
+Method MDR-A MDR-B MDR-C MDR-D
+Mrr HR@20 HR@50 Mrr HR@20 HR@50 Mrr HR@20 HR@50 Mrr HR@20 HR@50
+Base 0.0368 2.37% 6.46% 0.0625 4.87% 12.60% 0.0640 4.78% 13.20% 0.0753 5.11% 12.65% PPGN (Mix) 0.0481 2.98% 8.47% 0.0603 4.22% 11.61% 0.1017 8.58% 18.99% 0.1131 7.60% 17.59% MGNN 0.0544 3.68% 8.11% 0.0699 5.34% 14.28% 0.1079 12.22% 21.34% 0.1428 10.67% 21.81% PCRec 0.0635 4.38% 9.71% 0.0845 7.31% 16.63% 0.1546 14.71% 25.99% 0.1738 15.16% 26.59% BiTGCF 0.0663 4.59% 10.61% 0.0986 8.66% 18.46% 0.1591 15.48% 26.49% 0.1577 13.73% 23.66% BiTGCF+ 0.0750 5.08% 12.31% 0.1237 9.87% 20.71% 0.1713 16.15% 28.63% 0.1685 14.76% 25.85%
+H3Trans 0.1171 7.20% 16.79% 0.1686 14.29% 28.65% 0.2084 18.78% 34.89% 0.2158 18.69% 32.73%
+Table 3: Main results on public amazon dataset
+Method Books Music Movie
+NDCG HR@20 NDCG HR@20 NDCG HR@20
+Base 0.0270 4.71% 0.0631 13.39% 0.0433 10.45% PPGN 0.0289 4.96% 0.0660 13.93% 0.0473 11.23% MGNN 0.0311 5.12% 0.0672 14.14% 0.0465 11.03% PCRec 0.0331 5.31% 0.0742 15.67% 0.0489 11.52% BitGCF 0.0359 5.57% 0.0694 14.65% 0.0495 11.78% BitGCF+ 0.0381 5.78% 0.0719 15.29% 0.0509 12.02%
+H3Trans 0.0399 5.97% 0.0761 16.01% 0.0524 12.33%
+4.3 Ablation Study (RQ2)
+For further analysis, we compare different variants of H3Trans on the product dataset for ablation study, and the results are listed in table 4. Vanilla is a basic graph model trained on the unified multi-domain graph. User nodes learn the common interest only through the shared node attributes.
+4.3.1 Effect of Hyper-U module: HU adds the Hyper-U module but without the attention mechanism based layer, which is equivalent to BiTGCF+. It only utilizes a vanilla combination layer to combine users’ separate representations from multiple domains. HU+ integrates our self-attention mechanism based message passing layer into HU. From the table, we can see that aggregating users’ scattered preferences and modeling the high-order connections among multiple domains could help refine the user representation for each separate domain. And the self-attention mechanism contributes to further improving the representation quality, because the attention layer adaptively extracts correlative knowledge from source domains.
+4.3.2 Effect of Hyper-I module: PHI and EHI are two models that additionally integrate the Hyper-I module, and equipped with path-based or embed-based method to seek out similar items respectively. Table 4 shows that these two methods perform better than HU+, which indicates that the dynamic item transfer module could eliminate the domain discrepancy and adjust the latent item representation more correlative to the target domain without interference information. Besides, EHI achieves a marginal improvement than PHI, that shows embed-based method is a little better than path-based method. EHI+ is the best variant of our model, which further employs the graphormer layer to exploit the structure information within the hyperedge-i. It consistently shows around 1% on HR@20 and 2% on HR@50.
+1234 Num of domains
+2.5
+5.0
+7.5
+10.0
+12.5
+15.0
+17.5
+HitRate@20(%)
+MDR-A MDR-B MDR-C MDR-D
+1234 Num of domains
+10
+15
+20
+25
+30
+35
+HitRate@50(%)
+MDR-A MDR-B MDR-C MDR-D
+Figure 3: Performance comparison over different number of domains in MDR
+The itemset size of each domain ranges from tens-of-thousands to millions, while the size of selected correlative itemset is K. The value of K is a key hyperparameter: A too small value brings unstable training. A too large value increases computation cost, and different source items usually retrieve similar itemsets that lacks of discriminatory information.
+4.3.3 Effect of multiple domains: Multi-domain recommendation jointly optimizes the recommendation performance of all domains. Intuitively, with more domains, we can access more users’ behaviors to better characterize users’ interest. Here we analyze the effect when introducing different numbers of domains to perform multi-domain recommendation. The results are reported in figure 3. We can see that it indeed achieves better performance when introducing more domains, because we can transfer knowledge from more source domains, and H3Trans help exploit the high-order connections among them. Additionally, the marginal improvement decreases as more domains are introduced.
+4.4 Alleviating Behavior Sparseness (RQ3)
+As stated before, GNN-based methods suffer from the behavior sparseness issue, and here we conduct a detailed analysis to test the improvement on behavior-sparse users. Specifically, we split the users into four groups G1, G2, G3, G4, and G5 in the order of increasing number of interactions. The larger the GroupID is, the more behaviors the users have collected. Figure 4 reports the percentage increase compared with the Base model. We can find that the improvement achieved in the first three groups is more significant than that of the last two. We conclude that H3Trans help improve more for relatively inactive users (with fewer user-item interactions), indicating that H3Trans alleviates the sparseness of user behaviors by transferring knowledge from other domains.
+
+
+WWW ’23, April 30–May 4, 2023, Austin, Texas, USA Xu and Wei et al.
+Table 4: Ablation study on product dataset. Methods refer to different variants of H3Trans.
+Method MDR-A MDR-B MDR-C MDR-D
+Mrr HR@20 HR@50 Mrr HR@20 HR@50 Mrr HR@20 HR@50 Mrr HR@20 HR@50
+Vanilla 0.0544 3.68% 8.11% 0.0699 5.34% 14.28% 0.1079 12.22% 21.34% 0.1428 10.67% 21.81% HU 0.0750 5.08% 12.31% 0.1237 9.87% 20.71% 0.1712 16.15% 28.63% 0.1685 14.76% 25.85% HU+ 0.0894 5.56% 13.68% 0.1383 10.53% 23.08% 0.1848 17.01% 29.82% 0.1846 16.38% 28.48% PHI 0.1016 6.35% 15.22% 0.1509 11.96% 24.52% 0.1887 17.58% 30.92% 0.1913 17.21% 29.80% EHI 0.1051 6.53% 15.68% 0.1581 12.34% 25.54% 0.1958 17.93% 31.64% 0.1937 17.84% 30.62% EHI+ 0.1171 7.20% 16.79% 0.1686 14.29% 28.65% 0.2084 18.78% 34.89% 0.2158 18.69% 32.73%
+G1 G2 G3 G4 G5 GroupID
+0
+50
+100
+150
+200
+HitRate@50(%)
+(a) MDR-A
+Mix MGNN PCRec
+BitGCF BitGCF+ H3Trans
+G1 G2 G3 G4 G5 GroupID
+0
+50
+100
+150
+200
+HitRate@50(%)
+(b) MDR-B
+Mix MGNN PCRec
+BitGCF BitGCF+ H3Trans
+G1 G2 G3 G4 G5 GroupID
+0
+50
+100
+150
+200
+HitRate@50(%)
+(c) MDR-C
+Mix MGNN PCRec
+BitGCF BitGCF+ H3Trans
+G1 G2 G3 G4 G5 GroupID
+0
+50
+100
+150
+200
+HitRate@50(%)
+(d) MDR-D
+Mix MGNN PCRec
+BitGCF BitGCF+ H3Trans
+Figure 4: Performance comparison over different user groups (percentage increase relative to Base model)
+4.5 Online Experiment (RQ4)
+We have deployed H3Trans online to the retrieval module of our advertising system for an emerging scenario, and conducted online A/B test for one week. For fair comparison, we follow the same configuration with the best retrieval model deployed online [20]. The online metrics include CTR, conversion rate (CVR), gross merchandise volume (GMV) and return on investment (ROI). We observe that H3Trans achieves +2.8% lift on CTR, +10.9% lift on CVR, +6.7% lift on GMV and +7.3% lift on ROI, and the daily improvement over baseline is stable. The uplift is mainly from users having lowest activity level, verifying that H3Trans learns highquality embeddings for inactive users through preference transfer. Therefore H3Trans improves the important online metrics and promotes the performance to our system.
+5 RELATED WORK
+5.1 Multi-domain Recommendation
+Multi-domain recommendation aims to improve recommendations performance of all domains by transferring knowledge from related domains. MCF [30] and ICAN [24] consider multiple collaborative filtering tasks in different domains simultaneously and exploit the relationships between domains. Ma et al. [15] further introduce cross-media content information. Some works focus on the users’ multiple behaviors. MBGCN [10] and MGNN [29] propose a multi-behavior graph convolutional network to capture behaviors’ different influences on target behavior. Furthermore, by considering each domain as a task, multi-task approaches can be directly applied in MDR. For general MDR, MMoE [14] models the tradeoffs
+between domain-specific objectives and inter-domain relationships with a new multi-gate expert strategy.
+5.2 GNNs for Cross-domain Recommendation
+Inspired by the success of graph neural networks[6, 12], researchers have taken efforts to exploit the user-item interaction behavior graph. GNN-based methods [7, 22, 26] suffer from the sparseness of user behaviors, and some researchers have exploited to alleviate it by transferring information from other domains [13, 20, 31]. PPGN [31] fuses the interaction information of two domains into a graph and learns shared features for users. Wang et al. [20] propose a pre-training and fine-tuning diagram to transfer information to the target domain. Liu et al. [13] realizes the two-way transfer of knowledge across two domains with a bi-directional feature transfer module. Zhu et al. [32] propose a graphical and attentional model to combine the embeddings of common users from both domains, thus enhancing the quality of user embeddings and improving the recommendation performance on each domain. However, they fail to model high-order connections among more domains.
+5.3 Hypergraph Learning for Recommendation
+Hypergraph, as a more general topological structure to model highorder connections, has been exploited in recommendation [2, 9, 21, 23, 27, 28]. Xia et al. [23] models session-based data as a hypergraph and then propose a hypergraph convolutional network for session-based recommendation. Yu et al. [27] propose a multichannel hypergraph convolutional network to enhance social recommendation by leveraging high-order user connections. Zhang et al. [28] incorporate the complex tuple-wise correlations into a hypergraph and propose a self-supervised hypergraph learning framework for group recommendation. Our work is the first to investigate hypergraph learning in multi-domain recommendation, which can exploit the high-order connections among multiple domain and realize correlative preference transfer.
+6 CONCLUSION
+In this paper, we propose an correlative preference transfer framework with hierarchical hypergraph network (H3Trans) to improve multi-domain recommendations. H3Trans constructs a unified multidomain graph and integrates two hyperedge-based module: adaptive user aggregation and dynamic item transfer. H3Trans not only exploits high-order connections among users’ scattered preferences in multiple domain, but also transfers correlative user preference to alleviate the behavior sparseness of each single domain. Extensive experiments demonstrate the superiority of our method.
+
+
+Correlative Preference Transfer with Hierarchical Hypergraph Network for Multi-Domain Recommendation WWW ’23, April 30–May 4, 2023, Austin, Texas, USA
+REFERENCES
+[1] Fengwen Chen, Shirui Pan, Jing Jiang, Huan Huo, and Guodong Long. 2019. DAGCN: dual attention graph convolutional networks. In 2019 International Joint Conference on Neural Networks (IJCNN). IEEE, 1–8.
+[2] Xu Chen, Kun Xiong, Yongfeng Zhang, Long Xia, Dawei Yin, and Jimmy Xiangji Huang. 2020. Neural feature-aware recommendation with signed hypergraph convolutional network. ACM Transactions on Information Systems (TOIS) (2020). [3] Yuting Chen, Yanshi Wang, Yabo Ni, An-Xiang Zeng, and Lanfen Lin. 2020. Scenario-aware and Mutual-based approach for Multi-scenario Recommendation in E-Commerce. In 2020 International Conference on Data Mining Workshops (ICDMW). IEEE, 127–135. [4] Eli Chien, Chao Pan, Jianhao Peng, and Olgica Milenkovic. 2022. You are AllSet: A Multiset Function Framework for Hypergraph Neural Networks. ArXiv (2022). [5] Yulong Gu, Wentian Bao, Dan Ou, Xiang Li, Baoliang Cui, Biyu Ma, Haikuan Huang, Qingwen Liu, and Xiaoyi Zeng. 2021. Self-Supervised Learning on Users’ Spontaneous Behaviors for Multi-Scenario Ranking in E-commerce. In Proceedings of the 30th ACM International Conference on Information & Knowledge Management.
+[6] Will Hamilton, Zhitao Ying, and Jure Leskovec. 2017. Inductive representation learning on large graphs. Advances in neural information processing systems 30 (2017). [7] Xiangnan He, Kuan Deng, Xiang Wang, Yan Li, Yongdong Zhang, and Meng Wang. 2020. Lightgcn: Simplifying and powering graph convolution network for recommendation. In Proceedings of the 43rd International ACM SIGIR conference on research and development in Information Retrieval.
+[8] Jing Huang and Jie Yang. 2021. UniGNN: a Unified Framework for Graph and Hypergraph Neural Networks. In Proceedings of the Thirtieth International Joint Conference on Artificial Intelligence (IJCAI-21).
+[9] Shuyi Ji, Yifan Feng, Rongrong Ji, Xibin Zhao, Wanwan Tang, and Yue Gao. 2020. Dual channel hypergraph collaborative filtering. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining.
+[10] Bowen Jin, Chen Gao, Xiangnan He, Depeng Jin, and Yong Li. 2020. Multibehavior recommendation with graph convolutional networks. In Proceedings of the 43rd International ACM SIGIR Conference on Research and Development in Information Retrieval. 659–668.
+[11] Diederik P Kingma and Jimmy Ba. 2014. Adam: A method for stochastic optimization. arXiv preprint arXiv:1412.6980 (2014).
+[12] Thomas N Kipf and Max Welling. 2016. Semi-supervised classification with graph convolutional networks. arXiv preprint arXiv:1609.02907 (2016).
+[13] Meng Liu, Jianjun Li, Guohui Li, and Peng Pan. 2020. Cross Domain Recommendation via Bi-Directional Transfer Graph Collaborative Filtering Networks. In Proceedings of the 29th ACM International Conference on Information & Knowledge Management.
+[14] Jiaqi Ma, Zhe Zhao, Xinyang Yi, Jilin Chen, Lichan Hong, and Ed H Chi. 2018. Modeling task relationships in multi-task learning with multi-gate mixture-ofexperts. In Proceedings of the 24th ACM SIGKDD international conference on knowledge discovery & data mining. 1930–1939.
+[15] Weizhi Ma, Min Zhang, Chenyang Wang, Cheng Luo, Yiqun Liu, and Shaoping Ma. 2018. Your Tweets Reveal What You Like: Introducing Cross-media Content Information into Multi-domain Recommendation.. In IJCAI. 3484–3490. [16] Jianmo Ni, Jiacheng Li, and Julian McAuley. 2019. Justifying recommendations using distantly-labeled reviews and fine-grained aspects. In Proceedings of the 2019 conference on empirical methods in natural language processing and the 9th international joint conference on natural language processing (EMNLP-IJCNLP). 188–197. [17] Aaron Van den Oord, Yazhe Li, and Oriol Vinyals. 2018. Representation learning with contrastive predictive coding. arXiv e-prints (2018). [18] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. 2017. Attention is all you need. Advances in neural information processing systems 30 (2017).
+[19] Bei Wang, Chenrui Zhang, Hao Zhang, Xiaoqing Lyu, and Zhi Tang. 2020. Dual Autoencoder Network with Swap Reconstruction for Cold-Start Recommendation. In Proceedings of the 29th ACM International Conference on Information & Knowledge Management. 2249–2252.
+[20] Chen Wang, Yueqing Liang, Zhiwei Liu, Tao Zhang, and Philip S. Yu. 2021. Pretraining Graph Neural Network for Cross Domain Recommendation. CoRR abs/2111.08268 (2021). arXiv:2111.08268 [21] Jianling Wang, Kaize Ding, Liangjie Hong, Huan Liu, and James Caverlee. 2020. Next-item recommendation with sequential hypergraphs. In Proceedings of the 43rd international ACM SIGIR conference on research and development in information retrieval.
+[22] Xiang Wang, Xiangnan He, Meng Wang, Fuli Feng, and Tat-Seng Chua. 2019. Neural graph collaborative filtering. In Proceedings of the 42nd international ACM SIGIR conference on Research and development in Information Retrieval. 165–174.
+[23] Xin Xia, Hongzhi Yin, Junliang Yu, Qinyong Wang, Lizhen Cui, and Xiangliang Zhang. 2021. Self-supervised hypergraph convolutional networks for sessionbased recommendation. In Proceedings of the AAAI Conference on Artificial Intelligence.
+[24] Ruobing Xie, Zhijie Qiu, Jun Rao, Yi Liu, Bo Zhang, and Leyu Lin. 2020. Internal and Contextual Attention Network for Cold-start Multi-channel Matching in Recommendation.. In IJCAI. 2732–2738. [25] Chengxuan Ying, Tianle Cai, Shengjie Luo, Shuxin Zheng, Guolin Ke, Di He, Yanming Shen, and Tie-Yan Liu. 2021. Do transformers really perform badly for graph representation? Advances in Neural Information Processing Systems 34 (2021), 28877–28888. [26] Rex Ying, Ruining He, Kaifeng Chen, Pong Eksombatchai, William L Hamilton, and Jure Leskovec. 2018. Graph convolutional neural networks for web-scale recommender systems. In Proceedings of the 24th ACM SIGKDD international conference on knowledge discovery & data mining. 974–983.
+[27] Junliang Yu, Hongzhi Yin, Jundong Li, Qinyong Wang, Nguyen Quoc Viet Hung, and Xiangliang Zhang. 2021. Self-supervised multi-channel hypergraph convolutional network for social recommendation. In Proceedings of the Web Conference 2021.
+[28] Junwei Zhang, Min Gao, Junliang Yu, Lei Guo, Jundong Li, and Hongzhi Yin. 2021. Double-Scale Self-Supervised Hypergraph Learning for Group Recommendation. In Proceedings of the 30th ACM International Conference on Information & Knowledge Management.
+[29] Weifeng Zhang, Jingwen Mao, Yi Cao, and Congfu Xu. 2020. Multiplex Graph Neural Networks for Multi-Behavior Recommendation. In Proceedings of the 29th ACM International Conference on Information & Knowledge Management.
+[30] Yu Zhang, Bin Cao, and Dit-Yan Yeung. 2010. Multi-domain collaborative filtering. In Proceedings of the Twenty-Sixth Conference on Uncertainty in Artificial Intelligence. 725–732.
+[31] Cheng Zhao, Chenliang Li, and Cong Fu. 2019. Cross-Domain Recommendation via Preference Propagation GraphNet. In Proceedings of the 28th ACM International Conference on Information and Knowledge Management.
+[32] Feng Zhu, Yan Wang, Chaochao Chen, Guanfeng Liu, and Xiaolin Zheng. 2020. A Graphical and Attentional Framework for Dual-Target Cross-Domain Recommendation.. In IJCAI. 3001–3008.

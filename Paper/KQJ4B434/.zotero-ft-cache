@@ -1,0 +1,1166 @@
+Multiplex Bipartite Network Embedding using Dual Hypergraph Convolutional Networks
+
+arXiv:2102.06371v1 [cs.LG] 12 Feb 2021
+
+Hansheng Xue
+The Australian National University hansheng.xue@anu.edu.au
+Wen Jiang
+Alibaba Group wen.jiangw@alibaba-inc.com
+
+Luwei Yang
+Alibaba Group luwei.ylw@alibaba-inc.com
+Yi Wei
+Alibaba Group yi.weiy@alibaba-inc.com
+
+Vaibhav Rajan
+National University of Singapore vaibhav.rajan@nus.edu.sg
+Yu Lin∗
+The Australian National University yu.lin@anu.edu.au
+
+ABSTRACT
+A bipartite network is a graph structure where nodes are from two distinct domains and only inter-domain interactions exist as edges. A large number of network embedding methods exist to learn vectorial node representations from general graphs with both homogeneous and heterogeneous node and edge types, including some that can specifically model the distinct properties of bipartite networks. However, these methods are inadequate to model multiplex bipartite networks (e.g., in e-commerce), that have multiple types of interactions (e.g., click, inquiry, and buy) and node attributes. Most real-world multiplex bipartite networks are also sparse and have imbalanced node distributions that are challenging to model. In this paper, we develop an unsupervised Dual HyperGraph Convolutional Network (DualHGCN) model that scalably transforms the multiplex bipartite network into two sets of homogeneous hypergraphs and uses spectral hypergraph convolutional operators, along with intra- and inter-message passing strategies to promote information exchange within and across domains, to learn effective node embeddings. We benchmark DualHGCN using four real-world datasets on link prediction and node classification tasks. Our extensive experiments demonstrate that DualHGCN significantly outperforms state-of-the-art methods, and is robust to varying sparsity levels and imbalanced node distributions.
+CCS CONCEPTS
+• Computing methodologies → Neural networks.
+KEYWORDS
+Network Embedding, Multiplex Bipartite Network, Hypergraph
+ACM Reference Format: Hansheng Xue, Luwei Yang, Vaibhav Rajan, Wen Jiang, Yi Wei, and Yu Lin. 2018. Multiplex Bipartite Network Embedding using Dual Hypergraph Convolutional Networks. In Woodstock ’18: ACM Symposium on Neural
+∗Corresponding author.
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for components of this work owned by others than ACM must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specific permission and/or a fee. Request permissions from permissions@acm.org. Woodstock ’18, June 03–05, 2018, Woodstock, NY © 2018 Association for Computing Machinery. ACM ISBN 978-1-4503-XXXX-X/18/06. . . $15.00 https://doi.org/10.1145/1122445.1122456
+
+Gaze Detection, June 03–05, 2018, Woodstock, NY . ACM, New York, NY, USA, 13 pages. https://doi.org/10.1145/1122445.1122456
+1 INTRODUCTION
+Network representation learning aims to learn low-dimensional real-valued features of its nodes, also called embeddings, to capture the global structural information of the network [3, 7]. Such vectorial representations enable their direct application in machine learning models for tasks such as link prediction, node classification or community detection, and obviates the need for cumbersome task-specific feature engineering from the input networks. They have been successfully applied in many domains such as recommender systems [17, 26, 43], natural language processing [18, 30, 33] and computational biology [23, 27, 46].
+Many network embedding methods have been proposed for homogeneous networks where nodes and edges are both of single type; well-known examples include Node2vec [14], DeepWalk [25], SDNE [37] and LINE [31]. Many real-world interactions are multimodal and multi-typed that give rise to heterogeneous networks where nodes and/or edges can be of different types. Representation learning methods for such networks have also been widely studied, e.g., Metapath2vec [8], HAN [39], HetGNN [44].
+The bipartite network has a specific topology, consisting of two node types (see Figure 1) from different domains, containing interdomain interactions and no intra-domain interactions. Essentially representing matrices, such networks are ubiquitous in a variety of contexts. While general representation learning methods can be applied on such networks, it has been shown that they yield suboptimal representations because many specific characteristics of bipartite networks, such as the two distinct node types and the power-law distribution of node degrees may not be modeled well. As a result, several representation learning methods have been developed specifically for bipartite networks, e.g., BiNE [11], BGNN [16], BiANE [19], FOBE and HOBE [29]. However, these methods do not model heterogeneous interactions or multiple edges types in bipartite networks. Such networks, also called multiplex bipartite networks, model many real-life scenarios. For example, users and items in an e-commerce platform form a multiplex bipartite network where users have different kinds of interactions (click, inquiry, buy) with items.
+The fundamental challenge in any network representation learning method is to learn the similarities or correlations between nodes, from all the given information about the topology, multiple node and edge types and, if provided, the attributes; and preserve the
+
+Figure 1: (left) User-item multiplex bipartite network and (right) dual homogeneous hypergraphs. E.g., the user 𝑢2 in the user-item multiplex bipartite network corresponds to a hyperedge that connects 𝑣2, 𝑣3 and 𝑣5 in the homogeneous hypergraph G𝑉 ,𝑐𝑙𝑖𝑐𝑘 because these three items have been clicked by the same user. Similarly, an item 𝑣1 corresponds to a hyperedge that connects 𝑢1, 𝑢3 and 𝑢4 in the homogeneous hypergraph G𝑈 ,𝑏𝑢𝑦 because these three users buy the same item.
+
+user, and similarly, multiple users can be connected by a hyperedge to an item (see Figure 1). The homogeneity in these hypergraphs allows us to leverage hypergraph convolutional operators to learn rich representations, capturing local and higher-order structural relationships. However, this alone is not sufficient to capture interand intra-domain correlations in the bipartite network. To model these correlations and tackle the imbalance problem in both edge and node types, we design additional intra- and inter-message passing strategies that enable information exchange within and across domains. Further, our method can also incorporate information from node attributes when provided as inputs.
+Our model, called Dual HyperGraph Convolutional Networks (DualHGCN), is evaluated through extensive experiments. On node classification and link prediction tasks, DualHGCN significantly outperforms fourteen state-of-the-art network embedding methods on four real datasets. Our experiments also demonstrate the superiority of our model with respect to robustness to varying sparsity levels, node attribute initialization strategies and handling of imbalanced classes.
+
+correlations at the latent level in the embeddings [6]. In fact, various network embedding techniques are equivalent to factorization of a node similarity matrix with suitable definitions of similarities [22] or tensor factorization [42]. In bipartite networks, edges provide information about inter-domain node correlations only, while one has to learn intra-domain correlations indirectly. When node attributes are given, attribute and topology based correlations, representing two different modalities, have to be learnt jointly [19]. With the addition of multiple edge types in a multiplex bipartite network, we have more information to model the correlations but generalizing the node similarities using heterogeneous edges with potentially distinct distributional and structural properties can be challenging.
+The problem is exacerbated by sparsity of edges and imbalance of distributions of node and edge types in most real-world data. For instance, consider the Alibaba dataset containing user behavior logs from Alibaba.com (more data details are in Section 5.1). There are 6,054 users and 16,595 items and the average degree of users and items are 7.55 and 2.76 respectively. Each user, on average, interacts with less than 0.1% items. Figure 10 shows the clearly distinguishable degree distributions of users and items, with the item distribution having a steeper decline. Further, each edge type can be present in different proportions and sparsity levels, e.g. varying from 25,180 ‘click’ edges to 4,429 ‘contact’ edges (Figure 11.a).
+In this paper, we address these challenges by designing a new representation learning model for multiplex bipartite networks. A key step in our approach is to transform the input into two sets of hypergraphs, a set each for a domain in the bipartite network and a hypergraph for each edge type within a set. The transformation is scalable since the total number of edges in the hypergraphs is proportional to the number of nodes in the input and to the number of edge types. A hypergraph generalizes the notion of an edge in simple graphs to a hyperedge which can connect more than two nodes. This transformation effectively serves many purposes. It naturally models sparse and heterogeneous interactions in the input, e.g., in the e-commerce network, multiple items naturally form a hyperedge with a user if they are bought (clicked, or inquired) by the same
+
+2 RELATED WORKS
+Homogeneous Network Embedding. Homogeneous networks contain a single type of nodes and edges, and thus the sum of node types and edge types is equal to 2. Many approaches have been proposed for homogeneous network embedding methods such as DeepWalk [25], Node2vec [14], LINE [31], SDNE [37], GCN [20], GraphSAGE [15] and GAT [36]. However, these methods do not explicitly model bipartite structure and multiple edge types. Heterogeneous Network Embedding. A network is called heterogeneous if the sum of node types and edge types is larger than 2. Although multiplex bipartite networks can be viewed as special cases of heterogeneous networks, existing heterogeneous network embedding methods (e.g., Metapath2vec [8], HAN [39], HetGNN [44], and DyHATR [40]) are not tailored to make use of the bipartite topology information and may result in sub-optimal embedding for multiplex bipartite networks. For example, Metapath2vec [8] uses the meta-path-guided random walk strategy but ignores the difference between explicit and implicit relations and thus becomes suboptimal for network embedding for bipartite networks [11]. Similarly, the node-level and edge-level attention models in DyHATR [40] neglect the unique characteristics of the bipartite network, and also do not work well with increasing sparsity. Bipartite Network Embedding. Different from multiplex bipartite networks, simple bipartite networks contain two types of nodes and a single type of edges. Several bipartite network embedding methods have been proposed, including BiNE [11, 12], BGNN [16], BiANE [19], FOBE and HOBE [29]. BiNE first performs biased random walks to generate node sequences and then uses a joint optimization strategy to preserve both explicit and implicit information within bipartite networks simultaneously. As a random walk-based approach, the performance of BiNE deteriorates when the bipartite network becomes sparse. Moreover, BiNE neglects the inherent difference between two types of nodes and models all nodes in the same way. BGNN respects the distinction between two types of nodes and proposes a cascaded and unsupervised learning method,
+
+which contains inter-domain message passing and intra-domain distribution alignment, to model both same-domain information and cross-domain correlations simultaneously. FOBE and HOBE also distinguish two types of nodes and fit embeddings by optimizing nodes of each type separately. They adopt two sampling strategies to generate indirect node-pair sets, including sampling direct and observed pairs (FOBE) and sampling higher-order pairs using algebraic distance (HOBE). BiANE is an attributed bipartite network embedding method that differs from the previous three models. It models structural information of the bipartite network through intra- and inter-partition proximity, and integrates attributes and topological structure of networks by a latent correlation model.
+All these existing methods have been designed for bipartite networks where all edges are of the same type and their performance on multiplex bipartite networks suffer without explicit modeling of heterogeneous edge types (as seen in our experiments). Besides, BiNE, FOBE and HOBE cannot capture the inherent attributes of nodes in the bipartite network. Hypergraph Embedding. Hypergraph embedding is gaining popularity because of its effectiveness in modeling complex structures within networks. A hypergraph is a generalization of a simple graph in which an hyperedge can connect more than two nodes. HyperGCN [41] decomposes each hyperedge into a collection of node pairs and translates the hypergraph learning tasks into the embedding problem on simple graphs. Several homogeneous hypergraph embedding methods have been proposed. HGNN [10], HyperRec [38] and HCHA [1] introduce a spectral convolution operator into the hypergraph learning model and capture higherorder structures in hypergraphs. MGCN [5] considers both local and hypergraph level graph convolutions and is able to capture wider and richer network information for network embedding. Different from previous approaches, HNHN [9] introduces a flexible normalization scheme and a hypergraph convolutional model with nonlinear activation neurons on both hypernodes and hyperedges. Three recent approaches have been proposed to model heterogeneous hypergraphs, e.g., DHNE [34], Hyper-SAGNN [45], and HWNN [28]. However, most previous hypergraph embedding methods have been designed for supervised tasks, and cannot be directly used for obtaining network embeddings. Besides, hypergraph convolution networks do not specifically model multiplex edges and imbalanced degrees.
+3 PRELIMINARIES
+In this section, we define a multiplex bipartite network and its vertex embedding. Table 1 provides a summary of frequently used symbols in the paper. Definition 2.1. Multiplex Bipartite Network. A Multiplex Bipartite Network 𝐺 = (𝑈 , 𝑉 , 𝐸, 𝑋 ) consists of node sets 𝑈 and 𝑉 of different types, and edge sets 𝐸 = 𝐸1 ∪ 𝐸2 . . . ∪ 𝐸𝑘 where 𝐸𝑖 denotes the 𝑖-th type of edge. 𝑋 = {𝑋𝑢, 𝑋𝑣 } denotes the features of node sets 𝑈 and 𝑉 .
+For example, logs of user behavior in Alibaba.com can be represented as a multiplex bipartite network containing two types of nodes (users and items) and several types of edges (e.g., click, enquiry, contact). For each user and item, the logs also contain unique attributes with different dimensions. For instance, attributes
+
+Table 1: Summary of notations and descriptions.
+
+Notations
+𝐺 = (𝑈 , 𝑉 , 𝐸, 𝑋 ) 𝑈,𝑉
+𝐸 = 𝐸1 ∪ . . . ∪ 𝐸𝑘 𝑋 = {𝑋𝑢, 𝑋𝑣 }
+𝑘
+G𝑈 , G𝑉 G𝑈 ,𝑖 , G𝑉 ,𝑗
+H D B W X𝑈 ,𝑖 , X𝑉 ,𝑗 P, Q 𝜎 (·) Z = {X𝑈 , X𝑉 }
+𝑛
+𝑑
+
+Descriptions
+Multiplex Bipartite Network (MBN) Two types of node sets in MBN A set of edges in MBN
+Two feature sets of 𝑈 and 𝑉 in MBN The number of edge types
+Two homogeneous hypergraph sets A homo-hypergraph from 𝑈 , 𝑉
+The incidence matrix of hypergraph The diagonal matrices of node degree The diagonal matrices of hyperedge degree
+The diagonal identity matrix The learned features of G𝑈 ,𝑖 , G𝑉 ,𝑗
+Learnable weight matrix Activation function
+Final embeddings of G𝑈 , G𝑉 Negative sample parameter Dimension of the embedding
+
+of users contain country, gender, search logs, etc. In contrast, Items
+
+usually have attributes, such as category, price, search counts, visit
+
+counts, buy logs, etc.
+
+Definition 2.2. Multiplex Bipartite Network Embedding. Given
+
+a multiplex bipartite network 𝐺 = (𝑈 , 𝑉 , 𝐸, 𝑋 ), its embedding is a
+
+𝑑-dimensional feature X𝑈 ∈ R|𝑈 |×𝑑 , X𝑉 ∈ R|𝑉 |×𝑑 for each node in 𝑈 and 𝑉 , where 𝑑 ≪ |𝑈 | and 𝑑 ≪ |𝑉 |, that captures information
+
+of both the global topological structure and node attributes.
+
+We define the sparsity of a multiplex bipartite network as ⟨S⟩ =
+
+1−
+
+|𝑈
+
+|𝐸 | |× |𝑉
+
+|
+
+.
+
+Many
+
+real-world multiplex bipartite networks
+
+are
+
+extremely sparse, i.e., |𝐸| ≪ |𝑈 | × |𝑉 |. For instance, in the Alibaba
+
+dataset ⟨S⟩ = 99.95%.
+
+4 METHODOLOGY
+Given an input multiplex bipartite network, we first transform it into two sets of homogeneous hypergraphs. Our model architecture comprises a hypergraph convolutional network that assumes these dual homogenous hypergraphs as inputs, with additional inter- and intra-message passing layers to enable information sharing across the networks. Finally, the entire model is trained using a gradient descent based optimizer. The next four subsections provide more details. Figure 2 shows an overview of the entire method.
+
+4.1 Dual Homo-Hypergraphs Construction
+We now show how to transform a multiplex bipartite network into two sets of homogeneous hypergraphs (dual homo-hypergraphs). We construct two sets of homogeneous hypergraphs G𝑈 , G𝑉 , from node sets 𝑈 , 𝑉 , respectively, as follows:
+G𝑈 = {G𝑈 ,𝑏𝑎𝑠𝑒, G𝑈 ,1, ..., G𝑈 ,𝑘 }, G𝑉 = {G𝑉 ,𝑏𝑎𝑠𝑒, G𝑉 ,1, ..., G𝑉 ,𝑘 )}, (1)
+where G𝑈 ,𝑖 = {𝑈 , E𝑈 ,𝑖 }, G𝑉 ,𝑗 = {𝑉 , E𝑉 ,𝑗 }, and E𝑈 ,𝑖 and E𝑉 ,𝑗 denote hyperedges in G𝑈 ,𝑖 and G𝑉 ,𝑗 respectively. Note that all the homogeneous hypergraphs in G𝑈 share the same node set 𝑈
+
+Figure 2: The Overall framework of the proposed DualHGCN method.
+
+while all the homogeneous hypergraphs in G𝑉 share the same node set 𝑉 . For a node 𝑣 ∈ 𝑉 , a hyperedge is introduced in E𝑈 ,𝑖
+
+of G𝑈 ,𝑖 which connects to {𝑢 |𝑢 ∈ 𝑈 , (𝑢, 𝑣) ∈ 𝐸𝑖 }, i.e., the vertices
+
+in 𝑈 that are directly connected to 𝑣 by 𝐸𝑖 . Similarly, for a node
+
+𝑢 ∈ 𝑈 , a hyperedge is introduced in E𝑉 ,𝑗 of G𝑉 ,𝑗 which connects
+
+to {𝑣 |𝑣
+
+∈
+
+𝑉 , (𝑢, 𝑣)
+
+∈
+
+𝑗
+𝐸
+
+},
+
+i.e.,
+
+the
+
+vertices
+
+in
+
+𝑉
+
+that are directly
+
+connected to 𝑢 by 𝐸 𝑗 .
+
+Refer to Figure 1 for an example. In the user-item multiplex
+
+bipartite network, the user 𝑢2 clicks three items (𝑣2, 𝑣3 and 𝑣5), which corresponds to a hyperedge that connects these three items
+
+in the homogeneous hypergraph G𝑉 ,𝑐𝑙𝑖𝑐𝑘 . Similarly, the item 𝑣1 is bought by three users (𝑢1, 𝑢3 and 𝑢4) which corresponds to a hyperedge that connects these three users in the homogeneous
+
+hypergraph G𝑈 ,𝑏𝑢𝑦. Two special homogeneous hypergraphs G𝑈 ,𝑏𝑎𝑠𝑒 ∈ G𝑈 and
+
+𝑘
+
+𝑘
+
+G𝑉 ,𝑏𝑎𝑠𝑒 ∈ G𝑉 are defined as G (𝑈 , E𝑈 ,𝑖 ) and G (𝑉 , E𝑉 ,𝑗 ),
+
+𝑖 =1
+
+𝑗 =1
+
+respectively. Note that the cardinalities of hyperedge sets in the con-
+
+structed hypergraphs are: |E𝑈 ,𝑖 | ≤ |𝑉 |, |E𝑉 ,𝑗 | ≤ |𝑈 |, |E𝑈 ,𝑏𝑎𝑠𝑒 | ≤ 𝑘 |𝑉 | and |E𝑉 ,𝑏𝑎𝑠𝑒 | ≤ 𝑘 |𝑈 | for 1 ≤ 𝑖, 𝑗 ≤ 𝑘. The total number of hyperedges in the dual homo-hypergraphs is proportional to the num-
+
+ber of nodes and edge types in the input network: 𝑂 (𝑘 (|𝑈 | + |𝑉 |)).
+
+Thus, the transformation easily scales to large inputs.
+
+4.2 Hypergraph Convolutional Networks
+Note that the hypergraphs that we constructed from a multiplex bipartite network are homogeneous and now we can apply hypergraph convolutions on them to learn representations. Graph convolutional network [20] has been widely used in modeling simple networks. Recent hypergraph convolutional operators have borrowed ideas from the spectral theory on simple graphs and achieved good performance in hypergraph embedding (e.g., HGNN, HCHA, HyperGCN and MGCN). We briefly describe two classical hypergraph convolutional operators used in our model.
+Simple graphs use the adjacency matrix 𝐴 to represent edges, whereas hypergraphs introduce the incidence matrix 𝐻 to describe the relationship between nodes and hyperedges. Given a homohypergraph G𝑈 ,𝑖 = (𝑈 , E𝑈 ,𝑖 ) where 𝑖 ∈ {𝑏𝑎𝑠𝑒, 1, ..., 𝑘 }, 𝑘 is the
+
+number of edge types, the incidence matrix of G𝑈 ,𝑖 is defined as:
+
+H𝑈 ,𝑖 (𝑢, 𝑒) =
+
+1, 0,
+
+if 𝑢 is incident to 𝑒, 𝑒 ∈ E𝑈 ,𝑖 otherwise,
+
+(2)
+
+where E𝑈 ,𝑖 denotes the set of hyperedges in G𝑈 ,𝑖 , H𝑈 ,𝑖 ∈ R|𝑈 |×| E𝑈 ,𝑖 |, and 𝑖 ∈ {𝑏𝑎𝑠𝑒, 1, ..., 𝑘 } denotes the constructed homo-hypergraph 𝑖. Similarly we define the incidence matrix H𝑉 ,𝑗 for G𝑉 ,𝑗 . Let D𝑈 ,𝑖 ∈ R|𝑈 |×|𝑈 | and B𝑈 ,𝑖 ∈ R| E𝑈 ,𝑖 |×| E𝑈 ,𝑖 | denote diagonal matrices of the node degree and the hyperedge degree respectively, where D𝑈 ,𝑖 (𝑢, 𝑢) = 𝑒 ∈E𝑈 ,𝑖 H𝑈 ,𝑖 (𝑢, 𝑒) and B𝑈 ,𝑖 (𝑒, 𝑒) = 𝑢 ∈𝑈 H𝑈 ,𝑖 (𝑢, 𝑒).
+Two hypergraph spectral convolutional operators, symmetric hypergraph convolution (sym) and the asymmetric hypergraph convolution (asym), are used to learn embeddings of each hypergraph in our model. For a simple graph, the convolutional operator can be formulated as 𝑋𝑙+1 = 𝜎 (𝐴 · 𝑋𝑙 𝑃𝑙 ), where 𝑋 is the feature matrix, 𝐴 is the adjacency matrix and 𝑃 is the learnable weight matrix. Because the incidence matrix H denotes the relationship between nodes and hyperedges, we use HWH⊤ to measure the pairwise relationships between nodes in the same homogeneous hypergraph, where W is the weight matrix that assigns weights for all hyperedges. Usually, we initialize the weight matrix W with the identity matrix yielding equal weights for all hyperedges. Thus, the intuitive hypergraph convolutional operator can be formulated as:
+
+X𝑙+1 = 𝜎 (HWH⊤ · X𝑙 P𝑙 )
+
+(3)
+
+However, the previous hypergraph convolutional operator may
+change the scale of the feature vectors X by adding layers of convolutional operators (multiplication with HWH⊤). To constrain the
+number of parameters and decrease the number of matrix multipli-
+cations, and thereby avoid the overfitting problem, GCN introduces a renormalization trick, 𝑋𝑙+1 = 𝜎 ((𝐼 + 𝐷−1/2𝐴𝐷−1/2) · 𝑋𝑙 𝑃𝑙 ) = 𝜎 (𝐷−1/2𝐴𝐷−1/2 · 𝑋𝑙 𝑃𝑙 ), where 𝐴 = 𝐴 + 𝐼 , 𝐷𝑖𝑖 = 𝑗 𝐴𝑖 𝑗 , 𝐼 is the
+identity matrix and 𝐷 is the node degree matrix of a simple graph.
+Similarly, the symmetric normalization version of hypergraph con-
+volutional operator for G𝑈 ,𝑖 can be defined as:
+
+X𝑙 +1
+𝑈 ,𝑖
+
+=
+
+𝜎
+
+(D−1/2
+𝑈 ,𝑖
+
+H𝑈
+
+,𝑖
+
+W𝑈
+
+B−1 H⊤ D−1/2
+𝑈 ,𝑖 𝑈 ,𝑖 𝑈 ,𝑖
+
+·
+
+X𝑙 P𝑙 ),
+𝑈 ,𝑖 𝑈 ,𝑖
+
+(4)
+
+and, the asymmetric hypergraph convolutional operator for G𝑈 ,𝑖 can be defined as:
+
+X𝑙 +1
+𝑈 ,𝑖
+
+=
+
+𝜎
+
+(D−1
+𝑈 ,𝑖
+
+H𝑈
+
+,𝑖
+
+W𝑈
+
+B−1 H⊤
+𝑈 ,𝑖 𝑈 ,𝑖
+
+·
+
+X𝑙 P𝑙 ),
+𝑈 ,𝑖 𝑈 ,𝑖
+
+(5)
+
+where 𝜎 denotes the nonlinear activation function (i.e., ReLU
+
+function in our model), X𝑙 ∈ R|𝑈 |×𝑑𝑙 is the feature of the 𝑙-th
+𝑈 ,𝑖
+
+layer, W𝑈
+
+∈ R|𝑉 |×|𝑉 |
+
+is the identity matrix, and P𝑙
+𝑈 ,𝑖
+
+∈ R𝑑𝑙 ×𝑑𝑙+1
+
+denotes the learnable filter matrix, 𝑑𝑙 and 𝑑𝑙+1 are the dimensions
+
+of the 𝑙-th and (𝑙 + 1)-th layers respectively.
+
+Similar hypergraph convolutional operators are also applied to
+
+learn features from G𝑉 ,𝑖 . Therefore, for dual homo-hypergraphs G,
+
+we can learn features from each homo-hypergraph (G𝑈 ,𝑖 or G𝑉 ,𝑗 )
+
+independently through the above hypergraph convolutional opera-
+
+tors (Eqs. 4 and 5). Thus, we obtain the low-dimensional node repre-
+
+sentations {X𝑈 ,𝑏𝑎𝑠𝑒, X𝑈 ,1, ..., X𝑈 ,𝑘 } and {X𝑉 ,𝑏𝑎𝑠𝑒, X𝑉 ,1, ..., X𝑉 ,𝑘 }.
+
+These hypergraph convolutional operators can model each homo-
+
+hypergraph, but cannot handle the problem of multiplex edges and
+
+topological imbalance. Thus, as described in the following section,
+
+we add new layers to enable intra- and inter- message-passing.
+
+4.3 Message-passing Strategies
+In the previous section, the multiplex bipartite network is transformed into independent hypergraphs (G𝑈 ,𝑖 or G𝑉 ,𝑗 ) that correspond to each edge type. There may be information loss with respect to each node in the hypergraphs because correlations between different edge types have not been modeled. Take the e-commerce platform for an example, a user is more likely to ‘buy’ an item after this user ‘inquiries’ this item or similar items, but the current embeddings consider ‘buy’ and ‘inquiry’ independently as they are two different edge types between user and item. Therefore, we introduce the following intra-message passing strategy to promote information sharing among {X𝑈 ,𝑏𝑎𝑠𝑒, X𝑈 ,1, ..., X𝑈 ,𝑘 } and among {X𝑉 ,𝑏𝑎𝑠𝑒, X𝑉 ,1, ..., X𝑉 ,𝑘 }.
+Intra-message passing. As G𝑈 ,𝑏𝑎𝑠𝑒 contains information aggregated from all G𝑈 ,𝑖 , we incorporate information from the learned X𝑈 ,𝑏𝑎𝑠𝑒 into each X𝑈 ,𝑖 . The iterative formula of the intra-message passing strategy (from 𝑙-th layer to (𝑙 + 1)-st layer) is defined as:
+
+X𝑙 +1
+𝑈 ,𝑖
+
+=
+
+𝜎 (Θ𝑈 ,𝑖
+
+·
+
+X𝑙 P𝑙
+𝑈 ,𝑖 𝑈 ,𝑖
+
++
+
+X𝑙 Q𝑙 )
+𝑈 ,𝑏𝑎𝑠𝑒 𝑈 ,𝑏𝑎𝑠𝑒
+
+(6)
+
+where Θ𝑈 ,𝑖
+
+=
+
+D𝑈−1,𝑖/2H𝑈
+
+,𝑖
+
+W𝑈
+
+B−1
+𝑈 ,𝑖
+
+H⊤
+𝑈 ,𝑖
+
+D−1/2
+𝑈 ,𝑖
+
+for symmetric
+
+con-
+
+volutional operators or Θ𝑈 ,𝑖
+
+=
+
+D−1
+𝑈 ,𝑖
+
+H𝑈
+
+,𝑖
+
+W𝑈
+
+B−1
+𝑈 ,𝑖
+
+H⊤
+𝑈
+
+,𝑖
+
+for asym-
+
+metric convolutional operators (from Eqns 4 and 5) and Q𝑙
+𝑈 ,𝑏𝑎𝑠𝑒
+denotes the learnable transform matrix.
+
+As discussed in Section 4.1, when a multiplex bipartite network
+
+is transformed into homogeneous hypergraphs, a node 𝑢 in 𝑈 corre-
+
+sponds to a hyperedge 𝑒 ∈ E𝑉 ,𝑗 in the hypergraph G𝑉 ,𝑗 . However,
+
+the hypergraph convolutional operators in the previous section
+
+neglects the above correspondence between nodes and hyperedges
+
+and thus may result in suboptimal embeddings. Therefore, we in-
+
+troduce the following inter-message passing to reinforce similar
+
+properties between X𝑈 ,𝑖 and X𝑉 ,𝑖 with respect to the same 𝑖-th
+
+edge type.
+
+Inter-message passing. We propose an inter-message passing
+
+strategy which fuses the features X𝑈 ,𝑖 and X𝑉 ,𝑗 (from 𝑙-th layer to
+
+𝑙 + 1-th layer) and is given by:
+
+X𝑙 +1
+𝑈 ,𝑖
+
+=
+
+𝜎 (Θ𝑈 ,𝑖
+
+·
+
+X𝑙 P𝑙
+𝑈 ,𝑖 𝑈 ,𝑖
+
++
+
+H⊤ X𝑙 Q𝑙 )
+𝑉 ,𝑖 𝑉 ,𝑖 𝑉 ,𝑖
+
+(7)
+
+X𝑙 +1
+𝑉,𝑗
+
+=
+
+𝜎 (Θ𝑉 ,𝑗
+
+·
+
+X𝑙 P𝑙
+𝑉,𝑗 𝑉,𝑗
+
++
+
+H⊤ X𝑙 Q𝑙 )
+𝑈,𝑗 𝑈,𝑗 𝑈,𝑗
+
+(8)
+
+where
+
+H𝑈 ,𝑖
+
+and
+
+H𝑉 ,𝑗
+
+denote
+
+the
+
+incidence
+
+matrix,
+
+Q𝑙
+𝑈 ,𝑖
+
+and
+
+Q𝑙
+𝑉,𝑗
+
+denote the learnable transform matrix. After 𝑡 iterations, the embed-
+
+dings of nodes 𝑈
+
+and 𝑉
+
+can be formulated as X𝑡
+𝑈
+
+=
+
+{X𝑡
+𝑈
+
+,𝑏𝑎𝑠𝑒
+
+,
+
+X𝑡
+𝑈
+
+,1,
+
+..., X𝑡 }, X𝑡
+𝑈 ,𝑘 𝑈 ,𝑖
+
+∈
+
+R |𝑈
+
+|×𝑑𝑡 ,
+
+and
+
+X𝑡
+𝑉
+
+=
+
+{X𝑡
+𝑉
+
+,𝑏𝑎𝑠𝑒
+
+,
+
+X𝑡
+𝑉
+
+,1,
+
+...,
+
+X𝑡
+𝑉
+
+,𝑘
+
+},
+
+X𝑡
+𝑉
+
+∈ R|𝑉 |×𝑑𝑡 , where 𝑑𝑡
+
+is the dimension of final embeddings and
+
+𝑘 is the number of edge types. Then, we concatenate these learned
+
+features after 𝑡 layers training for two types of nodes, X𝑡 and X𝑡 ,
+
+𝑈
+
+𝑉
+
+and pass them to a linear layer to obtain the final embeddings:
+
+X𝑈
+
+= X𝑡
+𝑈
+
+· W𝑈
+
++ 𝑏𝑈 ,
+
+X𝑉
+
+= X𝑡
+𝑉
+
+· W𝑉
+
++ 𝑏𝑉 ,
+
+(9)
+
+where W𝑈 , W𝑉 ∈ R( (𝑘+1)∗𝑑𝑡 )×𝑑𝑡 , and 𝑏𝑈 , 𝑏𝑉 ∈ R𝑑𝑡 are trainable parameters, and X𝑈 ∈ R|𝑈 |×𝑑𝑡 , X𝑉 ∈ R|𝑉 |×𝑑𝑡 . Thus, after training
+the network, we can obtain final embeddings: Z = {X𝑈 , X𝑉 }.
+
+4.4 Optimization
+To learn the weights of DualHGCN, we maximize the probability of positive edges (existing edges in the multiplex bipartite network) and minimize the probability of negative ones (unseen edges):
+
+𝑛
+
+∑︁ 𝐿=
+
+𝜆 · log 𝜎 (Z𝑢⊤Z𝑣) + (1 − 𝜆) · ∑︁ E𝑢𝑖 ∼𝑃 (𝑢)
+
+(𝑢,𝑣) ∈𝐸
+
+𝑖 =1
+
+(10)
+
+log(1 − 𝜎 (Z𝑢⊤Z𝑢𝑖 )) + E𝑣𝑖 ∼𝑃 (𝑣) log(1 − 𝜎 (Z⊤𝑣 Z𝑣𝑖 ))
+
+where 𝜎 is the sigmoid activation function, 𝜆 denotes the weight to balance the importance between positive and negative samples, 𝑃 (𝑢) denotes the negative candidate nodes distribution of 𝑢, and 𝑛 is the number of the negative samples. The existing edges in the multiplex bipartite network are treated as positive samples. For each positive pairwise edge (𝑢, 𝑣), we randomly sample 𝑛 negative edges incident to node 𝑢 and 𝑣, respectively. The pseudocode for DualHGCN is shown in Algorithm 1.
+
+5 EXPERIMENTS
+We benchmark our proposed model with several baselines to validate the effectiveness of DualHGCN for unsupervised multiplex bipartite network representation learning. Specifically, we investigate the following questions in these carefully designed experiments:
+Q1 How does DualHGCN perform in predicting unknown interactions or user behaviors (i.e., the link prediction task)?
+Q2 How does DualHGCN perform in classifying items according to user behaviors (i.e., the node classification task)?
+Q3 How do the inter- and intra-message passing strategy contribute to final unsupervised embeddings of DualHGCN?
+Q4 How do the multiple types of edges and the sparsity of networks affect the performance of DualHGCN?
+Q5 How sensitive is the performance of DualHGCN to its parameter settings?
+
+Algorithm 1: The DualHGCN algorithm.
+Input: Multiplex bipartite network 𝐺 = (𝑈 , 𝑉 , 𝐸, 𝑋 ), number of iterations 𝑡, number of negative samples per positive sample 𝑛, the initial features 𝑋 , initial parameters;
+Output: Node Embedding Z 1 Model Construction: 2 Construct dual homo-hypergraphs G; 3 Add spectral convolutional layers on Base
+homo-hypergraph (Eq. (4) or (5)), X𝑖 , X𝑖 ;
+𝑈 ,𝑏𝑎𝑠𝑒 𝑉 ,𝑏𝑎𝑠𝑒
+4 for each edge-type 𝑗 ∈ [1, 2, ..., 𝑘] do 5 Add intra and inter-message passing layers (Eq. (6), (7)
+and (8)), X𝑖 , X𝑖 ;
+𝑈,𝑗 𝑉,𝑗
+6 end 7 Add linear layer to outputs of hypergraph convolutions; 8 Optimization: 9 Initialize Embeddings Z with initial features; 10 Randomly sample 𝑛 negative edges for each positive edge; 11 Optimize loss (Eq. (10)) via gradient descent (𝑡 iterations); 12 return Z;
+5.1 Datasets
+We use four real-world datasets in our experiments. Their detailed statistics are given in Table 2. DTI.1 This Drug-Target Interactions bipartite network was randomly sampled from the data in the Drug Target Commons platform [32]. The sampled dataset mainly contains two types of nodes (drugs and targets) and five bio-activities (Potency, IC50, KI, Inhibition, and Activity) that form the edges. Amazon.2 This dataset is a heterogeneous non-bipartite network [4]. We follow the strategy in BGNN [16] to process this dataset to derive a multiplex bipartite network. This multiplex bipartite network contains two types of edges and two types of nodes, where the attributes of nodes include the price, sales-rank, brand, and category. Alibaba-s and Alibaba.3 These real-world datasets consist of behavior logs of users and items collected from the e-commerce platform Alibaba.com from 1st April 2020 to 30th April 2020. It contains two types of nodes (users and items) and three types of activities (click, enquiry and contact). The items are classified into five categories (women’s clothing, men’s clothing, etc.). Alibaba-s is a smaller unattributed dataset, and Alibaba is a multiplex bipartite network where users have attributes such as country, gender and search logs, and items have attributes including the category, price, search counts, visit counts, buy logs, etc. We have anonymized all sensitive data, e.g., user and item id, in both Alibaba-s and Alibaba datasets.
+5.2 Baselines
+We compare DualHGCN with fourteen state-of-the-art algorithms in four categories as listed below.
+1 https://drugtargetcommons.fimm.fi 2 http://jmcauley.ucsd.edu/data/amazon 3 https://www.alibaba.com
+
+Table 2: Statistics of four real-world datasets. The sparsity
+
+of the
+
+multiplex
+
+bipartite network:
+
+⟨S⟩
+
+=
+
+1−
+
+|𝑈
+
+|𝐸 | |× |𝑉
+
+|
+
+.
+
+Datasets
+
+#Nodes
+
+U V
+
+#Edges
+
+#Edge Types
+
+#Features
+
+U V
+
+#Classes V
+
+#⟨S⟩
+
+DTI
+3,270 1,567 16,458
+5
+N/A
+N/A 99.68%
+
+Amazon
+3,781 5,749 60,658
+2
+4
+N/A 99.72%
+
+Alibaba-s
+1,869 13,349 27,036
+3
+N/A
+5 99.89%
+
+Alibaba
+6,054 16,595 45,734
+3 7 11 5 99.95%
+
+1) Simple Homogeneous Network Embedding. These homogeneous network embedding methods ignore the both node-type and edge-type information in the input multiplex bipartite network. They also do not use hypergraphs to generate low-dimensional representations for each node.
+• Node2vec [14] uses a biased random walk procedure and extends the skip-gram model.
+• GraphSAGE [15] is an inductive network embedding method which contains several message aggregation strategies to generate features for previously unobserved nodes.
+• GCN [20] proposes a spectral graph convolutional operator to learn both local network structure and features of nodes.
+• GAT [36] uses masked self-attention mechanism to assign different neighbors with different specified weights.
+2) Hypergraph Embedding. For these methods, we use the same strategy mentioned in Section 4.1 to build dual ‘base’ homohypergraphs. They also ignore edge-type information in the inputs.
+• HGNN [10]: generalizes the spectral convolutional networks to capture high-order structural information.
+• HyperGCN [41]: decomposes hyperedges of its hypergraphs into a set of node pairs and then uses a simple graph convolutional network to learn decomposed node pairs.
+• HCHA [1]: uses a spectral convolutional and attention-based method to model multi-hop relationships.
+• MGCN [5]: generalizes from simple graph convolutional networks without using spectral convolutions.
+3) Heterogeneous Network Embedding. These methods can model multiple node and edge types but do not explicitly model the bipartite structure of the input multiplex bipartite network.
+• Metapath2vec++ [8]: generates meta-path-based random walks on which a heterogeneous skip-gram model is trained.
+• HAT [40]: is a hierarchical attention based heterogeneous network embedding method which uses node-level and edgelevel attention to model multiple edges types.
+4) Bipartite Network Embedding. These methods are applied on the ‘base’ bipartite networks constructed in Section 4.1 to derive the final node embeddings.
+• BiNE [11]: generates biased random walks and then optimizes to preserve both the explicit and implicit relationships within the bipartite network.
+
+• BGNN [16]: a cascaded and unsupervised embedding method with a communication strategy between the domains to distinguish between the two types of nodes and promote information sharing across two domains simultaneously.
+• BiANE [19]: an attributed bipartite network embedding method which can model the intra- and inter-partition proximity simultaneously and uses a latent correlation training approach to jointly learn attribute and structure information.
+As another baseline just the initial features are used, i.e., without any network embedding methods. In datasets where node attributes are available, the attributes are used as initial features and in datasets without node attributes, we use a tied autoencoder [2] (where weights across the encoder and decoder are tied) on the adjacency matrix of the multiplex bipartite network to generate initial features.
+5.3 Experimental Settings
+Link Prediction. We randomly sample 50% of the edges as the training set and the remaining edges are treated as the test set. The network embedding methods are run on the subgraph formed from training set edges only. For each edge in the test set, embeddings of the incident nodes (learnt from the training set) are used as features. 5-fold cross validation is used on the test set edges to evaluate the Logistic Regression classifier performance. The entire procedure is repeated 5 times to obtain different random samples of train and test sets. Mean and standard deviation values of the classification evaluation metrics are reported. We use the area under the ROC curve (AUROC) and the area under the precision-recall curve (AUPRC) as evaluation metrics and Logistic Regression as the classifier.
+Node Classification. All the network embedding methods are run on the entire dataset to obtain the node embeddings. We use the micro-F1 and macro-F1 as the evaluation metrics and Stochastic Gradient Descent (SGD) classifier. 5-fold cross validation on the entire data is used to evaluate classifier performance on node classification. We report the mean and standard deviation values.
+Statistical Significance. To quantify the significance of the improvement achieved by DualHGCN, when compared with baselines, we compute the one-sided Wilcoxon rank-sum p-value [13] between DualHGCN and the next-best results in each experiment.
+Parameter Settings. The dimensions of initial features (for both with and without attributes) and final embeddings are all empirically set to be 32. We run GraphSAGE with different aggregators (e.g., mean, lstm, and pooling) and show the best results. In Metapath2vec, we use ‘U-V-U’ as the meta-path to model the ‘base’ bipartite network. For all baseline methods, we optimize their models with different parameters and report the best performance scores.
+For our method, DualHGCN, the default number of layers is 2. The number of negative samples is different from distinct datasets and ranges in {1, 2, 3}. The Adam optimizer is used in our model to optimize parameters via backpropagation. When the symmetric version of the hypergraph convolutional operator (Eq. 4) is used in DualHGCN, we call the method DualHGCN-sym and when the asymmetric operator (Eq. 5) is used, we call the method DualHGCNasym. The classifiers used for link prediction and node classification, and evaluation metrics are all from the scikit-learn library [24]. All
+
+codes, data and experimental settings of the DualHGCN model are freely available4.
+5.4 Results on Link Prediction (Q1)
+Table 3 shows the results obtained by DualHGCN and baselines on all four datasets without attributes, and Table 4 shows their performance on Amazon and Alibaba with attributes.
+Both Table 3 and 4 show that DualHGCN significantly outperforms other baselines on both datasets without and with node attributes. In Table 3, DualHGCN-asym achieves the highest scores on all four datasets. For DTI, the AUROC and AUPRC score achieved by initial features, which trains the adjacency matrix with the tied autoencoder, are 63.43% and 72.34% respectively, and three bipartite network embedding methods achieve the similar highest metric score among baselines (BiNE, BGNN-adv, and BiANE) where the highest AUROC score achieved by BiANE (91.86%) and the highest AUPRC score achieved by BiNE (92.84%). However, DualHGCNasym performs better than all baselines and achieves the highest score on the DTI dataset (93.85% for AUROC and 95.00% for AUPRC respectively). For Alibaba-s, the AUROC and AUPRC score achieved by DualHGCN-asym are 87.57% and 89.02% respectively, which are both higher than the second highest scores achieved by BGNNadv (78.35% for AUROC and 80.93% for AUPRC). Moreover, for Amazon and Alibaba with attributes, DualHGCN also achieves the highest metric scores (see Table 4). It demonstrates that our proposed DualHGCN method is effective both with and without the initial attribute information on nodes.
+Comparing Table 3 and 4 we see that training tied autoencoder with the adjacency matrix as initial features plays an important role in predicting unknown interactions. For instance, the AUROC and AUPRC scores achieved by initializing features with the adjacency matrix are both almost 15% higher than the scores achieved by just using the attributes as features. DualHGCN appears to be more robust to different initial features, compared to most other methods. We observe that performance gap for baseline methods, across the two tables, is large. In contrast, AUROC and AUPRC values of DualHDCN are similar across the two feature initializations.
+5.5 Results on Node Classification (Q2)
+Note that the Alibaba dataset contains attributes for each node, and we adopt two different ways to generate initial features. Alibaba(adj) denotes that we use the adjacency matrix as the initial features, and Alibaba(attr) means that attributes are used to generate initial features. For the smaller unattributed dataset Alibaba-s, only the adjacency matrix is used to generate initial features.
+The experimental results of both DualHGCN and baselines are summarized in Table 5. The proposed DualHGCN performs significantly better than other baselines. The micro-F1 and macro-F1 of DualHGCN-asym achieved on Alibaba-s dataset are 36.43% and 35.73% respectively, which are significantly higher than the second highest score achieved by BGNN (29.74% for micro-F1 and 22.71% for macro-F1). The comparison between initial features and DualHGCN demonstrates the superior performance of DualHGCN on fusing the initial features and topological information to enhance
+4 https://github.com/xuehansheng/DualHGCN
+
+Table 3: The AUROC and AUPRC values of DualHGCN and baselines on the task of link prediction(%). The initial features for all datasets are adjacency matrix with tied autoencoder.
+
+Methods
+
+DTI
+
+AUROC
+
+AUPRC
+
+Amazon
+
+AUROC
+
+AUPRC
+
+Alibaba-s
+
+AUROC
+
+AUPRC
+
+Alibaba
+
+AUROC
+
+AUPRC
+
+Initial features 63.43±0.74 72.34±0.73 70.57±0.55 74.50±0.63 67.08±0.45 68.21±0.67 68.06±0.25 71.38±0.28
+
+Node2vec GraphSAGE
+GCN GAT
+
+50.88±0.37 79.34±0.39 56.95±0.13 76.33±0.25
+
+57.45±0.38 82.36±0.24 76.00±0.29 80.64±0.31
+
+50.30±0.44 69.99±0.18 64.93±0.12 66.70±0.13
+
+55.44±0.47 69.39±0.30 77.45±0.15 70.16±0.15
+
+50.43±0.29 64.91±0.14 63.08±0.10 53.28±0.28
+
+51.42±0.50 65.76±0.21 79.59±0.15 54.29±0.66
+
+50.10±0.49 66.49±0.09 56.87±0.04 55.38±0.30
+
+51.52±0.29 60.36±0.13 77.66±0.09 54.49±0.47
+
+HGNN HCHA MGCN HyperGCN
+
+77.87±1.07 63.77±1.39 50.14±0.11 68.99±1.70
+
+83.57±1.02 69.83±1.07 62.07±2.86 77.34±1.86
+
+80.14±0.32 62.66±0.72 51.84±1.34 68.42±1.02
+
+82.94±0.17 67.84±0.72 62.35±0.61 73.78±0.60
+
+67.07±0.12 63.61±0.16 66.31±1.19 63.72±0.22
+
+69.34±0.07 65.47±0.18 68.60±1.50 63.54±0.17
+
+69.64±0.15 65.84±0.09 51.23±0.63 61.38±1.12
+
+73.50±0.07 68.81±0.06 52.79±1.20 65.21±0.70
+
+Metapath2vec++ 85.99±0.12
+
+HAT
+
+86.22±0.14
+
+87.73±0.43 87.21±0.12
+
+60.24±0.17 67.26±0.21
+
+63.58±0.21 70.67±0.17
+
+78.85±0.22 57.17±0.61
+
+69.17±0.37 57.64±0.85
+
+65.98±0.18 56.98±0.88
+
+70.97±0.20 58.51±1.40
+
+BiNE BGNN-mlp BGNN-adv
+BiANE
+
+90.74±0.45 76.78±2.07 90.35±1.80 91.86±0.19
+
+92.84±0.27 83.05±1.59 92.35±1.11 92.19±0.25
+
+78.70±0.98 68.32±0.23 83.47±0.16 76.70±0.19
+
+80.56±2.20 74.11±0.23 84.70±0.15 78.64±0.34
+
+72.54±0.47 61.96±0.64 77.49±1.10 78.35±0.31
+
+75.99±0.76 65.22±0.67 77.26±1.01 80.93±0.25
+
+78.94±0.56 66.54±0.23 82.76±0.09 78.47±0.12
+
+79.13±0.43 68.84±0.18 82.40±0.10 82.35±0.12
+
+DualHGCN-sym 93.53±0.28 94.54±0.21 85.47±0.69 87.98±0.61 86.86±0.41 88.50±0.44 84.53±0.55 86.72±0.44 DualHGCN-asym 93.85±0.25∗ 95.00±0.13∗ 86.69±0.26∗ 88.69±0.85∗ 87.57±0.41∗ 89.02±0.42∗ 85.54±0.80∗ 87.51±0.82∗
+
+∗ Asterisks represent where DualHGCN’s improvement over baselines is significant (one-sided rank-sum p-value <0.01).
+
+Table 4: The AUROC and AUPRC values of DualHGCN and baselines on the task of link prediction. The initial features for Amazon and Alibaba are attributes.
+
+METH
+Inits
+N2v GSA GCN GAT
+HGNN HCHA MGCN HGCN
+
+Amazon
+
+AUROC
+
+AUPRC
+
+57.19±0.32 61.94±0.34
+
+50.30±0.44 67.76±0.28 56.26±0.35 62.44±0.22
+
+55.44±0.47 70.10±0.22 58.19±0.41 67.11±0.13
+
+77.41±0.20 62.66±0.72 64.52±1.10 58.61±1.39
+
+81.14±0.13 67.84±0.72 71.34±0.67 70.59±1.54
+
+Alibaba
+
+AUROC
+
+AUPRC
+
+54.05±0.24 55.59±0.28
+
+50.10±0.49 77.69±0.43 71.38±0.36 59.12±0.68
+
+51.52±0.29 76.79±0.49 69.16±0.18 59.73±0.66
+
+63.16±0.27 57.98±0.15 50.54±0.25 63.76±0.16
+
+66.16±0.20 59.03±0.25 52.43±0.98 66.09±0.10
+
+the quality of unsupervised network embedding. Moreover, DualHGCN and baselines achieve higher metric scores on Alibaba (attr) than Alibaba (adj), which indicates that attributes of nodes contribute to improving the effects of node classification. For instance, the AUROC and AUPRC values achieved by DualHGCN-asym when initialized with the adjacency matrix as features are 34.29% and 33.95% respectively, which are about 10% lower than the scores achieved by the model with attributes as initial features.
+Note that the micro-F1 scores of many baselines are much larger than the corresponding macro-F1 scores, which indicates that these baselines result in classifications biased towards the large classes. For DualHGCN, the small gap between the micro-F1 and macroF1 scores shows that DualHGCN is good at handling imbalanced classes for node classification.
+
+M2v++ HAT
+BiNE BGN-m BGN-a BiANE
+
+60.24±0.17 69.45±0.26
+78.70±0.98 68.97±1.54 79.43±0.33 79.57±0.25
+
+63.58±0.21 72.22±0.20
+80.56±2.20 73.80±1.11 81.48±0.36 81.99±0.20
+
+65.98±0.18 50.51±0.77
+78.94±0.56 67.62±0.34 83.42±0.25 76.31±0.16
+
+70.97±0.20 52.09±0.95
+79.13±0.43 70.92±0.21 81.53±0.23 79.89±0.15
+
+5.6 Effects of Message-passing Strategies (Q3)
+In DualHGCN, we propose two message passing strategies, intramessage passing, and inter-message passing. The intra-message passing strategy transfers learned features of ‘base’ homo-hypergraph to other specific homo-hypergraphs, i.e., ‘click’, ‘enquiry’, and ‘contact’ homo-hypergraphs, and the inter-message passing strategy
+
+DHG-s 84.87±0.75 87.19±0.65 86.27±0.56 88.07±0.45 shares features across dual homo-hypergraph sets (users and items)
+
+DHG-a 86.55±0.15∗ 88.55±0.16∗ 86.76±0.46∗ 88.59±0.23∗ to enable communication between two distinct types of nodes. To
+
+∗
+
+Asterisks
+
+indicate
+
+where
+
+improvement
+
+over
+
+baselines
+
+achieved
+
+by
+
+DualHGCN
+
+is
+
+significant
+
+(one-sided
+
+rank-sum
+
+p-value
+
+answer
+<0.01).
+
+Q3,
+
+we
+
+perform
+
+an
+
+ablation
+
+study
+
+on
+
+the
+
+DualHGCN
+
+model.
+
+† Some abbreviations are used in the table, ‘inits’ short for ‘initial features’, ‘N2v’ short for ‘Node2vec’, ‘GSA’ short for ‘Graph- Figure 3 shows the performance of DualHGCN-asym on Alibaba-s
+
+SAGE’, ‘HGCN’ short for ‘HyperGCN’, ‘M2v++’ short for ‘Metapath2vec++’, ‘BGN-m’ short ‘BGNN-adv’, ‘DHG-s’ short for ‘DualHGCN-sym’, and ‘DHG-a’ short for ‘DualHGCN-asym’.
+
+for
+
+‘BGNN-mlp’,
+
+‘BGN-a’
+
+short
+
+for
+
+and
+
+Alibaba
+
+dataset
+
+with
+
+different
+
+message
+
+passing
+
+strategies.
+
+Over-
+
+all, both intra- and inter-message passing strategies contribute to
+
+Table 5: The micro-F1 and macro-F1 values of DualHGCN and baselines on the task of node classification (%). Alibaba(adj) denotes the adjacency matrix is used as initial features, and Alibaba(attr) means attributes are preprocessed as initial features.
+
+Methods
+
+Alibaba-s
+
+micro-F1
+
+macro-F1
+
+Alibaba(adj)
+
+micro-F1
+
+macro-F1
+
+Alibaba(attr) micro-F1 macro-F1
+
+Initial features 25.97±0.34 8.25±0.09 26.63±0.47 8.41±0.12 39.34±0.21 25.61±0.37
+
+Node2vec GraphSAGE
+GCN GAT
+
+21.17±0.41 22.06±0.71 21.91±0.71 22.70±0.51
+
+20.09±0.30 19.40±0.62 19.51±0.38 19.70±0.48
+
+21.37±0.64 23.83±1.08 23.67±1.07 23.15±0.62
+
+19.95±0.43 20.00±0.72 19.32±0.33 19.98±0.68
+
+21.37±0.64 23.47±1.14 24.21±1.10 23.64±1.54
+
+19.95±0.43 19.52±0.43 18.33±0.93 18.70±0.34
+
+HGNN HCHA MGCN HyperGCN
+
+25.59±0.97 26.22±0.10 25.93±1.00 26.27±0.13
+
+9.06±0.93 8.31±0.03 19.51±0.92 8.32±0.03
+
+26.77±1.03 27.10±0.03 26.49±0.53 27.11±0.06
+
+13.03±1.84 8.53±0.02 11.36±1.37 8.53±0.02
+
+32.82±0.74 44.88±0.35 40.48±1.51 40.66±0.31
+
+21.51±0.75 29.17±0.41 30.47±1.91 26.53±0.34
+
+Metapath2vec++ HAT
+
+22.34±0.68 25.64±1.48
+
+20.32±0.60 15.06±1.57
+
+22.72±0.23 27.07±0.38
+
+20.13±0.46 22.72±0.23 20.13±0.46 16.14±0.42 26.28±1.62 16.05±1.33
+
+BiNE BGNN-mlp BGNN-adv
+BiANE
+
+26.65±0.93 28.01±1.67 29.74±1.82 22.29±0.45
+
+20.77±0.98 22.71±1.96 16.92±1.74 19.91±0.54
+
+26.98±0.44 24.50±0.52 28.39±0.51 22.65±0.20
+
+20.64±0.57 19.86±0.54 21.59±1.09 20.01±0.53
+
+26.98±0.44 25.04±0.67 46.32±1.53 22.84±0.63
+
+20.64±0.57 17.43±1.12 36.98±0.60 19.89±0.47
+
+DualHGCN-sym 34.68±1.19 34.02±1.06 31.54±0.74 29.77±0.60 45.21±0.85 41.65±0.86 DualHGCN-asym 36.43±0.81∗ 35.73±1.20∗ 34.29±0.54∗ 33.95±0.36∗ 46.63±0.48 43.59±0.52∗
+
+∗ Asterisks indicate significant improvement over baselines by DualHGCN (one-sided rank-sum p-value <0.01).
+
+the tasks of link prediction and node classification, and the intermessage passing strategy plays an essential role in modeling realworld user behavior logs in the e-commerce platform.
+The effect of intra- and inter-message passing strategy depends on the distribution of nodes and edges among different types. In Alibaba, the inter-message passing strategy plays a more important role because of the imbalance of the average hyperedge degrees in different dual homo-hypergraphs. Note that the degree of a hyperedge is the number of nodes of the hypergraph incident to this hyperedge.
+For instance, the average hyperedge degrees of different hypergraphs built from the Alibaba dataset are as follows, i.e., 2.28 for ‘base’ homo-hypergraph, 2.23 for ‘click’ homo-hypergraph, 1.79 for ‘enquiry’ homo-hypergraph and 1.59 for ‘contact’ homohypergraph respectively. Note that the gap of hyperedge degrees between ‘base’ and ‘click’/‘enquiry’/‘contact’ homo-hypergraphs is small, thus the contribution of the intra-message passing strategy on Alibaba is limited. The most conspicuous improvement of the intra-message passing is on Alibaba(attr) for the task of node classification. DualHGCN-asym without both intra- and inter- message passing strategy gets the 24.52% for micro-F1 and 17.04% for macroF1 on Alibaba(attr) for the node classification task, and the micro-F1 and macro-F1 scores achieve 30.32% and 21.63% respectively if the intra-message passing is added into the DualHGCN-asym model.
+In contrast, the gap of hyperedge degrees between dual homohypergraph sets of users and items is large. For instance, in ‘base’ homo-hypergraph, the average hyperedge degrees for users and items are 4.27 and 1.56 respectively. In this case, the effect of the
+
+inter-message passing strategy, which transfers information between two distinct domains (users and items), is essential. DualHGCNasym without both intra- and inter- message passing strategy gets the 70.71% for AUROC and 69.50% for AUPRC on Alibaba(attr) for the link prediction task, and the AUROC and AUPRC scores achieve 86.53% and 87.99% when inter-message passing is added into the DualHGCN-asym model. In real-world datasets, especially in e-commerce, the imbalance of the average hyperedge degrees between users and items is common and difficult to model. Thus, the inter-message passing strategy plays an important role in modeling sparse dual homo-hypergraphs.
+5.7 Effects of Multiplex and Sparsity (Q4)
+To study the effect of multiplexing, we evaluate the performance of DualHGCN on each homo-hypergraph independently. We also evaluate the performance of DualHGCN at different sparsity levels. Effects of Multiple Edges. We run the DualHGCN-asym method on each edge-type hypergraph (i.e., ‘base’, ‘click’, ‘enquiry’ and ‘contact’ homo-hypergraph) and compare it with DualHGCN-asym employed on all homo-hypergraphs. The experimental results are shown in Figure 4. The results demonstrate the superior performance due to integrating different types of edges compared to treating these edges independently in each homogeneous hypergraph. For instance, the AUROC and AUPRC scores achieved by DualHGCN-asym on Alibaba(attr) for node classification are 46.63% and 43.59% respectively, which is significantly higher than other edge-type homo-hypergraphs (e.g., 41.31% for AUROC and 36.94% for AUPRC on ‘base’ homo-hypergraph). Further, from Figure 4,
+
+Figure 3: The results of DualHGCN-asym with/without intra-/inter-message passing strategy on two datasets for link prediction and node classification tasks.
+
+Figure 4: The results of DualHGCN-asym on different edgetype datasets of Alibaba. The figure (a) and (b) use adjacency matrix and attributes as the initial features respectively.
+we find that the performance scores are correlated to the information enrichment of sub-bipartite network. We observe that the performance scores achieved on four homo-hypergraphs decrease progressively with decreasing number of edges in each sub-bipartite network (25,869 for ‘base’, 25,180 for ‘click’, 16,125 for ‘enquiry’, 4,429 for ‘contact’ sub-bipartite networks). Effects of Sparsity. We randomly delete a specific ratio of existing edges to increase the sparsity of the multiplex bipartite network, and employ DualHGCN, BiNE, BGNN-adv, and BiANE on these datasets to evaluate the performance.
+Figure 5 shows that DualHGCN still significantly outperforms other baselines (BiNE, BGNN-adv and BiANE) when the networks become more sparse. With increase in sparsity, the performance of BiNE drops steeply compared to that of DualHGCN, BGNN-adv, and BiANE because BiNE focuses on the topological structure and does not utilize the initial features either from adjacency matrix or attributes. The rate of decrease in performance of DualHGCN is similar to that of BiANE. In extreme cases, when we randomly delete more than 50% edges, the performance scores achieved by DualHGCN is similar to the performance of initial features. Overall, DualHGCN has the best performance at various sparsity levels.
+
+Figure 5: The results of DualHGCN-sym/asym, BGNN-adv, BiNE, BiANE, and initial features on Alibaba-s with different sparsity of networks for link prediction.
+5.8 Sensitivity Analysis and Visualization (Q5)
+We evaluate the sensitivity of DualHGCN to its three main (number of negative samples, number of layers, and parameter 𝜆) and also qualitatively analyze the embeddings. Effect of Negative Samples. To train our model, we randomly sample 𝑛 negative edges (unseen edges) for each positive edge (existing edge). The number of negative samples may affect the performance of final embedding. Here, we vary 𝑛 from 1 to 4, and evaluate the performance of DualHGCN on Alibaba-attr for the task of node classification (Figure 6). Results demonstrate the robustness of our model DualHGCN on different number of negative samples. Effect of Layers. We investigate the performance of DualHGCN with different number of layers, ranging from 1 to 5. The results in Figure 7 show that DualHGCN achieves the best performance with two layers. With increase in number of layers, the performance of DualHGCN decreases slightly on both tasks of link prediction and node classification. This phenomenon has also been observed in classical graph convolutional networks [20]. The reason stated in [21] is that the graph convolutional operator is a special form of Laplacian smoothing. Increasing the number of layers makes it more difficult to train. Multiplication of Laplacian smoothing could lead to features of nodes being mixed and difficult to distinguish. This problem also exists in hypergraph convolutional operators. Effect of Parameter 𝜆. The hyper-parameter 𝜆 in the loss function is used to balance the importance between positive samples and
+
+Figure 6: The results of DualHGCN-sym/DualHGCN-asym on Alibaba with different numbers of negative samples for node classification.
+
+Figure 8: DualHGCN-sym/asym on Alibaba(attr) with varying 𝜆 for link prediction and node classification.
+
+Figure 7: DualHGCN-sym/asym on Alibaba with varying number of layers for link prediction and node classification.
+
+negative samples. We investigate the effect of varying parameter 𝜆, from 0.25 to 0.75, on both tasks of link prediction and node classification. From Figure 8, we find that the performance of the model is not markedly sensitive to changes in 𝜆 in both link prediction and node classification tasks. Visualization. To conduct a qualitative assessment of the embeddings, we use the t-SNE [35] to visualize the final embeddings. Figure 9 shows the 2D-visualization of the embeddings from Alibaba network from DualHGCN-asym, BGNN-adv, BiANE and BiNE, where red nodes represent users and blue nodes represent items. BiNE produces embeddings in the same space for both users and items and thus visually the embeddings of the nodes are not well separated. BiANE improves on BiNE in terms of separability because BiANE integrates the attribute information of two different types of nodes. BGNN also shows good layout because it models the distinction between two types of nodes. Visually, DualHGCN gives the best separation between the two types of nodes.
+6 CONCLUSION
+Multiplex bipartite networks appear in numerous important applications. To our knowledge, our model DualHGCN is the first network embedding method that can model multiple edge types and node attributes in bipartite networks. Further, it also effectively addresses common real-world challenges of sparsity and imbalance in node and edge type distributions. The scalable transformation employed in DualHGCN to two sets of dual homogeneous hypergraphs enables the use of hypergraph convolutional operators on
+
+Figure 9: Visualization of node embeddings on Alibaba with attributes dataset (red: users, blue: items).
+sparse inputs. The intra-message passing strategy captures topological information across multiplex edges and addresses the problem of edge-type imbalance. The inter-message passing strategy tackles the challenges of node-degree and node-type imbalance between the two distinct node sets. Further, the DualHGCN architecture effectively uses node attributes when provided as inputs. Our extensive experiments demonstrate the efficacy of DualHGCN on four real-world datasets for the tasks of link prediction and node classification. DualHGCN significantly outperforms 14 state-of-the-art methods from 4 different categories of embedding techniques. They also highlight the strengths of our model with respect to robustness to varying sparsity levels, node attribute initialization strategies and handling of imbalanced classes.
+A APPENDIX
+Supplementary Material Figure 10 shows the degree distribution of users and items in the Alibaba. Users have more rich and complicated structural information (e.g., users have more cases with degrees more than 2, and the degree of most of the items is 2.) Figure 11 shows the proportion of edge-type and node-number in the Alibaba. In Figure 11 (a), 55% of edges is of type ‘click’, which
+
+Figure 10: Degree distribution of users, items in Alibaba.
+
+Figure 11: Edge, Node type distributions in Alibaba dataset. Table 6: Parameters of DualHGCN used in our experiments.
+
+Parameters
+lr Epochs Optimizer Dropout Weight decay
+𝜆 Layers Neg samples Inter Intra Output emb
+
+DTI LP 0.002 4000
+0.5
+0.5
+2 True False
+
+Amazon LP
+0.002 3000
+0.5
+0.5
+3 True True
+
+Alibaba-s LP NC
+0.001 0.001 3000 5000
+Adam 0.5 0.5
+5e-4 0.5 0.5
+2 1
+True True 32
+
+Alibaba LP NC
+0.002 0.005 3000 5000
+
+0.5 0.3
+
+0.75 0.25
+
+1
+
+2
+
+True True
+
+True False
+
+is more than other types of edges. In Figure 11 (b), the number of items are more than the number of users. These figures show the problem of edge-type and node-number imbalance in the data.
+Implementation Details of DualHGCN In Table 6, we show the parameters of DualHGCN-sym/-asym used in our experiments.
+REFERENCES
+[1] Song Bai, Feihu Zhang, and Philip H. S. Torr. 2019. Hypergraph Convolution and Hypergraph Attention. ArXiv abs/1901.08150 (2019).
+[2] Pierre Baldi. 2011. Autoencoders, unsupervised learning and deep architectures. In International Conference on Unsupervised and Transfer Learning Workshop.
+[3] HongYun Cai, Vincent W. Zheng, and Kevin Chen-Chuan Chang. 2018. A Comprehensive Survey of Graph Embedding: Problems, Techniques, and Applications. TKDE 30 (2018), 1616–1637.
+[4] Yukuo Cen, Xu Zou, J. Zhang, Hongxia Yang, Jingren Zhou, and Jie Tang. 2019. Representation Learning for Attributed Multiplex Heterogeneous Network. In KDD.
+
+[5] Hongxu Chen, Hongzhi Yin, Xiangguo Sun, Tong Chen, Bogdan Gabrys, and Katarzyna Musial. 2020. Multi-level Graph Convolutional Networks for Crossplatform Anchor Link Prediction. ArXiv abs/2006.01963 (2020).
+[6] Hongxu Chen, Hongzhi Yin, W. Wang, Hao Wang, Quoc Viet Hung Nguyen, and Xue Li. 2018. PME: Projected Metric Embedding on Heterogeneous Networks for Link Prediction. In KDD.
+[7] Peng Cui, Xiao Wang, Jian Pei, and Wenwu Zhu. 2019. A Survey on Network Embedding. TKDE 31 (2019), 833–852.
+[8] Yuxiao Dong, Nitesh V Chawla, and Ananthram Swami. 2017. Metapath2Vec: Scalable Representation Learning for Heterogeneous Networks. In KDD.
+[9] Yihe Dong, Will Sawin, and Yoshua Bengio. 2020. HNHN: Hypergraph Networks with Hyperedge Neurons. ArXiv abs/2006.12278 (2020).
+[10] Yifan Feng, Haoxuan You, Zizhao Zhang, Rongrong Ji, and Yue Gao. 2019. Hypergraph Neural Networks. In AAAI.
+[11] Ming Gao, Leihui Chen, Xiangnan He, and Aoying Zhou. 2018. BiNE: Bipartite Network Embedding. In SIGIR.
+[12] Ming Gao, Xiangnan He, Leihui Chen, and Aoying Zhou. 2019. Learning Vertex Representations for Bipartite Networks. ArXiv abs/1901.09676 (2019).
+[13] Edmund A. Gehan. 1965. A generalized Wilcoxon test for comparing arbitrarily singly-censored samples. Biometrika 52 (1965), 203–23.
+[14] Aditya Grover and Jure Leskovec. 2016. Node2Vec: Scalable Feature Learning for Networks. In KDD.
+[15] William L. Hamilton, Zhitao Ying, and Jure Leskovec. 2017. Inductive Representation Learning on Large Graphs. In NeurIPS.
+[16] Chaoyang He, Tian Xie, Yu Rong, Wen bing Huang, Yanfang Li, Junzhou Huang, Xiang Ren, and Cyrus Shahabi. 2019. Bipartite Graph Neural Networks for Efficient Node Representation Learning. ArXiv abs/1906.11994 (2019).
+[17] Binbin Hu, Chuan Shi, Wayne Xin Zhao, and Philip S. Yu. 2018. Leveraging Metapath based Context for Top- N Recommendation with A Neural Co-Attention Model. In KDD.
+[18] Linmei Hu, Tianchi Yang, Chuan Shi, Houye Ji, and Xiaoli Li. 2019. Heterogeneous Graph Attention Networks for Semi-supervised Short Text Classification. In EMNLP/IJCNLP.
+[19] Wentao Huang, Yuchen Li, Yuan Fang, Ju Fan, and Hongxia Yang. 2020. BiANE: Bipartite Attributed Network Embedding. In SIGIR.
+[20] Thomas N. Kipf and Max Welling. 2017. Semi-Supervised Classification with Graph Convolutional Networks. In ICLR.
+[21] Qimai Li, Zhichao Han, and Xiao-Ming Wu. 2018. Deeper Insights into Graph Convolutional Networks for Semi-Supervised Learning. ArXiv abs/1801.07606 (2018).
+[22] Xin Liu, Tsuyoshi Murata, Kyoung-Sook Kim, Chatchawan Kotarasu, and Chenyi Zhuang. 2019. A general view for network embedding as matrix factorization. In WSDM.
+[23] Walter Nelson, Marinka Zitnik, Bo Wang, Jure Leskovec, Anna Goldenberg, and Roded Sharan. 2019. To Embed or Not: Network Embedding as a Paradigm in Computational Biology. Frontiers in Genetics 10 (2019).
+[24] F. Pedregosa, G. Varoquaux, A. Gramfort, V. Michel, B. Thirion, O. Grisel, M. Blondel, P. Prettenhofer, R. Weiss, V. Dubourg, J. Vanderplas, A. Passos, D. Cournapeau, M. Brucher, M. Perrot, and E. Duchesnay. 2011. Scikit-learn: Machine Learning in Python. Journal of Machine Learning Research 12 (2011), 2825–2830.
+[25] Bryan Perozzi, Rami Al-Rfou, and Steven Skiena. 2014. DeepWalk: Online Learning of Social Representations. In KDD.
+[26] Chuan Shi, Binbin Hu, Wayne Xin Zhao, and Philip S. Yu. 2019. Heterogeneous Information Network Embedding for Recommendation. TKDE 31 (2019), 357–370.
+[27] Chang Su, Jie Tong, Yongjun Zhu, Peng Cui, and Fei Wang. 2020. Network embedding in biomedical data science. Briefings in bioinformatics (2020).
+[28] Xiangguo Sun, Hongzhi Yin, Bo Liu, H. Chen, J. Cao, Y. Shao, and N. Hung. 2021. Heterogeneous Hypergraph Embedding for Graph Classification. In WSDM.
+[29] Justin Sybrandt and Ilya Safro. 2019. FOBE and HOBE: First- and High-Order Bipartite Embeddings. ArXiv abs/1905.10953 (2019).
+[30] Jian Tang, Meng Qu, and Qiaozhu Mei. 2015. PTE: Predictive text embedding through large-scale heterogeneous text networks. In KDD.
+[31] Jian Tang, Meng Qu, Mingzhe Wang, Ming Zhang, Jun Yan, and Qiaozhu Mei. 2015. LINE: Large-scale Information Network Embedding. In WWW.
+[32] Jing Tang, Ziaurrehman Tanoli, Balaguru Ravikumar, and et al. 2018. Drug Target Commons: A Community Effort to Build a Consensus Knowledge Base for Drug-Target Interactions. Cell Chemical Biology 25 (2018), 224–229.e2.
+[33] Cunchao Tu, Han Liu, Zhiyuan Liu, and Maosong Sun. 2017. CANE: ContextAware Network Embedding for Relation Modeling. In ACL.
+[34] Ke Tu, Peng Cui, Xiao Wang, Fei Wang, and Wenwu Zhu. 2018. Structural Deep Embedding for Hyper-Networks. In AAAI.
+[35] Laurens van der Maaten and Geoffrey Hinton. 2008. Visualizing Data using t-SNE. Journal of Machine Learning Research 9, 86 (2008), 2579–2605.
+[36] Petar Veličković, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Liò, and Yoshua Bengio. 2018. Graph Attention Networks. In ICLR.
+[37] Daixin Wang, Peng Cui, and Wenwu Zhu. 2016. Structural Deep Network Embedding. In KDD.
+
+[38] Jianling Wang, Kaize Ding, Liangjie Hong, Huan Liu, and James Caverlee. 2020. Next-item Recommendation with Sequential Hypergraphs. In SIGIR.
+[39] Xiao Wang, Houye Ji, Chuan Shi, Bai Wang, Yanfang Ye, Peng Cui, and Philip S Yu. 2019. Heterogeneous Graph Attention Network. In WWW.
+[40] Hansheng Xue, Luwei Yang, Wen Jiang, Yi Wei, Yi Hu, and Yu Lin. 2020. Modeling Dynamic Heterogeneous Network for Link Prediction using Hierarchical Attention with Temporal RNN. In ECML/PKDD.
+[41] Naganand Yadati, Madhav Nimishakavi, Prateek Yadav, Vikram Nitin, Anand Louis, and Partha Pratim Talukdar. 2019. HyperGCN: A New Method For Training Graph Convolutional Networks on Hypergraphs. In NeurIPS.
+[42] Hongzhi Yin, Hongxu Chen, Xiaoshuai Sun, Hao Wang, Yang Wang, and Quoc Viet Hung Nguyen. 2017. SPTF: A Scalable Probabilistic Tensor Factorization
+
+Model for Semantic-Aware Behavior Prediction. In ICDM. [43] Rex Ying, Ruining He, Kaifeng Chen, Pong Eksombatchai, William L. Hamilton,
+and Jure Leskovec. 2018. Graph Convolutional Neural Networks for Web-Scale Recommender Systems. In KDD. [44] Chuxu Zhang, Dongjin Song, Chao Huang, Ananthram Swami, and Nitesh V. Chawla. 2019. Heterogeneous Graph Neural Network. In KDD. [45] Ruochi Zhang, Yuesong Zou, and Jian Ma. 2020. Hyper-SAGNN: a self-attention based graph neural network for hypergraphs. In ICLR. [46] Marinka Zitnik, Monica Agrawal, and Jure Leskovec. 2018. Modeling polypharmacy side effects with graph convolutional networks. Bioinformatics (2018).
+

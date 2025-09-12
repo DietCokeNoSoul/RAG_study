@@ -1,0 +1,4003 @@
+GPT-4 GPT-4o mini
+智能体
+工具
+音乐
+绘画
+新建对话组
+今天
+如何证明五色定理？
+1天前
+格式为.tex，翻译成中文：
+Xuan 等 - 2022 - Learning global dependencies and multi-seman
+glioma和glioblastoma的关联
+使用了随机森林算法可以视作为也使用了决策树算法吗？
+1-s2.0-S1532046420302525-main.pdf
+ijbsv14p1950.pdf
+s12859-018-2522-6.pdf
+bbz057.pdf
+ijms-19-03410.pdf
+改写一下这段话，格式为.tex：Wu et al.提出了一种基于多层注意力神经网络（multilayer attenti
+file.pdf
+一周前
+一个矩阵跟一个标量相乘，这种计算叫做什么？给出其英文名称
+胶质母细胞瘤属于中枢神经系统肿瘤吗？
+Android架构被设计出来的目标是什么
+GSMV_Response_to_reviewers.docx
+图神经网络和图注意力、图卷积网络是包含关系吗？
+这是一个作文模版：In recent years, the issue of_________has become a
+a7yhlq
+ChatGPT 4o 
+显示之前的消息
+管理文库
+2025-01-08 12:01:09
+
+下面这段.tex格式的英文段落，存在语法错误或者用词不当吗？：The dataset utilized in this study is derived from previous work \cite{lan2022kgancda}, which comprises two datasets containing circRNA and disease information. The first dataset covers 514 circRNAs, 62 diseases, and 564 miRNAs. The second dataset contains associations and interactions among 330 circRNAs, 79 diseases, and 245 miRNAs. We integrated these two datasets to form a new, larger dataset. This consolidated dataset consists of 989 circRNA-disease associations, 837 miRNA-disease associations, and 902 circRNA-miRNA interactions, covering a total of 834 circRNAs, 138 diseases, and 555 miRNAs. The original associations between circRNAs and diseases are sourced from the circR2Cancer database \cite{lan2020circr2cancer}, the circad database \cite{rophina2020circad}, and the circRNADisease database \cite{zhao2018circrna}.
+
+2025-01-08 12:01:09
+
+这段文本的语法和用词整体上是正确的，表达清晰且符合学术论文的风格。然而，有几个小的改进建议可以使其更加流畅和正式：
+
+"derived from previous work" 可以改为 "based on previous work"，以更好地表达数据集的来源。
+"contains associations and interactions among" 可以改为 "includes associations and interactions between"，因为这里涉及的是两个类别之间的关系。
+"to form a new, larger dataset" 可以改为 "to create a new, larger dataset"，以避免重复使用“form”这个词。
+"sourced from" 可以改为 "obtained from"，以更正式的方式表达数据来源。
+
+综合以上建议，修改后的段落如下：
+
+The dataset utilized in this study is based on previous work \cite{lan2022kgancda}, which comprises two datasets containing circRNA and disease information. The first dataset covers 514 circRNAs, 62 diseases, and 564 miRNAs. The second dataset includes associations and interactions between 330 circRNAs, 79 diseases, and 245 miRNAs. We integrated these two datasets to create a new, larger dataset. This consolidated dataset consists of 989 circRNA-disease associations, 837 miRNA-disease associations, and 902 circRNA-miRNA interactions, covering a total of 834 circRNAs, 138 diseases, and 555 miRNAs. The original associations between circRNAs and diseases are obtained from the circR2Cancer database \cite{lan2020circr2cancer}, the circad database \cite{rophina2020circad}, and the circRNADisease database \cite{zhao2018circrna}.
+
+这些改进可以使段落更加正式和流畅。
+
+2025-01-08 12:07:57
+
+参考Xuan 等 - 2022 - Learning global dependencies and multi-semantics within heterogeneous graph for predicting disease-r.pdf和Xuan 等 - 2024 - Dynamic category-sensitive hypergraph inferring and homo-heterogeneous neighbor feature learning for.pdf。请参照上述两个pdf论文中的英文风格，包括句式、用词均符合类似这两个论文这样的生信论文风格，把下面一段.tex文件的内容翻译成英文，不要错过任何细节：我们根据circRNA、miRNA与疾病之间的关联、互作以及相似性构建了一个三层异构图
+G=(V,E)
+G=(V,E)(Figure \ref{fig:visio2})。结点集
+V={Vcir∪Vdis∪Vmir}
+V={V
+cir
+∪V
+dis
+∪V
+mir
+}包括了circRNA结点的集合
+Vcir
+V
+cir
+，疾病结点的集合
+Vdis
+V
+dis
+和miRNA结点的集合
+Vmir
+V
+mir
+。边
+eij∈E
+e
+ij
+	​
+
+∈E连接了一对结点
+vi,vj∈V
+v
+i
+	​
+
+,v
+j
+	​
+
+∈V。边根据它们连接的结点类型被分类为层间类型和层内类型，由层间关联矩阵
+H
+H和层内相似性矩阵
+S
+S表示。
+
+circRNA、miRNA以及疾病间的关联与互作矩阵
+H
+H被定义为，
+\begin{equation}
+H = \left{ \begin{array}{l}
+{H^{cir-dis}}\ \in {\mathbbm{R}^{N_{cir}\times N_{dis}}},if\ {v_i} \in {V^{cir}},{v_j} \in {V^{dis}};\[5pt]
+{H^{mir-dis}}\ \in {\mathbbm{R}^{N_{mir}\times N_{dis}}},if\ {v_i} \in {V^{mir}},{v_j} \in {V^{dis}};\[5pt]
+{H^{cir-mir}} \in {\mathbbm{R}^{N_{cir}\times N_{mir}}},if\ {v_i} \in {V^{cir}},{v_j} \in {V^{mir}};\
+\end{array} \right.
+\end{equation}
+其中
+Hcir−dis
+H
+cir−dis
+、
+Hmir−dis
+H
+mir−dis
+和
+Hcir−mir
+H
+cir−mir
+分别表示circRNA-disease关联矩阵、miRNA-disease关联矩阵和circRNA-miRNA相互作用矩阵。
+Ncir
+N
+cir
+	​
+
+、
+Ndis
+N
+dis
+	​
+
+和
+Nmir
+N
+mir
+	​
+
+分别表示数据集中包含的circRNA、疾病和miRNA的数量。
+Hij∈Hcirc−dis(Hmir−dis)
+H
+ij
+	​
+
+∈H
+circ−dis
+(H
+mir−dis
+)表示circRNA (miRNA)结点
+vicir(vimi)
+v
+i
+cir
+	​
+
+(v
+i
+mi
+	​
+
+)和疾病结点
+vjdis
+v
+j
+dis
+	​
+
+之间的关联。对于一个circRNA(mirRNA)结点 
+vicir
+v
+i
+cir
+	​
+
+ (
+vimir
+v
+i
+mir
+	​
+
+)和一个疾病结点
+djdis
+d
+j
+dis
+	​
+
+，如果
+Hijcir−dis=1
+H
+ij
+cir−dis
+	​
+
+=1 (
+Hijmir−dis=1
+H
+ij
+mir−dis
+	​
+
+=1)，则表示他们之间存在关联；反之，
+Hijcir−dis=0
+H
+ij
+cir−dis
+	​
+
+=0 (
+Hijmir−dis=0
+H
+ij
+mir−dis
+	​
+
+=0)表示没有观察到他们的关联。如果
+Hijcir−mir=1
+H
+ij
+cir−mir
+	​
+
+=1则表示circRNA结点
+vicir
+v
+i
+cir
+	​
+
+和miRNA结点
+vjmir
+v
+j
+mir
+	​
+
+之间存在相互作用，否则
+Hijcirc−mir=0
+H
+ij
+circ−mir
+	​
+
+=0。
+
+S
+S表示circRNA间的相似性、miRNA间的相似性以及疾病间的相似性矩阵，
+\begin{equation}
+S = \left{ \begin{array}{l}
+{S^{cir}} \in {\mathbbm{R}^{N_{cir}\times N_{cir}}},if\ {v_i},{v_j} \in {V^{cir}};\[5pt]
+{S^{dis}} \in {\ \mathbbm{R}^{N_{dis}\times N_{dis}}}\ \ ,if\ {v_i},{v_j} \in {V^{dis}}\ ;\[5pt]
+{S^{mir}} \in {\mathbbm{R}^{N_{mir}\times N_{mir}}},if\ {v_i},{v_j} \in {V^{mir}};\[5pt]
+\end{array} \right.
+\end{equation}
+其中
+Scir
+S
+cir
+、
+Sdis
+S
+dis
+和
+Smir
+S
+mir
+分别是circRNA、疾病和miRNA的相似性矩阵。
+Scir
+S
+cir
+、
+Sdis
+S
+dis
+和
+Smir
+S
+mir
+中的元素值在0到1之间，反映相同类型的两个节点之间的相似程度，元素值越高表示两个结点之间的相似度越大。
+
+依据Wang等人\cite{wang2010inferring}的方法，一对疾病结点
+[vidis,vjdis]
+[v
+i
+dis
+	​
+
+,v
+j
+dis
+	​
+
+]的相似性被计算based on他们的有向无环图(DAG)。
+circRNAs和miRNAs的相似性分别通过Wang等人\cite{wang2010inferring}和Chen等人\cite{chen2015constructing}提出的方法来计算，即一对circRNAs(miRNAs)的相似性通过与它们相关联的两组疾病之间的相似性来计算得到。For instance，假设第i个circRNA结点 
+vicir
+v
+i
+cir
+	​
+
+与
+Nciri
+N
+cir
+i
+	​
+
+个疾病关联，形成集合
+Ωicir={dik∣k=1,…,Nciri}
+Ω
+i
+cir
+	​
+
+={d
+ik
+	​
+
+∣k=1,…,N
+cir
+i
+	​
+
+}，第j个circRNA结点 
+vjcir
+v
+j
+cir
+	​
+
+关联的疾病集合为
+Ωjcir={djl∣l=1,…,Ncirj}
+Ω
+j
+cir
+	​
+
+={d
+jl
+	​
+
+∣l=1,…,N
+cir
+j
+	​
+
+}， 
+[vicir,vjcir]
+[v
+i
+cir
+	​
+
+,v
+j
+cir
+	​
+
+]的相似性
+Sijcir
+S
+ij
+cir
+	​
+
+通过评估
+Ωicir
+Ω
+i
+cir
+	​
+
+和
+Ωjcir
+Ω
+j
+cir
+	​
+
+之间的相似性来确定。类似的，我们可以计算得到
+[vimir,vjmir]
+[v
+i
+mir
+	​
+
+,v
+j
+mir
+	​
+
+]的相似性
+Sijmir
+S
+ij
+mir
+	​
+
+。
+
+根据构建的结点间关联(互作)矩阵H和相似性矩阵S，异构图的原始特征矩阵
+G(0)∈RNv×Nv
+G
+(0)
+∈R
+N
+v
+	​
+
+×N
+v
+	​
+
+被定义为，
+\begin{equation}
+G^{(0)} = \left[\ \begin{array}{lll}
+H^{cir} & S^{circ-dis} & S^{circ-mir}\
+{S^{circ-dis}}^T & H^{dis} & {S^{mir-dis}}^T\
+{S^{circ-mir}}^T & S^{mir-dis} & H^{mir}\
+\end{array} \right],
+\end{equation}
+其中
+Nv
+N
+v
+	​
+
+为是所有circRNA、miRNA和疾病的总数，
+Scirc−disT
+S
+circ−dis
+T
+ 表示为矩阵
+Scirc−dis
+S
+circ−dis
+的转置。矩阵
+G(0)
+G
+(0)
+的第i行
+gi
+g
+i
+	​
+
+代表结点
+vi∈V
+v
+i
+	​
+
+∈V的结点嵌入，其中包含了
+vi
+v
+i
+	​
+
+与所有circRNA、疾病和miRNA之间的关联和相似性。
+{gi∣0⩽i<Ncir}
+{g
+i
+	​
+
+∣0⩽i<N
+cir
+	​
+
+}表示所有circRNA的结点嵌入的集合。此外，集合
+{gi∣Ncir⩽i<Ncir+Ndis}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
+}和
+{gi∣Ncir+Ndis⩽i<Ncir+Ndis+Nmir}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
++N
+dis
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
++N
+mir
+	​
+
+}分别是所有疾病和所有miRNA的结点嵌入集合。
+
+\vspace{0.3cm}
+
+2025-01-08 12:07:57
+
+We constructed a three-layer heterogeneous graph 
+G=(V,E)
+G=(V,E) based on the associations, interactions, and similarities among circRNAs, miRNAs, and diseases (Figure \ref{fig:visio2}). The node set 
+V={Vcir∪Vdis∪Vmir}
+V={V
+cir
+∪V
+dis
+∪V
+mir
+} includes the set of circRNA nodes 
+Vcir
+V
+cir
+, the set of disease nodes 
+Vdis
+V
+dis
+, and the set of miRNA nodes 
+Vmir
+V
+mir
+. An edge 
+eij∈E
+e
+ij
+	​
+
+∈E connects a pair of nodes 
+vi,vj∈V
+v
+i
+	​
+
+,v
+j
+	​
+
+∈V. Edges are classified into inter-layer and intra-layer types based on the types of nodes they connect, represented by the inter-layer association matrix 
+H
+H and the intra-layer similarity matrix 
+S
+S.
+
+The association and interaction matrix 
+H
+H among circRNAs, miRNAs, and diseases is defined as follows:
+\begin{equation}
+H = \left{ \begin{array}{l}
+{H^{cir-dis}} \in {\mathbbm{R}^{N_{cir}\times N_{dis}}}, \text{ if } {v_i} \in {V^{cir}}, {v_j} \in {V^{dis}};\[5pt]
+{H^{mir-dis}} \in {\mathbbm{R}^{N_{mir}\times N_{dis}}}, \text{ if } {v_i} \in {V^{mir}}, {v_j} \in {V^{dis}};\[5pt]
+{H^{cir-mir}} \in {\mathbbm{R}^{N_{cir}\times N_{mir}}}, \text{ if } {v_i} \in {V^{cir}}, {v_j} \in {V^{mir}};\
+\end{array} \right.
+\end{equation}
+where 
+Hcir−dis
+H
+cir−dis
+, 
+Hmir−dis
+H
+mir−dis
+, and 
+Hcir−mir
+H
+cir−mir
+ denote the circRNA-disease association matrix, the miRNA-disease association matrix, and the circRNA-miRNA interaction matrix, respectively. 
+Ncir
+N
+cir
+	​
+
+, 
+Ndis
+N
+dis
+	​
+
+, and 
+Nmir
+N
+mir
+	​
+
+ represent the number of circRNAs, diseases, and miRNAs contained in the dataset. 
+Hij∈Hcir−dis(Hmir−dis)
+H
+ij
+	​
+
+∈H
+cir−dis
+(H
+mir−dis
+) indicates the association between the circRNA (miRNA) node 
+vicir(vimir)
+v
+i
+cir
+	​
+
+(v
+i
+mir
+	​
+
+) and the disease node 
+vjdis
+v
+j
+dis
+	​
+
+. For a circRNA (miRNA) node 
+vicir
+v
+i
+cir
+	​
+
+ (
+vimir
+v
+i
+mir
+	​
+
+) and a disease node 
+djdis
+d
+j
+dis
+	​
+
+, if 
+Hijcir−dis=1
+H
+ij
+cir−dis
+	​
+
+=1 (
+Hijmir−dis=1
+H
+ij
+mir−dis
+	​
+
+=1), it indicates that an association exists between them; conversely, 
+Hijcir−dis=0
+H
+ij
+cir−dis
+	​
+
+=0 (
+Hijmir−dis=0
+H
+ij
+mir−dis
+	​
+
+=0) indicates that no association has been observed. If 
+Hijcir−mir=1
+H
+ij
+cir−mir
+	​
+
+=1, it indicates that there is an interaction between the circRNA node 
+vicir
+v
+i
+cir
+	​
+
+ and the miRNA node 
+vjmir
+v
+j
+mir
+	​
+
+; otherwise, 
+Hijcir−mir=0
+H
+ij
+cir−mir
+	​
+
+=0.
+
+S
+S represents the similarity matrices among circRNAs, miRNAs, and diseases:
+\begin{equation}
+S = \left{ \begin{array}{l}
+{S^{cir}} \in {\mathbbm{R}^{N_{cir}\times N_{cir}}}, \text{ if } {v_i},{v_j} \in {V^{cir}};\[5pt]
+{S^{dis}} \in {\mathbbm{R}^{N_{dis}\times N_{dis}}}, \text{ if } {v_i},{v_j} \in {V^{dis}};\[5pt]
+{S^{mir}} \in {\mathbbm{R}^{N_{mir}\times N_{mir}}}, \text{ if } {v_i},{v_j} \in {V^{mir}};\
+\end{array} \right.
+\end{equation}
+where 
+Scir
+S
+cir
+, 
+Sdis
+S
+dis
+, and 
+Smir
+S
+mir
+ are the similarity matrices for circRNAs, diseases, and miRNAs, respectively. The element values in 
+Scir
+S
+cir
+, 
+Sdis
+S
+dis
+, and 
+Smir
+S
+mir
+ range from 0 to 1, reflecting the degree of similarity between two nodes of the same type, with higher values indicating greater similarity between the two nodes.
+
+According to the method proposed by Wang et al. \cite{wang2010inferring}, the similarity of a pair of disease nodes 
+[vidis,vjdis]
+[v
+i
+dis
+	​
+
+,v
+j
+dis
+	​
+
+] is computed based on their directed acyclic graph (DAG). The similarities of circRNAs and miRNAs are calculated using the methods proposed by Wang et al. \cite{wang2010inferring} and Chen et al. \cite{chen2015constructing}, respectively, where the similarity of a pair of circRNAs (miRNAs) is derived from the similarity between the two sets of diseases associated with them. For instance, suppose the 
+i
+i-th circRNA node 
+vicir
+v
+i
+cir
+	​
+
+ is associated with 
+Nciri
+N
+cir
+i
+	​
+
+ diseases, forming the set 
+Ωicir={dik∣k=1,…,Nciri}
+Ω
+i
+cir
+	​
+
+={d
+ik
+	​
+
+∣k=1,…,N
+cir
+i
+	​
+
+}, and the 
+j
+j-th circRNA node 
+vjcir
+v
+j
+cir
+	​
+
+ is associated with the disease set 
+Ωjcir={djl∣l=1,…,Ncirj}
+Ω
+j
+cir
+	​
+
+={d
+jl
+	​
+
+∣l=1,…,N
+cir
+j
+	​
+
+}. The similarity 
+Sijcir
+S
+ij
+cir
+	​
+
+ of 
+[vicir,vjcir]
+[v
+i
+cir
+	​
+
+,v
+j
+cir
+	​
+
+] is determined by assessing the similarity between 
+Ωicir
+Ω
+i
+cir
+	​
+
+ and 
+Ωjcir
+Ω
+j
+cir
+	​
+
+. Similarly, we can compute the similarity 
+Sijmir
+S
+ij
+mir
+	​
+
+ for 
+[vimir,vjmir]
+[v
+i
+mir
+	​
+
+,v
+j
+mir
+	​
+
+].
+
+Based on the constructed association (interaction) matrix 
+H
+H and the similarity matrix 
+S
+S, the original feature matrix of the heterogeneous graph 
+G(0)∈RNv×Nv
+G
+(0)
+∈R
+N
+v
+	​
+
+×N
+v
+	​
+
+ is defined as follows:
+\begin{equation}
+G^{(0)} = \left[\ \begin{array}{lll}
+H^{cir} & S^{cir-dis} & S^{cir-mir}\
+{S^{cir-dis}}^T & H^{dis} & {S^{mir-dis}}^T\
+{S^{cir-mir}}^T & S^{mir-dis} & H^{mir}\
+\end{array} \right],
+\end{equation}
+where 
+Nv
+N
+v
+	​
+
+ denotes the total number of all circRNAs, miRNAs, and diseases, and 
+Scir−disT
+S
+cir−dis
+T
+ represents the transpose of the matrix 
+Scir−dis
+S
+cir−dis
+. The 
+i
+i-th row 
+gi
+g
+i
+	​
+
+ of the matrix 
+G(0)
+G
+(0)
+ represents the node embedding of node 
+vi∈V
+v
+i
+	​
+
+∈V, which encapsulates the associations and similarities between 
+vi
+v
+i
+	​
+
+ and all circRNAs, diseases, and miRNAs. The set 
+{gi∣0⩽i<Ncir}
+{g
+i
+	​
+
+∣0⩽i<N
+cir
+	​
+
+} represents the collection of node embeddings for all circRNAs. Furthermore, the sets 
+{gi∣Ncir⩽i<Ncir+Ndis}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
+} and 
+{gi∣Ncir+Ndis⩽i<Ncir+Ndis+Nmir}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
++N
+dis
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
++N
+mir
+	​
+
+} represent the collections of node embeddings for all diseases and all miRNAs, respectively.
+
+\vspace{0.3cm}
+
+2025-01-08 12:08:50
+
+请输出为.tex格式
+
+2025-01-08 12:08:50
+
+以下是将您提供的段落转换为 .tex 格式的代码：
+
+We constructed a three-layer heterogeneous graph $\mathcal{G}=(\mathcal{V}, \mathcal{E})$ based on the associations, interactions, and similarities among circRNAs, miRNAs, and diseases (Figure \ref{fig:visio2}). The node set $\mathcal{V}=\{V^{cir}\cup V^{dis}\cup V^{mir}\}$ includes the set of circRNA nodes $V^{cir}$, the set of disease nodes $V^{dis}$, and the set of miRNA nodes $V^{mir}$. An edge $e_{ij} \in \mathcal{E}$ connects a pair of nodes $v_i,v_j \in \mathcal{V}$. Edges are classified into inter-layer and intra-layer types based on the types of nodes they connect, represented by the inter-layer association matrix $H$ and the intra-layer similarity matrix $S$.
+
+The association and interaction matrix $H$ among circRNAs, miRNAs, and diseases is defined as follows:
+\begin{equation}
+H = \left\{ \begin{array}{l}
+{H^{cir-dis}} \in {\mathbbm{R}^{N_{cir}\times N_{dis}}}, \text{ if } {v_i} \in {V^{cir}}, {v_j} \in {V^{dis}};\\[5pt]
+{H^{mir-dis}} \in {\mathbbm{R}^{N_{mir}\times N_{dis}}}, \text{ if } {v_i} \in {V^{mir}}, {v_j} \in {V^{dis}};\\[5pt]
+{H^{cir-mir}} \in {\mathbbm{R}^{N_{cir}\times N_{mir}}}, \text{ if } {v_i} \in {V^{cir}}, {v_j} \in {V^{mir}};\\
+\end{array} \right.
+\end{equation}
+where $H^{cir-dis}$, $H^{mir-dis}$, and $H^{cir-mir}$ denote the circRNA-disease association matrix, the miRNA-disease association matrix, and the circRNA-miRNA interaction matrix, respectively. $N_{cir}$, $N_{dis}$, and $N_{mir}$ represent the number of circRNAs, diseases, and miRNAs contained in the dataset. $H_{ij} \in H^{cir-dis} (H^{mir-dis})$ indicates the association between the circRNA (miRNA) node $v_i^{cir}(v_i^{mir})$ and the disease node $v_j^{dis}$. For a circRNA (miRNA) node $v_i^{cir}$ ($v_i^{mir}$) and a disease node $d_j^{dis}$, if $H_{ij}^{cir-dis}=1$ ($H_{ij}^{mir-dis}=1$), it indicates that an association exists between them; conversely, $H_{ij}^{cir-dis}=0$ ($H_{ij}^{mir-dis}=0$) indicates that no association has been observed. If $H_{ij}^{cir-mir}=1$, it indicates that there is an interaction between the circRNA node $v_i^{cir}$ and the miRNA node $v_j^{mir}$; otherwise, $H_{ij}^{cir-mir}=0$.
+
+$S$ represents the similarity matrices among circRNAs, miRNAs, and diseases:
+\begin{equation}
+S = \left\{ \begin{array}{l}
+{S^{cir}} \in {\mathbbm{R}^{N_{cir}\times N_{cir}}}, \text{ if } {v_i},{v_j} \in {V^{cir}};\\[5pt]
+{S^{dis}} \in {\mathbbm{R}^{N_{dis}\times N_{dis}}}, \text{ if } {v_i},{v_j} \in {V^{dis}};\\[5pt]
+{S^{mir}} \in {\mathbbm{R}^{N_{mir}\times N_{mir}}}, \text{ if } {v_i},{v_j} \in {V^{mir}};\\
+\end{array} \right.
+\end{equation}
+where $S^{cir}$, $S^{dis}$, and $S^{mir}$ are the similarity matrices for circRNAs, diseases, and miRNAs, respectively. The element values in $S^{cir}$, $S^{dis}$, and $S^{mir}$ range from 0 to 1, reflecting the degree of similarity between two nodes of the same type, with higher values indicating greater similarity between the two nodes.
+
+According to the method proposed by Wang et al. \cite{wang2010inferring}, the similarity of a pair of disease nodes $[v_i^{dis},v_j^{dis}]$ is computed based on their directed acyclic graph (DAG). The similarities of circRNAs and miRNAs are calculated using the methods proposed by Wang et al. \cite{wang2010inferring} and Chen et al. \cite{chen2015constructing}, respectively, where the similarity of a pair of circRNAs (miRNAs) is derived from the similarity between the two sets of diseases associated with them. For instance, suppose the $i$-th circRNA node $v_i^{cir}$ is associated with $N_{cir}^i$ diseases, forming the set $\Omega_i^{cir} = \{d_{ik} | k = 1, \ldots, N_{cir}^i\}$, and the $j$-th circRNA node $v_j^{cir}$ is associated with the disease set $\Omega_j^{cir} = \{d_{jl} | l = 1, \ldots, N_{cir}^j\}$. The similarity $S_{ij}^{cir}$ of $[v_i^{cir},v_j^{cir}]$ is determined by assessing the similarity between $\Omega_i^{cir}$ and $\Omega_j^{cir}$. Similarly, we can compute the similarity $S_{ij}^{mir}$ for $[v_i^{mir},v_j^{mir}]$.
+
+Based on the constructed association (interaction) matrix $H$ and the similarity matrix $S$, the original feature matrix of the heterogeneous graph $G^{(0)} \in \mathbb{R}^{N_v\times N_v}$ is defined as follows:
+\begin{equation}
+G^{(0)} = \left[\ \begin{array}{lll}
+H^{cir} & S^{cir-dis} & S^{cir-mir}\\
+{S^{cir-dis}}^T & H^{dis} & {S^{mir-dis}}^T\\
+{S^{cir-mir}}^T & S^{mir-dis} & H^{mir}\\
+\end{array} \right],
+\end{equation}
+where $N_v$ denotes the total number of all circRNAs, miRNAs, and diseases, and ${S^{cir-dis}}^T$ represents the transpose of the matrix $S^{cir-dis}$. The $i$-th row $g_i$ of the matrix $G^{(0)}$ represents the node embedding of node $v_i \in \mathcal{V}$, which encapsulates the associations and similarities between $v_i$ and all circRNAs, diseases, and miRNAs. The set $\{g_i | 0 \leqslant i < N_{cir}\}$ represents the collection of node embeddings for all circRNAs. Furthermore, the sets $\{g_i | N_{cir} \leqslant i < N_{cir} + N_{dis}\}$ and $\{g_i | N_{cir} + N_{dis} \leqslant i < N_{cir} + N_{dis} + N_{mir}\}$ represent the collections of node embeddings for all diseases and all miRNAs, respectively.
+
+\vspace{0.3cm}
+
+
+您可以将上述代码直接复制到您的 .tex 文件中，以保持格式和内容的完整性。
+
+2025-01-08 16:12:53
+
+参考Xuan 等 - 2022 - Learning global dependencies and multi-semantics within heterogeneous graph for predicting disease-r.pdf和Xuan 等 - 2024 - Dynamic category-sensitive hypergraph inferring and homo-heterogeneous neighbor feature learning for.pdf。请参照上述两个pdf论文中的英文风格，包括句式、用词均符合类似这两个论文这样的生信论文风格，把下面一段.tex文件的内容翻译成英文，不要错过任何细节，输出为.tex格式：我们根据circRNA、miRNA与疾病之间的关联、互作以及相似性构建了一个三层异构图
+G=(V,E)
+G=(V,E)(Figure \ref{fig:visio2})。结点集
+V={Vcir∪Vdis∪Vmir}
+V={V
+cir
+∪V
+dis
+∪V
+mir
+}包括了circRNA结点的集合
+Vcir
+V
+cir
+，疾病结点的集合
+Vdis
+V
+dis
+和miRNA结点的集合
+Vmir
+V
+mir
+。边
+eij∈E
+e
+ij
+	​
+
+∈E连接了一对结点
+vi,vj∈V
+v
+i
+	​
+
+,v
+j
+	​
+
+∈V，由关联与互作矩阵
+H
+H和相似性矩阵
+S
+S表示。
+
+circRNA、miRNA以及疾病间的关联与互作矩阵
+H
+H被定义为，
+\begin{equation}
+H = \left{ \begin{array}{l}
+{H^{cir-dis}}\ \in {\mathbbm{R}^{N_{cir}\times N_{dis}}},if\ {v_i} \in {V^{cir}},{v_j} \in {V^{dis}};\[5pt]
+{H^{mir-dis}}\ \in {\mathbbm{R}^{N_{mir}\times N_{dis}}},if\ {v_i} \in {V^{mir}},{v_j} \in {V^{dis}};\[5pt]
+{H^{cir-mir}} \in {\mathbbm{R}^{N_{cir}\times N_{mir}}},if\ {v_i} \in {V^{cir}},{v_j} \in {V^{mir}};\
+\end{array} \right.
+\end{equation}
+其中
+Hcir−dis
+H
+cir−dis
+、
+Hmir−dis
+H
+mir−dis
+和
+Hcir−mir
+H
+cir−mir
+分别表示circRNA-disease关联矩阵、miRNA-disease关联矩阵和circRNA-miRNA相互作用矩阵。
+Ncir
+N
+cir
+	​
+
+、
+Ndis
+N
+dis
+	​
+
+和
+Nmir
+N
+mir
+	​
+
+分别表示数据集中包含的circRNA、疾病和miRNA的数量。
+Hij∈Hcirc−dis(Hmir−dis)
+H
+ij
+	​
+
+∈H
+circ−dis
+(H
+mir−dis
+)表示circRNA (miRNA)结点
+vicir(vimi)
+v
+i
+cir
+	​
+
+(v
+i
+mi
+	​
+
+)和疾病结点
+vjdis
+v
+j
+dis
+	​
+
+之间的关联。对于一个circRNA(mirRNA)结点 
+vicir
+v
+i
+cir
+	​
+
+ (
+vimir
+v
+i
+mir
+	​
+
+)和一个疾病结点
+djdis
+d
+j
+dis
+	​
+
+，如果
+Hijcir−dis=1
+H
+ij
+cir−dis
+	​
+
+=1 (
+Hijmir−dis=1
+H
+ij
+mir−dis
+	​
+
+=1)，则表示他们之间存在关联；反之，
+Hijcir−dis=0
+H
+ij
+cir−dis
+	​
+
+=0 (
+Hijmir−dis=0
+H
+ij
+mir−dis
+	​
+
+=0)表示没有观察到他们的关联。如果
+Hijcir−mir=1
+H
+ij
+cir−mir
+	​
+
+=1则表示circRNA结点
+vicir
+v
+i
+cir
+	​
+
+和miRNA结点
+vjmir
+v
+j
+mir
+	​
+
+之间存在相互作用，否则
+Hijcirc−mir=0
+H
+ij
+circ−mir
+	​
+
+=0。
+
+S
+S表示circRNA间的相似性、miRNA间的相似性以及疾病间的相似性矩阵，
+\begin{equation}
+S = \left{ \begin{array}{l}
+{S^{cir}} \in {\mathbbm{R}^{N_{cir}\times N_{cir}}},if\ {v_i},{v_j} \in {V^{cir}};\[5pt]
+{S^{dis}} \in {\ \mathbbm{R}^{N_{dis}\times N_{dis}}}\ \ ,if\ {v_i},{v_j} \in {V^{dis}}\ ;\[5pt]
+{S^{mir}} \in {\mathbbm{R}^{N_{mir}\times N_{mir}}},if\ {v_i},{v_j} \in {V^{mir}};\[5pt]
+\end{array} \right.
+\end{equation}
+其中
+Scir
+S
+cir
+、
+Sdis
+S
+dis
+和
+Smir
+S
+mir
+分别是circRNA、疾病和miRNA的相似性矩阵。
+Scir
+S
+cir
+、
+Sdis
+S
+dis
+和
+Smir
+S
+mir
+中的元素值在0到1之间，反映相同类型的两个节点之间的相似程度，元素值越高表示两个结点之间的相似度越大。
+
+依据Wang等人\cite{wang2010inferring}的方法，一对疾病结点
+[vidis,vjdis]
+[v
+i
+dis
+	​
+
+,v
+j
+dis
+	​
+
+]的相似性被计算based on他们的有向无环图(DAG)。
+circRNAs和miRNAs的相似性分别通过Wang等人\cite{wang2010inferring}和Chen等人\cite{chen2015constructing}提出的方法来计算，即一对circRNAs(miRNAs)的相似性通过与它们相关联的两组疾病之间的相似性来计算得到。For instance，假设第i个circRNA结点 
+vicir
+v
+i
+cir
+	​
+
+与
+Nciri
+N
+cir
+i
+	​
+
+个疾病关联，形成集合
+Ωicir={dik∣k=1,…,Nciri}
+Ω
+i
+cir
+	​
+
+={d
+ik
+	​
+
+∣k=1,…,N
+cir
+i
+	​
+
+}，第j个circRNA结点 
+vjcir
+v
+j
+cir
+	​
+
+关联的疾病集合为
+Ωjcir={djl∣l=1,…,Ncirj}
+Ω
+j
+cir
+	​
+
+={d
+jl
+	​
+
+∣l=1,…,N
+cir
+j
+	​
+
+}， 
+[vicir,vjcir]
+[v
+i
+cir
+	​
+
+,v
+j
+cir
+	​
+
+]的相似性
+Sijcir
+S
+ij
+cir
+	​
+
+通过评估
+Ωicir
+Ω
+i
+cir
+	​
+
+和
+Ωjcir
+Ω
+j
+cir
+	​
+
+之间的相似性来确定。类似的，我们可以计算得到
+[vimir,vjmir]
+[v
+i
+mir
+	​
+
+,v
+j
+mir
+	​
+
+]的相似性
+Sijmir
+S
+ij
+mir
+	​
+
+。
+
+根据构建的结点间关联(互作)矩阵H和相似性矩阵S，异构图的原始特征矩阵
+G(0)∈RNv×Nv
+G
+(0)
+∈R
+N
+v
+	​
+
+×N
+v
+	​
+
+被定义为，
+\begin{equation}
+G^{(0)} = \left[\ \begin{array}{lll}
+H^{cir} & S^{circ-dis} & S^{circ-mir}\
+{S^{circ-dis}}^T & H^{dis} & {S^{mir-dis}}^T\
+{S^{circ-mir}}^T & S^{mir-dis} & H^{mir}\
+\end{array} \right],
+\end{equation}
+其中
+Nv
+N
+v
+	​
+
+为是所有circRNA、miRNA和疾病的总数，
+Scirc−disT
+S
+circ−dis
+T
+ 表示为矩阵
+Scirc−dis
+S
+circ−dis
+的转置。矩阵
+G(0)
+G
+(0)
+的第i行
+gi
+g
+i
+	​
+
+代表结点
+vi∈V
+v
+i
+	​
+
+∈V的结点嵌入，其中包含了
+vi
+v
+i
+	​
+
+与所有circRNA、疾病和miRNA之间的关联和相似性。
+{gi∣0⩽i<Ncir}
+{g
+i
+	​
+
+∣0⩽i<N
+cir
+	​
+
+}表示所有circRNA的结点嵌入的集合。此外，集合
+{gi∣Ncir⩽i<Ncir+Ndis}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
+}和
+{gi∣Ncir+Ndis⩽i<Ncir+Ndis+Nmir}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
++N
+dis
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
++N
+mir
+	​
+
+}分别是所有疾病和所有miRNA的结点嵌入集合。
+
+2025-01-08 16:12:53
+
+以下是将您提供的段落翻译成英文并格式化为 .tex 文件的代码：
+
+We constructed a three-layer heterogeneous graph $\mathcal{G}=(\mathcal{V}, \mathcal{E})$ based on the associations, interactions, and similarities among circRNAs, miRNAs, and diseases (Figure \ref{fig:visio2}). The node set $\mathcal{V}=\{V^{cir}\cup V^{dis}\cup V^{mir}\}$ comprises the set of circRNA nodes $V^{cir}$, the set of disease nodes $V^{dis}$, and the set of miRNA nodes $V^{mir}$. An edge $e_{ij} \in \mathcal{E}$ connects a pair of nodes $v_i,v_j \in \mathcal{V}$, represented by the association and interaction matrix $H$ and the similarity matrix $S$.
+
+The association and interaction matrix $H$ among circRNAs, miRNAs, and diseases is defined as follows:
+\begin{equation}
+H = \left\{ \begin{array}{l}
+{H^{cir-dis}} \in {\mathbbm{R}^{N_{cir}\times N_{dis}}}, \text{ if } {v_i} \in {V^{cir}}, {v_j} \in {V^{dis}};\\[5pt]
+{H^{mir-dis}} \in {\mathbbm{R}^{N_{mir}\times N_{dis}}}, \text{ if } {v_i} \in {V^{mir}}, {v_j} \in {V^{dis}};\\[5pt]
+{H^{cir-mir}} \in {\mathbbm{R}^{N_{cir}\times N_{mir}}}, \text{ if } {v_i} \in {V^{cir}}, {v_j} \in {V^{mir}};\\
+\end{array} \right.
+\end{equation}
+where $H^{cir-dis}$, $H^{mir-dis}$, and $H^{cir-mir}$ denote the circRNA-disease association matrix, the miRNA-disease association matrix, and the circRNA-miRNA interaction matrix, respectively. $N_{cir}$, $N_{dis}$, and $N_{mir}$ represent the number of circRNAs, diseases, and miRNAs contained in the dataset. $H_{ij} \in H^{cir-dis} (H^{mir-dis})$ indicates the association between the circRNA (miRNA) node $v_i^{cir}(v_i^{mir})$ and the disease node $v_j^{dis}$. For a circRNA (miRNA) node $v_i^{cir}$ ($v_i^{mir}$) and a disease node $d_j^{dis}$, if $H_{ij}^{cir-dis}=1$ ($H_{ij}^{mir-dis}=1$), it indicates that an association exists between them; conversely, $H_{ij}^{cir-dis}=0$ ($H_{ij}^{mir-dis}=0$) indicates that no association has been observed. If $H_{ij}^{cir-mir}=1$, it indicates that there is an interaction between the circRNA node $v_i^{cir}$ and the miRNA node $v_j^{mir}$; otherwise, $H_{ij}^{cir-mir}=0$.
+
+$S$ represents the similarity matrices among circRNAs, miRNAs, and diseases:
+\begin{equation}
+S = \left\{ \begin{array}{l}
+{S^{cir}} \in {\mathbbm{R}^{N_{cir}\times N_{cir}}}, \text{ if } {v_i},{v_j} \in {V^{cir}};\\[5pt]
+{S^{dis}} \in {\mathbbm{R}^{N_{dis}\times N_{dis}}}, \text{ if } {v_i},{v_j} \in {V^{dis}};\\[5pt]
+{S^{mir}} \in {\mathbbm{R}^{N_{mir}\times N_{mir}}}, \text{ if } {v_i},{v_j} \in {V^{mir}};\\
+\end{array} \right.
+\end{equation}
+where $S^{cir}$, $S^{dis}$, and $S^{mir}$ are the similarity matrices for circRNAs, diseases, and miRNAs, respectively. The element values in $S^{cir}$, $S^{dis}$, and $S^{mir}$ range from 0 to 1, reflecting the degree of similarity between two nodes of the same type, with higher values indicating greater similarity between the two nodes.
+
+According to the method proposed by Wang et al. \cite{wang2010inferring}, the similarity of a pair of disease nodes $[v_i^{dis},v_j^{dis}]$ is computed based on their directed acyclic graph (DAG). The similarities of circRNAs and miRNAs are calculated using the methods proposed by Wang et al. \cite{wang2010inferring} and Chen et al. \cite{chen2015constructing}, respectively, where the similarity of a pair of circRNAs (miRNAs) is derived from the similarity between the two sets of diseases associated with them. For instance, suppose the $i$-th circRNA node $v_i^{cir}$ is associated with $N_{cir}^i$ diseases, forming the set $\Omega_i^{cir} = \{d_{ik} | k = 1, \ldots, N_{cir}^i\}$, and the $j$-th circRNA node $v_j^{cir}$ is associated with the disease set $\Omega_j^{cir} = \{d_{jl} | l = 1, \ldots, N_{cir}^j\}$. The similarity $S_{ij}^{cir}$ of $[v_i^{cir},v_j^{cir}]$ is determined by assessing the similarity between $\Omega_i^{cir}$ and $\Omega_j^{cir}$. Similarly, we can compute the similarity $S_{ij}^{mir}$ for $[v_i^{mir},v_j^{mir}]$.
+
+Based on the constructed association (interaction) matrix $H$ and the similarity matrix $S$, the original feature matrix of the heterogeneous graph $G^{(0)} \in \mathbb{R}^{N_v\times N_v}$ is defined as follows:
+\begin{equation}
+G^{(0)} = \left[\ \begin{array}{lll}
+H^{cir} & S^{cir-dis} & S^{cir-mir}\\
+{S^{cir-dis}}^T & H^{dis} & {S^{mir-dis}}^T\\
+{S^{cir-mir}}^T & S^{mir-dis} & H^{mir}\\
+\end{array} \right],
+\end{equation}
+where $N_v$ denotes the total number of all circRNAs, miRNAs, and diseases, and ${S^{cir-dis}}^T$ represents the transpose of the matrix $S^{cir-dis}$. The $i$-th row $g_i$ of the matrix $G^{(0)}$ represents the node embedding of node $v_i \in \mathcal{V}$, which encapsulates the associations and similarities between $v_i$ and all circRNAs, diseases, and miRNAs. The set $\{g_i | 0 \leqslant i < N_{cir}\}$ represents the collection of node embeddings for all circRNAs. Furthermore, the sets $\{g_i | N_{cir} \leqslant i < N_{cir} + N_{dis}\}$ and $\{g_i | N_{cir} + N_{dis} \leqslant i < N_{cir} + N_{dis} + N_{mir}\}$ represent the collections of node embeddings for all diseases and all miRNAs, respectively.
+
+
+您可以将上述代码直接复制到您的 .tex 文件中，以保持格式和内容的完整性。
+
+2025-01-08 16:49:25
+
+是否存在语法错误和用词不当，这是一段学术论文：According to the method proposed by Wang et al. \cite{wang2010inferring}, the similarity of a pair of disease nodes 
+[vidis,vjdis]
+[v
+i
+dis
+	​
+
+,v
+j
+dis
+	​
+
+] is calculated based on their directed acyclic graph (DAG). The similarities of circRNAs and miRNAs are calculated using the methods proposed by Wang et al. \cite{wang2010inferring} and Chen et al. \cite{chen2015constructing}, respectively, where the similarity of a pair of circRNAs (miRNAs) is derived from the similarity between the two sets of diseases associated with them. For instance, suppose 
+i
+i-th circRNA node 
+vicir
+v
+i
+cir
+	​
+
+ is associated with 
+Nciri
+N
+cir
+i
+	​
+
+ diseases, forming the set 
+Ωicir={dik∣k=1,…,Nciri}
+Ω
+i
+cir
+	​
+
+={d
+ik
+	​
+
+∣k=1,…,N
+cir
+i
+	​
+
+}, and the 
+j
+j-th circRNA node 
+vjcir
+v
+j
+cir
+	​
+
+ is associated with the disease set 
+Ωjcir={djl∣l=1,…,Ncirj}
+Ω
+j
+cir
+	​
+
+={d
+jl
+	​
+
+∣l=1,…,N
+cir
+j
+	​
+
+}. The similarity 
+Sijcir
+S
+ij
+cir
+	​
+
+ of 
+[vicir,vjcir]
+[v
+i
+cir
+	​
+
+,v
+j
+cir
+	​
+
+] is determined by assessing the similarity between 
+Ωicir
+Ω
+i
+cir
+	​
+
+ and 
+Ωjcir
+Ω
+j
+cir
+	​
+
+. Similarly, we can calculate the similarity 
+Sijmir
+S
+ij
+mir
+	​
+
+ for 
+[vimir,vjmir]
+[v
+i
+mir
+	​
+
+,v
+j
+mir
+	​
+
+].
+
+2025-01-08 16:49:25
+
+这段学术论文的英语表达整体上是清晰的，但可以进行一些小的调整以提高流畅性和准确性。以下是一些建议：
+
+Consistency in Notation: Ensure that the notation is consistent throughout the text. For instance, use either "the 
+i
+i-th circRNA node" or "the 
+i
+i-th node of circRNA" consistently.
+
+Clarification of Terms: The term "the similarity of a pair of disease nodes" could be made clearer by specifying that it refers to a similarity score or measure.
+
+Use of Articles: In academic writing, the use of definite articles can enhance clarity. For example, instead of saying "the 
+i
+i-th circRNA node 
+vicir
+v
+i
+cir
+	​
+
+," you could say "the 
+i
+i-th circRNA node, 
+vicir
+v
+i
+cir
+	​
+
+."
+
+Phrasing Improvements: The phrase "derived from the similarity between the two sets of diseases associated with them" could be rephrased for clarity. Consider "based on the similarities between the two sets of diseases with which they are associated."
+
+Minor Grammatical Adjustments: The phrase "For instance, suppose 
+i
+i-th circRNA node 
+vicir
+v
+i
+cir
+	​
+
+ is associated with 
+Nciri
+N
+cir
+i
+	​
+
+ diseases" could be improved to "For instance, suppose the 
+i
+i-th circRNA node, 
+vicir
+v
+i
+cir
+	​
+
+, is associated with 
+Nciri
+N
+cir
+i
+	​
+
+ diseases."
+
+以下是经过调整后的版本：
+
+According to the method proposed by Wang et al. \cite{wang2010inferring}, the similarity of a pair of disease nodes, $[v_i^{dis},v_j^{dis}]$, is calculated based on their directed acyclic graph (DAG). The similarities of circRNAs and miRNAs are calculated using the methods proposed by Wang et al. \cite{wang2010inferring} and Chen et al. \cite{chen2015constructing}, respectively, where the similarity of a pair of circRNAs (miRNAs) is based on the similarities between the two sets of diseases with which they are associated. For instance, suppose the $i$-th circRNA node, $v_i^{cir}$, is associated with $N_{cir}^i$ diseases, forming the set $\Omega_i^{cir} = \{d_{ik} | k = 1, \ldots, N_{cir}^i\}$, and the $j$-th circRNA node, $v_j^{cir}$, is associated with the disease set $\Omega_j^{cir} = \{d_{jl} | l = 1, \ldots, N_{cir}^j\}$. The similarity $S_{ij}^{cir}$ of $[v_i^{cir},v_j^{cir}]$ is determined by assessing the similarity between $\Omega_i^{cir}$ and $\Omega_j^{cir}$. Similarly, we can calculate the similarity $S_{ij}^{mir}$ for $[v_i^{mir},v_j^{mir}]$.
+
+
+这些建议将帮助您提高文稿的清晰度和专业性。
+
+2025-01-08 16:52:22
+
+请给出详细的修改意见
+
+2025-01-08 16:52:22
+
+以下是对您提供的段落的详细修改意见，包括语法、用词、流畅性和清晰度方面的建议：
+
+句子结构和流畅性:
+
+原句：“According to the method proposed by Wang et al. \cite{wang2010inferring}, the similarity of a pair of disease nodes 
+[vidis,vjdis]
+[v
+i
+dis
+	​
+
+,v
+j
+dis
+	​
+
+] is calculated based on their directed acyclic graph (DAG).”
+建议：可以考虑将“the similarity of a pair of disease nodes”改为“the similarity score of a pair of disease nodes”，以增强清晰度。
+修改为：“According to the method proposed by Wang et al. \cite{wang2010inferring}, the similarity score of a pair of disease nodes, 
+[vidis,vjdis]
+[v
+i
+dis
+	​
+
+,v
+j
+dis
+	​
+
+], is calculated based on their directed acyclic graph (DAG).”
+
+一致性:
+
+原句：“The similarities of circRNAs and miRNAs are calculated using the methods proposed by Wang et al. \cite{wang2010inferring} and Chen et al. \cite{chen2015constructing}, respectively, where the similarity of a pair of circRNAs (miRNAs) is derived from the similarity between the two sets of diseases associated with them.”
+建议：在提到“circRNAs”和“miRNAs”时，保持一致的表达方式。可以考虑将“derived from the similarity”改为“based on the similarities”。
+修改为：“The similarities of circRNAs and miRNAs are calculated using the methods proposed by Wang et al. \cite{wang2010inferring} and Chen et al. \cite{chen2015constructing}, respectively, where the similarity of a pair of circRNAs (or miRNAs) is based on the similarities between the two sets of diseases associated with them.”
+
+清晰度:
+
+原句：“For instance, suppose 
+i
+i-th circRNA node 
+vicir
+v
+i
+cir
+	​
+
+ is associated with 
+Nciri
+N
+cir
+i
+	​
+
+ diseases, forming the set 
+Ωicir={dik∣k=1,…,Nciri}
+Ω
+i
+cir
+	​
+
+={d
+ik
+	​
+
+∣k=1,…,N
+cir
+i
+	​
+
+}, and the 
+j
+j-th circRNA node 
+vjcir
+v
+j
+cir
+	​
+
+ is associated with the disease set 
+Ωjcir={djl∣l=1,…,Ncirj}
+Ω
+j
+cir
+	​
+
+={d
+jl
+	​
+
+∣l=1,…,N
+cir
+j
+	​
+
+}.”
+建议：在提到“
+i
+i-th circRNA node”时，建议加上定冠词“the”，以提高语法正确性。
+修改为：“For instance, suppose the 
+i
+i-th circRNA node, 
+vicir
+v
+i
+cir
+	​
+
+, is associated with 
+Nciri
+N
+cir
+i
+	​
+
+ diseases, forming the set 
+Ωicir={dik∣k=1,…,Nciri}
+Ω
+i
+cir
+	​
+
+={d
+ik
+	​
+
+∣k=1,…,N
+cir
+i
+	​
+
+}, and the 
+j
+j-th circRNA node, 
+vjcir
+v
+j
+cir
+	​
+
+, is associated with the disease set 
+Ωjcir={djl∣l=1,…,Ncirj}
+Ω
+j
+cir
+	​
+
+={d
+jl
+	​
+
+∣l=1,…,N
+cir
+j
+	​
+
+}.”
+
+逻辑连贯性:
+
+原句：“The similarity 
+Sijcir
+S
+ij
+cir
+	​
+
+ of 
+[vicir,vjcir]
+[v
+i
+cir
+	​
+
+,v
+j
+cir
+	​
+
+] is determined by assessing the similarity between 
+Ωicir
+Ω
+i
+cir
+	​
+
+ and 
+Ωjcir
+Ω
+j
+cir
+	​
+
+.”
+建议：可以将“assessing the similarity”改为“evaluating the similarity”，以增强学术性。
+修改为：“The similarity 
+Sijcir
+S
+ij
+cir
+	​
+
+ of 
+[vicir,vjcir]
+[v
+i
+cir
+	​
+
+,v
+j
+cir
+	​
+
+] is determined by evaluating the similarity between 
+Ωicir
+Ω
+i
+cir
+	​
+
+ and 
+Ωjcir
+Ω
+j
+cir
+	​
+
+.”
+
+一致性和清晰度:
+
+原句：“Similarly, we can calculate the similarity 
+Sijmir
+S
+ij
+mir
+	​
+
+ for 
+[vimir,vjmir]
+[v
+i
+mir
+	​
+
+,v
+j
+mir
+	​
+
+].”
+建议：可以考虑将“calculate”改为“determine”，以保持与前文的用词一致。
+修改为：“Similarly, we can determine the similarity 
+Sijmir
+S
+ij
+mir
+	​
+
+ for 
+[vimir,vjmir]
+[v
+i
+mir
+	​
+
+,v
+j
+mir
+	​
+
+].”
+
+综上所述，修改后的段落如下：
+
+According to the method proposed by Wang et al. \cite{wang2010inferring}, the similarity score of a pair of disease nodes, $[v_i^{dis},v_j^{dis}]$, is calculated based on their directed acyclic graph (DAG). The similarities of circRNAs and miRNAs are calculated using the methods proposed by Wang et al. \cite{wang2010inferring} and Chen et al. \cite{chen2015constructing}, respectively, where the similarity of a pair of circRNAs (or miRNAs) is based on the similarities between the two sets of diseases associated with them. For instance, suppose the $i$-th circRNA node, $v_i^{cir}$, is associated with $N_{cir}^i$ diseases, forming the set $\Omega_i^{cir} = \{d_{ik} | k = 1, \ldots, N_{cir}^i\}$, and the $j$-th circRNA node, $v_j^{cir}$, is associated with the disease set $\Omega_j^{cir} = \{d_{jl} | l = 1, \ldots, N_{cir}^j\}$. The similarity $S_{ij}^{cir}$ of $[v_i^{cir},v_j^{cir}]$ is determined by evaluating the similarity between $\Omega_i^{cir}$ and $\Omega_j^{cir}$. Similarly, we can determine the similarity $S_{ij}^{mir}$ for $[v_i^{mir},v_j^{mir}]$.
+
+
+这些修改意见旨在提高段落的学术性、清晰度和流畅性。希望对您有所帮助！
+
+2025-01-08 17:03:49
+
+你可以这种回答方式回答：这段学术论文的英文表达整体清晰，但有几个小地方可以稍作优化，以增强语法和用词的准确性。以下是逐句分析与改进建议：
+
+原句:
+where 
+Hcir−dis
+H
+cir−dis
+, 
+Hmir−dis
+H
+mir−dis
+, and 
+Hcir−mir
+H
+cir−mir
+ denote the circRNA-disease association matrix, the miRNA-disease association matrix, and the circRNA-miRNA interaction matrix, respectively.
+建议:
+这句语法是正确的，没有错误。但可以稍微简化“the circRNA-disease association matrix”和“the miRNA-disease association matrix”的重复表达，避免过多的重复冗余。
+修改:
+where 
+Hcir−dis
+H
+cir−dis
+, 
+Hmir−dis
+H
+mir−dis
+, and 
+Hcir−mir
+H
+cir−mir
+ denote the circRNA-disease, miRNA-disease, and circRNA-miRNA matrices, respectively.
+
+原句:
+
+Ncir
+Ncir, 
+Ndis
+Ndis, and 
+Nmir
+N
+mir
+	​
+
+ represent the number of circRNAs, diseases, and miRNAs contained in the dataset.
+建议:
+这里的用词是正确的，但可以稍作精简，将“contained in the dataset”改为“in the dataset”，避免不必要的冗余。
+修改:
+
+Ncir
+Ncir, 
+Ndis
+Ndis, and 
+Nmir
+N
+mir
+	​
+
+ represent the number of circRNAs, diseases, and miRNAs in the dataset.
+
+原句:
+
+Hij∈Hcir−dis(Hmir−dis)
+Hij∈H
+cir−dis
+(H
+mir−dis
+) indicates the association between the circRNA (miRNA) node 
+vicir(vimir)
+vi
+cir
+(vi
+mir
+) and the disease node 
+vjdis
+vj
+dis
+.
+建议:
+此句结构清晰，没有明显语法错误。但可以略作调整，使表述更加简洁，例如将“the association between the circRNA (miRNA) node”改为“the association between the circRNA (or miRNA) node”。
+修改:
+
+Hij∈Hcir−dis(Hmir−dis)
+Hij∈H
+cir−dis
+(H
+mir−dis
+) indicates the association between the circRNA (or miRNA) node 
+vicir(vimir)
+vi
+cir
+(vi
+mir
+) and the disease node 
+vjdis
+vj
+dis
+.
+
+原句:
+For a circRNA (miRNA) node 
+vicir
+vi
+cir
+ (
+vimir
+vi
+mir
+) and a disease node 
+djdis
+dj
+dis
+, if 
+Hijcir−dis=1
+Hij
+cir−dis
+=1 (
+Hijmir−dis=1
+Hij
+mir−dis
+=1), it represents that an association exists between them; conversely, 
+Hijcir−dis=0
+Hij
+cir−dis
+=0 (
+Hijmir−dis=0
+H
+ij
+mir−dis
+	​
+
+=0) indicates that no association has been observed.
+建议:
+该句结构上没有问题，但“it represents that an association exists between them”中的“represents that”稍显冗长，可以简化为“indicates”或“denotes”。同时，“no association has been observed”可以简化为“there is no association”。
+修改:
+For a circRNA (or miRNA) node 
+vicir
+vi
+cir
+ (
+vimir
+vi
+mir
+) and a disease node 
+djdis
+dj
+dis
+, if 
+Hijcir−dis=1
+Hij
+cir−dis
+=1 (
+Hijmir−dis=1
+Hij
+mir−dis
+=1), it indicates that an association exists between them; conversely, 
+Hijcir−dis=0
+Hij
+cir−dis
+=0 (
+Hijmir−dis=0
+H
+ij
+mir−dis
+	​
+
+=0) indicates there is no association.
+
+原句:
+If 
+Hijcir−mir=1
+Hij
+cir−mir
+=1, it indicates that there is an interaction between the circRNA node 
+vicir
+vi
+cir
+ and the miRNA node 
+vjmir
+vj
+mir
+; otherwise, 
+Hijcir−mir=0
+Hij
+cir−mir
+=0.
+建议:
+该句表达基本清晰，但可以在“otherwise”前加入“if not”使语句更加精确，避免含糊。
+修改:
+If 
+Hijcir−mir=1
+Hij
+cir−mir
+=1, it indicates an interaction between the circRNA node 
+vicir
+vi
+cir
+ and the miRNA node 
+vjmir
+vj
+mir
+; if not, 
+Hijcir−mir=0
+Hij
+cir−mir
+=0.
+
+完整修改后的版本：
+where 
+Hcir−dis
+H
+cir−dis
+, 
+Hmir−dis
+H
+mir−dis
+, and 
+Hcir−mir
+H
+cir−mir
+ denote the circRNA-disease, miRNA-disease, and circRNA-miRNA matrices, respectively. 
+Ncir
+Ncir, 
+Ndis
+Ndis, and 
+Nmir
+Nmir represent the number of circRNAs, diseases, and miRNAs in the dataset. 
+Hij∈Hcir−dis(Hmir−dis)
+Hij∈H
+cir−dis
+(H
+mir−dis
+) indicates the association between the circRNA (or miRNA) node 
+vicir(vimir)
+vi
+cir
+(vi
+mir
+) and the disease node 
+vjdis
+vj
+dis
+. For a circRNA (or miRNA) node 
+vicir
+vi
+cir
+ (
+vimir
+vi
+mir
+) and a disease node 
+djdis
+dj
+dis
+, if 
+Hijcir−dis=1
+Hij
+cir−dis
+=1 (
+Hijmir−dis=1
+Hij
+mir−dis
+=1), it indicates that an association exists between them; conversely, 
+Hijcir−dis=0
+Hij
+cir−dis
+=0 (
+Hijmir−dis=0
+Hij
+mir−dis
+=0) indicates there is no association. If 
+Hijcir−mir=1
+Hij
+cir−mir
+=1, it indicates an interaction between the circRNA node 
+vicir
+vi
+cir
+ and the miRNA node 
+vjmir
+vj
+mir
+; if not, 
+Hijcir−mir=0
+Hij
+cir−mir
+=0.
+总结：
+
+1.语法整体无大问题，建议主要集中在简化和精炼部分表达，避免冗余和提高简洁性。
+2.词汇如“represents that”可以优化为“indicates”或“denotes”，使表述更简洁直接。
+
+2025-01-08 17:03:49
+
+这段学术论文的英文表达整体清晰，但有几个小地方可以稍作优化，以增强语法和用词的准确性。以下是逐句分析与改进建议：
+
+原句:
+where 
+Hcir−dis
+H
+cir−dis
+, 
+Hmir−dis
+H
+mir−dis
+, and 
+Hcir−mir
+H
+cir−mir
+ denote the circRNA-disease association matrix, the miRNA-disease association matrix, and the circRNA-miRNA interaction matrix, respectively.
+
+建议: 这句语法是正确的，没有错误。但可以稍微简化“the circRNA-disease association matrix”和“the miRNA-disease association matrix”的重复表达，避免过多的重复冗余。
+修改: where 
+Hcir−dis
+H
+cir−dis
+, 
+Hmir−dis
+H
+mir−dis
+, and 
+Hcir−mir
+H
+cir−mir
+ denote the circRNA-disease, miRNA-disease, and circRNA-miRNA matrices, respectively.
+
+原句:
+
+Ncir
+N
+cir
+	​
+
+, 
+Ndis
+N
+dis
+	​
+
+, and 
+Nmir
+N
+mir
+	​
+
+ represent the number of circRNAs, diseases, and miRNAs contained in the dataset.
+
+建议: 这里的用词是正确的，但可以稍作精简，将“contained in the dataset”改为“in the dataset”，避免不必要的冗余。
+修改: 
+Ncir
+N
+cir
+	​
+
+, 
+Ndis
+N
+dis
+	​
+
+, and 
+Nmir
+N
+mir
+	​
+
+ represent the number of circRNAs, diseases, and miRNAs in the dataset.
+
+原句:
+
+Hij∈Hcir−dis(Hmir−dis)
+H
+ij
+	​
+
+∈H
+cir−dis
+(H
+mir−dis
+) indicates the association between the circRNA (miRNA) node 
+vicir(vimir)
+v
+i
+cir
+	​
+
+(v
+i
+mir
+	​
+
+) and the disease node 
+vjdis
+v
+j
+dis
+	​
+
+.
+
+建议: 此句结构清晰，没有明显语法错误。但可以略作调整，使表述更加简洁，例如将“the association between the circRNA (miRNA) node”改为“the association between the circRNA (or miRNA) node”。
+修改: 
+Hij∈Hcir−dis(Hmir−dis)
+H
+ij
+	​
+
+∈H
+cir−dis
+(H
+mir−dis
+) indicates the association between the circRNA (or miRNA) node 
+vicir(vimir)
+v
+i
+cir
+	​
+
+(v
+i
+mir
+	​
+
+) and the disease node 
+vjdis
+v
+j
+dis
+	​
+
+.
+
+原句:
+For a circRNA (miRNA) node 
+vicir
+v
+i
+cir
+	​
+
+ (
+vimir
+v
+i
+mir
+	​
+
+) and a disease node 
+djdis
+d
+j
+dis
+	​
+
+, if 
+Hijcir−dis=1
+H
+ij
+cir−dis
+	​
+
+=1 (
+Hijmir−dis=1
+H
+ij
+mir−dis
+	​
+
+=1), it represents that an association exists between them; conversely, 
+Hijcir−dis=0
+H
+ij
+cir−dis
+	​
+
+=0 (
+Hijmir−dis=0
+H
+ij
+mir−dis
+	​
+
+=0) indicates that no association has been observed.
+
+建议: 该句结构上没有问题，但“it represents that an association exists between them”中的“represents that”稍显冗长，可以简化为“indicates”或“denotes”。同时，“no association has been observed”可以简化为“there is no association”。
+修改: For a circRNA (or miRNA) node 
+vicir
+v
+i
+cir
+	​
+
+ (
+vimir
+v
+i
+mir
+	​
+
+) and a disease node 
+djdis
+d
+j
+dis
+	​
+
+, if 
+Hijcir−dis=1
+H
+ij
+cir−dis
+	​
+
+=1 (
+Hijmir−dis=1
+H
+ij
+mir−dis
+	​
+
+=1), it indicates that an association exists between them; conversely, 
+Hijcir−dis=0
+H
+ij
+cir−dis
+	​
+
+=0 (
+Hijmir−dis=0
+H
+ij
+mir−dis
+	​
+
+=0) indicates there is no association.
+
+原句:
+If 
+Hijcir−mir=1
+H
+ij
+cir−mir
+	​
+
+=1, it indicates that there is an interaction between the circRNA node 
+vicir
+v
+i
+cir
+	​
+
+ and the miRNA node 
+vjmir
+v
+j
+mir
+	​
+
+; otherwise, 
+Hijcir−mir=0
+H
+ij
+cir−mir
+	​
+
+=0.
+
+建议: 该句表达基本清晰，但可以在“otherwise”前加入“if not”使语句更加精确，避免含糊。
+修改: If 
+Hijcir−mir=1
+H
+ij
+cir−mir
+	​
+
+=1, it indicates an interaction between the circRNA node 
+vicir
+v
+i
+cir
+	​
+
+ and the miRNA node 
+vjmir
+v
+j
+mir
+	​
+
+; if not, 
+Hijcir−mir=0
+H
+ij
+cir−mir
+	​
+
+=0.
+
+完整修改后的版本:
+where 
+Hcir−dis
+H
+cir−dis
+, 
+Hmir−dis
+H
+mir−dis
+, and 
+Hcir−mir
+H
+cir−mir
+ denote the circRNA-disease, miRNA-disease, and circRNA-miRNA matrices, respectively. 
+Ncir
+N
+cir
+	​
+
+, 
+Ndis
+N
+dis
+	​
+
+, and 
+Nmir
+N
+mir
+	​
+
+ represent the number of circRNAs, diseases, and miRNAs in the dataset. 
+Hij∈Hcir−dis(Hmir−dis)
+H
+ij
+	​
+
+∈H
+cir−dis
+(H
+mir−dis
+) indicates the association between the circRNA (or miRNA) node 
+vicir(vimir)
+v
+i
+cir
+	​
+
+(v
+i
+mir
+	​
+
+) and the disease node 
+vjdis
+v
+j
+dis
+	​
+
+. For a circRNA (or miRNA) node 
+vicir
+v
+i
+cir
+	​
+
+ (
+vimir
+v
+i
+mir
+	​
+
+) and a disease node 
+djdis
+d
+j
+dis
+	​
+
+, if 
+Hijcir−dis=1
+H
+ij
+cir−dis
+	​
+
+=1 (
+Hijmir−dis=1
+H
+ij
+mir−dis
+	​
+
+=1), it indicates that an association exists between them; conversely, 
+Hijcir−dis=0
+H
+ij
+cir−dis
+	​
+
+=0 (
+Hijmir−dis=0
+H
+ij
+mir−dis
+	​
+
+=0) indicates there is no association. If 
+Hijcir−mir=1
+H
+ij
+cir−mir
+	​
+
+=1, it indicates an interaction between the circRNA node 
+vicir
+v
+i
+cir
+	​
+
+ and the miRNA node 
+vjmir
+v
+j
+mir
+	​
+
+; if not, 
+Hijcir−mir=0
+H
+ij
+cir−mir
+	​
+
+=0.
+
+总结:
+
+语法整体无大问题，建议主要集中在简化和精炼部分表达，避免冗余和提高简洁性。
+词汇如“represents that”可以优化为“indicates”或“denotes”，使表述更简洁直接。
+2025-01-08 17:06:43
+
+（可以参考Xuan 等 - 2022 - Learning global dependencies and multi-semantics within heterogeneous graph for predicting disease-r.pdf和Xuan 等 - 2024 - Dynamic category-sensitive hypergraph inferring and homo-heterogeneous neighbor feature learning for.pdf。）下文是否存在语法错误和用词不当，这是一段学术论文：where 
+Nv
+N
+v
+	​
+
+ denotes the total number of all circRNAs, miRNAs, and diseases, and 
+Scir−disT
+S
+cir−dis
+T
+ represents the transpose of the matrix 
+Scir−dis
+S
+cir−dis
+. The 
+i
+i-th row 
+gi
+g
+i
+	​
+
+ of the matrix 
+G(0)
+G
+(0)
+ represents the node embedding of node 
+vi∈V
+v
+i
+	​
+
+∈V, which encapsulates the associations and similarities between 
+vi
+v
+i
+	​
+
+ and all circRNAs, diseases, and miRNAs. The set 
+{gi∣0⩽i<Ncir}
+{g
+i
+	​
+
+∣0⩽i<N
+cir
+	​
+
+} denotes the collection of node embeddings for all circRNAs. Furthermore, the sets 
+{gi∣Ncir⩽i<Ncir+Ndis}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
+} and 
+{gi∣Ncir+Ndis⩽i<Ncir+Ndis+Nmir}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
++N
+dis
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
++N
+mir
+	​
+
+} represent the collections of node embeddings for all diseases and all miRNAs, respectively.
+
+2025-01-08 17:06:43
+
+这段学术论文的英文表达整体上是清晰的，但仍有一些小地方可以优化，以增强语法和用词的准确性。以下是逐句分析与改进建议：
+
+原句:
+where 
+Nv
+N
+v
+	​
+
+ denotes the total number of all circRNAs, miRNAs, and diseases, and 
+Scir−disT
+S
+cir−dis
+T
+ represents the transpose of the matrix 
+Scir−dis
+S
+cir−dis
+.
+
+建议: 这句语法是正确的，但“total number of all”中的“total”和“all”有些重复，可以简化为“total number of circRNAs, miRNAs, and diseases”。
+修改: where 
+Nv
+N
+v
+	​
+
+ denotes the total number of circRNAs, miRNAs, and diseases, and 
+Scir−disT
+S
+cir−dis
+T
+ represents the transpose of the matrix 
+Scir−dis
+S
+cir−dis
+.
+
+原句:
+The 
+i
+i-th row 
+gi
+g
+i
+	​
+
+ of the matrix 
+G(0)
+G
+(0)
+ represents the node embedding of node 
+vi∈V
+v
+i
+	​
+
+∈V, which encapsulates the associations and similarities between 
+vi
+v
+i
+	​
+
+ and all circRNAs, diseases, and miRNAs.
+
+建议: 该句结构清晰，但可以考虑将“the associations and similarities between 
+vi
+v
+i
+	​
+
+ and all circRNAs, diseases, and miRNAs”改为“the associations and similarities involving 
+vi
+v
+i
+	​
+
+, circRNAs, diseases, and miRNAs”以提高表达的简洁性。
+修改: The 
+i
+i-th row 
+gi
+g
+i
+	​
+
+ of the matrix 
+G(0)
+G
+(0)
+ represents the node embedding of node 
+vi∈V
+v
+i
+	​
+
+∈V, which encapsulates the associations and similarities involving 
+vi
+v
+i
+	​
+
+, circRNAs, diseases, and miRNAs.
+
+原句:
+The set 
+{gi∣0⩽i<Ncir}
+{g
+i
+	​
+
+∣0⩽i<N
+cir
+	​
+
+} denotes the collection of node embeddings for all circRNAs.
+
+建议: 这句表达清晰，没有明显的语法错误。
+修改: 无需修改。
+
+原句:
+Furthermore, the sets 
+{gi∣Ncir⩽i<Ncir+Ndis}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
+} and 
+{gi∣Ncir+Ndis⩽i<Ncir+Ndis+Nmir}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
++N
+dis
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
++N
+mir
+	​
+
+} represent the collections of node embeddings for all diseases and all miRNAs, respectively.
+
+建议: 该句较长，可以考虑将“represent the collections of node embeddings for all diseases and all miRNAs”简化为“represent the collections of node embeddings for diseases and miRNAs”以避免重复。
+修改: Furthermore, the sets 
+{gi∣Ncir⩽i<Ncir+Ndis}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
+} and 
+{gi∣Ncir+Ndis⩽i<Ncir+Ndis+Nmir}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
++N
+dis
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
++N
+mir
+	​
+
+} represent the collections of node embeddings for diseases and miRNAs, respectively.
+
+完整修改后的版本:
+where 
+Nv
+N
+v
+	​
+
+ denotes the total number of circRNAs, miRNAs, and diseases, and 
+Scir−disT
+S
+cir−dis
+T
+ represents the transpose of the matrix 
+Scir−dis
+S
+cir−dis
+. The 
+i
+i-th row 
+gi
+g
+i
+	​
+
+ of the matrix 
+G(0)
+G
+(0)
+ represents the node embedding of node 
+vi∈V
+v
+i
+	​
+
+∈V, which encapsulates the associations and similarities involving 
+vi
+v
+i
+	​
+
+, circRNAs, diseases, and miRNAs. The set 
+{gi∣0⩽i<Ncir}
+{g
+i
+	​
+
+∣0⩽i<N
+cir
+	​
+
+} denotes the collection of node embeddings for all circRNAs. Furthermore, the sets 
+{gi∣Ncir⩽i<Ncir+Ndis}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
+} and 
+{gi∣Ncir+Ndis⩽i<Ncir+Ndis+Nmir}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
++N
+dis
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
++N
+mir
+	​
+
+} represent the collections of node embeddings for diseases and miRNAs, respectively.
+
+总结:
+
+语法整体无大问题，建议主要集中在简化和精炼部分表达，避免冗余和提高简洁性。
+在某些地方可以通过替换词汇或调整句子结构来增强表达的流畅性和清晰度。
+2025-01-08 17:11:27
+
+原中文是“包含了”，这里使用的encapsulates合适吗？还是要修改一下？
+
+2025-01-08 17:11:27
+
+在学术论文中，"encapsulates" 通常用于表示某个概念或内容被包含或概括在某个更大的框架或结构中。因此，如果原中文是“包含了”，使用 "encapsulates" 是合适的，因为它传达了“包含”和“概括”的含义。
+
+然而，如果想要更直接地表达“包含了”的意思，可以考虑使用 "includes" 或 "contains"。这两个词更为常见且直接，适合表达包含的概念。
+
+综上所述，如果想保持较为正式和学术的表达，可以保留 "encapsulates"；如果希望更加简单明了，可以修改为 "includes" 或 "contains"。具体选择取决于您希望传达的语气和风格。
+
+2025-01-08 17:13:38
+
+（可以参考Xuan 等 - 2022 - Learning global dependencies and multi-semantics within heterogeneous graph for predicting disease-r.pdf和Xuan 等 - 2024 - Dynamic category-sensitive hypergraph inferring and homo-heterogeneous neighbor feature learning for.pdf。）下文是否存在语法错误和用词不当，这是一段学术论文：where 
+Nv
+N
+v
+	​
+
+ denotes the total number of circRNAs, miRNAs, and diseases, and 
+Scir−disT
+S
+cir−dis
+T
+ represents the transpose of the matrix 
+Scir−dis
+S
+cir−dis
+. The 
+i
+i-th row 
+gi
+g
+i
+	​
+
+ of the matrix 
+G(0)
+G
+(0)
+ represents the node embedding of node 
+vi∈V
+v
+i
+	​
+
+∈V, which contains the associations and similarities involving 
+vi
+v
+i
+	​
+
+ and all circRNAs, diseases, and miRNAs. The set 
+{gi∣0⩽i<Ncir}
+{g
+i
+	​
+
+∣0⩽i<N
+cir
+	​
+
+} denotes the collection of node embeddings for all circRNAs. Furthermore, the sets 
+{gi∣Ncir⩽i<Ncir+Ndis}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
+} and 
+{gi∣Ncir+Ndis⩽i<Ncir+Ndis+Nmir}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
++N
+dis
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
++N
+mir
+	​
+
+} represent the collections of node embeddings for all diseases and miRNAs, respectively.
+
+2025-01-08 17:13:38
+
+这段学术论文的英文表达整体上是清晰的，但仍有一些小地方可以优化，以增强语法和用词的准确性。以下是逐句分析与改进建议：
+
+原句:
+where 
+Nv
+N
+v
+	​
+
+ denotes the total number of circRNAs, miRNAs, and diseases, and 
+Scir−disT
+S
+cir−dis
+T
+ represents the transpose of the matrix 
+Scir−dis
+S
+cir−dis
+.
+
+建议: 这句语法是正确的，但“total number of circRNAs, miRNAs, and diseases”可以简化为“total number of circRNAs, miRNAs, and diseases”。
+修改: 无需修改。
+
+原句:
+The 
+i
+i-th row 
+gi
+g
+i
+	​
+
+ of the matrix 
+G(0)
+G
+(0)
+ represents the node embedding of node 
+vi∈V
+v
+i
+	​
+
+∈V, which contains the associations and similarities involving 
+vi
+v
+i
+	​
+
+ and all circRNAs, diseases, and miRNAs.
+
+建议: 该句结构清晰，但可以考虑将“the associations and similarities involving 
+vi
+v
+i
+	​
+
+ and all circRNAs, diseases, and miRNAs”改为“the associations and similarities involving 
+vi
+v
+i
+	​
+
+, circRNAs, diseases, and miRNAs”以提高表达的简洁性。
+修改: The 
+i
+i-th row 
+gi
+g
+i
+	​
+
+ of the matrix 
+G(0)
+G
+(0)
+ represents the node embedding of node 
+vi∈V
+v
+i
+	​
+
+∈V, which contains the associations and similarities involving 
+vi
+v
+i
+	​
+
+, circRNAs, diseases, and miRNAs.
+
+原句:
+The set 
+{gi∣0⩽i<Ncir}
+{g
+i
+	​
+
+∣0⩽i<N
+cir
+	​
+
+} denotes the collection of node embeddings for all circRNAs.
+
+建议: 这句表达清晰，没有明显的语法错误。
+修改: 无需修改。
+
+原句:
+Furthermore, the sets 
+{gi∣Ncir⩽i<Ncir+Ndis}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
+} and 
+{gi∣Ncir+Ndis⩽i<Ncir+Ndis+Nmir}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
++N
+dis
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
++N
+mir
+	​
+
+} represent the collections of node embeddings for all diseases and miRNAs, respectively.
+
+建议: 该句较长，可以考虑将“represent the collections of node embeddings for all diseases and miRNAs”简化为“represent the collections of node embeddings for diseases and miRNAs”以避免重复。
+修改: Furthermore, the sets 
+{gi∣Ncir⩽i<Ncir+Ndis}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
+} and 
+{gi∣Ncir+Ndis⩽i<Ncir+Ndis+Nmir}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
++N
+dis
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
++N
+mir
+	​
+
+} represent the collections of node embeddings for diseases and miRNAs, respectively.
+
+完整修改后的版本:
+where 
+Nv
+N
+v
+	​
+
+ denotes the total number of circRNAs, miRNAs, and diseases, and 
+Scir−disT
+S
+cir−dis
+T
+ represents the transpose of the matrix 
+Scir−dis
+S
+cir−dis
+. The 
+i
+i-th row 
+gi
+g
+i
+	​
+
+ of the matrix 
+G(0)
+G
+(0)
+ represents the node embedding of node 
+vi∈V
+v
+i
+	​
+
+∈V, which contains the associations and similarities involving 
+vi
+v
+i
+	​
+
+, circRNAs, diseases, and miRNAs. The set 
+{gi∣0⩽i<Ncir}
+{g
+i
+	​
+
+∣0⩽i<N
+cir
+	​
+
+} denotes the collection of node embeddings for all circRNAs. Furthermore, the sets 
+{gi∣Ncir⩽i<Ncir+Ndis}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
+} and 
+{gi∣Ncir+Ndis⩽i<Ncir+Ndis+Nmir}
+{g
+i
+	​
+
+∣N
+cir
+	​
+
++N
+dis
+	​
+
+⩽i<N
+cir
+	​
+
++N
+dis
+	​
+
++N
+mir
+	​
+
+} represent the collections of node embeddings for diseases and miRNAs, respectively.
+
+总结:
+
+语法整体无大问题，建议主要集中在简化和精炼部分表达，避免冗余和提高简洁性。
+在某些地方可以通过替换词汇或调整句子结构来增强表达的流畅性和清晰度。
+2025-01-09 15:20:24
+
+（可以参考Xuan 等 - 2022 - Learning global dependencies and multi-semantics within heterogeneous graph for predicting disease-r.pdf和Xuan 等 - 2024 - Dynamic category-sensitive hypergraph inferring and homo-heterogeneous neighbor feature learning for.pdf。）翻译下面的.tex格式的段落，输出为.tex格式，该段落是一片学术论文：circRNA-disease-miRNA异构图中的结点
+vi
+v
+i
+	​
+
+具有一跳能够直接到达的一阶邻居，或者是经过
+d (d>1)
+d (d>1)跳能够到达的
+d
+d阶邻居。这些邻居结点所形成的多尺度拓扑结构，能够为circRNA与disease的关联预测提供重要的辅助信息。低阶(一阶)邻居与高阶(
+d
+d阶)邻居对于每个结点所学习到的特征有着不同的贡献，因此我们ARWR来建立多尺度邻居拓扑嵌入(Figure \ref{fig:visio3})。以
+vi
+v
+i
+	​
+
+为例，walker会以
+vi
+v
+i
+	​
+
+作为起点出发，在circRNA-disease-miRNA异构图中进行随机游走。
+vi
+v
+i
+	​
+
+在
+t
+t时刻到达所有circRNA、disease和miRNA结点的概率分布为
+θi(t)∈R1×Nv
+θ
+i
+	​
+
+(t)∈R
+1×N
+v
+	​
+
+，
+\begin{equation}
+\theta _i{(t)} = (1 - \lambda) O^T \theta _i{(t-1)} + \lambda \theta _i{(0)},
+\end{equation}
+其中
+θi(t)
+θ
+i
+	​
+
+(t)的第
+j
+j个元素值代指walker从起点
+vi
+v
+i
+	​
+
+出发经过
+d
+d跳到达结点$v_j$$(0 \leqslant j < N_v)
+的概率。
+的概率。\theta _i{(0)}$是初始one-hot向量，其第
+i
+i个位置值为1，其余均为0。
+λ
+λ为walker从起点重新出发的概率，
+λ
+λ的值越大，walker在网络当中游走的范围就越小。
+O∈RNv×Nv
+O∈R
+N
+v
+	​
+
+×N
+v
+	​
+
+是
+G(0)
+G
+(0)
+经过行归一化后得到的，其中 
+oij∈O
+o
+ij
+	​
+
+∈O表示walker从
+vi
+v
+i
+	​
+
+转移到结点
+vj
+v
+j
+	​
+
+的概率。
+θi(t)
+θ
+i
+	​
+
+(t)可以被看成
+vi
+v
+i
+	​
+
+经过
+t
+t跳邻居能够到达各个结点的概率分布，因此它是
+vi
+v
+i
+	​
+
+的
+t
+t阶邻居拓扑嵌入。
+
+经过上述过程，我们可以得0到t阶的邻居拓扑嵌入。这些尺度的邻居拓扑嵌入被自适应地融合，得到
+vi
+v
+i
+	​
+
+的多尺度邻居拓扑嵌入
+θi
+θ
+i
+	​
+
+，
+\begin{equation}
+\theta _i = \eta_0  \theta _i{(0)} + \eta_1 \theta _i{(1)} + \cdot \cdot \cdot + \eta_k \theta _i{(k)} + \cdot \cdot \cdot + \eta_t \theta _i{(t)},
+\end{equation}
+其中
+ηk∈(0,1)
+η
+k
+	​
+
+∈(0,1)是随机初始化的可学习参数，并且
+∑k=0tηk=1
+∑
+k=0
+t
+	​
+
+η
+k
+	​
+
+=1。
+
+2025-01-09 15:20:28
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\begin{document}
+
+在circRNA-disease-miRNA异构图中的结点$v_i$具有一跳能够直接到达的一阶邻居，或者是经过$d\ (d > 1)$跳能够到达的$d$阶邻居。这些邻居结点所形成的多尺度拓扑结构，能够为circRNA与disease的关联预测提供重要的辅助信息。低阶(一阶)邻居与高阶($d$阶)邻居对于每个结点所学习到的特征有着不同的贡献，因此我们ARWR来建立多尺度邻居拓扑嵌入(Figure \ref{fig:visio3})。以$v_i$为例，walker会以$v_i$作为起点出发，在circRNA-disease-miRNA异构图中进行随机游走。$v_i$在$t$时刻到达所有circRNA、disease和miRNA结点的概率分布为$\theta _i{(t)} \in \mathbb{R}^{1 \times N_v}$，
+\begin{equation}
+\theta _i{(t)} = (1 - \lambda) O^T \theta _i{(t-1)} + \lambda \theta _i{(0)},
+\end{equation}
+其中$\theta _i{(t)}$的第$j$个元素值代指walker从起点$v_i$出发经过$d$跳到达结点$v_j$$(0 \leqslant j < N_v)$的概率。$\theta _i{(0)}$是初始one-hot向量，其第$i$个位置值为1，其余均为0。$\lambda$为walker从起点重新出发的概率，$\lambda$的值越大，walker在网络当中游走的范围就越小。$O\in \mathbb{R}^{N_v\times N_v}$是$G^{(0)}$经过行归一化后得到的，其中 $o_{ij}\in O$表示walker从$v_i$转移到结点$v_j$的概率。$\theta _i{(t)}$可以被看成$v_i$经过$t$跳邻居能够到达各个结点的概率分布，因此它是$v_i$的$t$阶邻居拓扑嵌入。
+
+经过上述过程，我们可以得0到t阶的邻居拓扑嵌入。这些尺度的邻居拓扑嵌入被自适应地融合，得到$v_i$的多尺度邻居拓扑嵌入$\theta _i$，
+\begin{equation}
+\theta _i = \eta_0  \theta _i{(0)} + \eta_1 \theta _i{(1)} + \cdots + \eta_k \theta _i{(k)} + \cdots + \eta_t \theta _i{(t)},
+\end{equation}
+其中$\eta_k\in (0, 1)$是随机初始化的可学习参数，并且$\sum_{k=0}^{t}\eta_k = 1$。
+
+\end{document}
+
+
+以上是将您提供的段落翻译为LaTeX格式的输出。请根据需要进行调整。
+
+2025-01-09 15:22:19
+
+（可以参考Xuan 等 - 2022 - Learning global dependencies and multi-semantics within heterogeneous graph for predicting disease-r.pdf和Xuan 等 - 2024 - Dynamic category-sensitive hypergraph inferring and homo-heterogeneous neighbor feature learning for.pdf。的风格）翻译下面的.tex格式的段落成英文，输出为.tex格式，该段落来自一篇学术论文，尽量保留细节：circRNA-disease-miRNA异构图中的结点
+vi
+v
+i
+	​
+
+具有一跳能够直接到达的一阶邻居，或者是经过
+d (d>1)
+d (d>1)跳能够到达的
+d
+d阶邻居。这些邻居结点所形成的多尺度拓扑结构，能够为circRNA与disease的关联预测提供重要的辅助信息。低阶(一阶)邻居与高阶(
+d
+d阶)邻居对于每个结点所学习到的特征有着不同的贡献，因此我们ARWR来建立多尺度邻居拓扑嵌入(Figure \ref{fig:visio3})。以
+vi
+v
+i
+	​
+
+为例，walker会以
+vi
+v
+i
+	​
+
+作为起点出发，在circRNA-disease-miRNA异构图中进行随机游走。
+vi
+v
+i
+	​
+
+在
+t
+t时刻到达所有circRNA、disease和miRNA结点的概率分布为
+θi(t)∈R1×Nv
+θ
+i
+	​
+
+(t)∈R
+1×N
+v
+	​
+
+，
+\begin{equation}
+\theta _i{(t)} = (1 - \lambda) O^T \theta _i{(t-1)} + \lambda \theta _i{(0)},
+\end{equation}
+其中
+θi(t)
+θ
+i
+	​
+
+(t)的第
+j
+j个元素值代指walker从起点
+vi
+v
+i
+	​
+
+出发经过
+d
+d跳到达结点$v_j$$(0 \leqslant j < N_v)
+的概率。
+的概率。\theta _i{(0)}$是初始one-hot向量，其第
+i
+i个位置值为1，其余均为0。
+λ
+λ为walker从起点重新出发的概率，
+λ
+λ的值越大，walker在网络当中游走的范围就越小。
+O∈RNv×Nv
+O∈R
+N
+v
+	​
+
+×N
+v
+	​
+
+是
+G(0)
+G
+(0)
+经过行归一化后得到的，其中 
+oij∈O
+o
+ij
+	​
+
+∈O表示walker从
+vi
+v
+i
+	​
+
+转移到结点
+vj
+v
+j
+	​
+
+的概率。
+θi(t)
+θ
+i
+	​
+
+(t)可以被看成
+vi
+v
+i
+	​
+
+经过
+t
+t跳邻居能够到达各个结点的概率分布，因此它是
+vi
+v
+i
+	​
+
+的
+t
+t阶邻居拓扑嵌入。
+
+经过上述过程，我们可以得0到t阶的邻居拓扑嵌入。这些尺度的邻居拓扑嵌入被自适应地融合，得到
+vi
+v
+i
+	​
+
+的多尺度邻居拓扑嵌入
+θi
+θ
+i
+	​
+
+，
+\begin{equation}
+\theta _i = \eta_0  \theta _i{(0)} + \eta_1 \theta _i{(1)} + \cdot \cdot \cdot + \eta_k \theta _i{(k)} + \cdot \cdot \cdot + \eta_t \theta _i{(t)},
+\end{equation}
+其中
+ηk∈(0,1)
+η
+k
+	​
+
+∈(0,1)是随机初始化的可学习参数，并且
+∑k=0tηk=1
+∑
+k=0
+t
+	​
+
+η
+k
+	​
+
+=1。
+
+2025-01-09 15:22:24
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\begin{document}
+
+In the circRNA-disease-miRNA heterogeneous graph, the node $v_i$ has first-order neighbors that can be reached in one hop, or $d$-th order neighbors that can be reached in $d\ (d > 1)$ hops. The multi-scale topological structure formed by these neighboring nodes can provide important auxiliary information for predicting the associations between circRNAs and diseases. The contributions of low-order (first-order) neighbors and high-order ($d$-th order) neighbors to the features learned for each node are different; thus, we employ Adaptive Random Walk Representation (ARWR) to establish multi-scale neighbor topological embeddings (Figure \ref{fig:visio3}). Taking $v_i$ as an example, the walker starts from $v_i$ and performs random walks in the circRNA-disease-miRNA heterogeneous graph. The probability distribution of reaching all circRNA, disease, and miRNA nodes at time $t$ is given by $\theta _i{(t)} \in \mathbb{R}^{1 \times N_v}$,
+\begin{equation}
+\theta _i{(t)} = (1 - \lambda) O^T \theta _i{(t-1)} + \lambda \theta _i{(0)},
+\end{equation}
+where the $j$-th element of $\theta _i{(t)}$ denotes the probability that the walker starting from $v_i$ reaches node $v_j$ after $d$ hops $(0 \leqslant j < N_v)$. $\theta _i{(0)}$ is the initial one-hot vector, where the $i$-th position is 1 and all other positions are 0. $\lambda$ is the probability that the walker restarts from the starting point; a larger value of $\lambda$ results in a smaller range of the walker's movement within the network. $O \in \mathbb{R}^{N_v \times N_v}$ is obtained from the row-normalized matrix of $G^{(0)}$, where $o_{ij} \in O$ represents the probability of the walker transitioning from $v_i$ to node $v_j$. $\theta _i{(t)}$ can be viewed as the probability distribution of reaching various nodes after $t$ hops from $v_i$, thus it serves as the $t$-th order neighbor topological embedding of $v_i$.
+
+Through the aforementioned process, we can derive neighbor topological embeddings from order 0 to order $t$. These scale neighbor topological embeddings are adaptively fused to obtain the multi-scale neighbor topological embedding $\theta _i$ for $v_i$,
+\begin{equation}
+\theta _i = \eta_0  \theta _i{(0)} + \eta_1 \theta _i{(1)} + \cdots + \eta_k \theta _i{(k)} + \cdots + \eta_t \theta _i{(t)},
+\end{equation}
+where $\eta_k \in (0, 1)$ are randomly initialized learnable parameters, and $\sum_{k=0}^{t}\eta_k = 1$.
+
+\end{document}
+
+
+This is the translated text in LaTeX format, maintaining the details as requested. Please feel free to adjust any specific formatting or content as needed.
+
+2025-01-09 15:24:41
+
+（可以参考Xuan 等 - 2022 - Learning global dependencies and multi-semantics within heterogeneous graph for predicting disease-r.pdf和Xuan 等 - 2024 - Dynamic category-sensitive hypergraph inferring and homo-heterogeneous neighbor feature learning for.pdf。的风格）翻译下面的.tex格式的段落成英文，输出为.tex格式，该段落来自一篇学术论文，尽量保留细节：我们以每个结点作为起点进行随机游走后，可以得到的每一个结点的多尺度邻居嵌入$\theta _i$$(0\leqslant i<N_v)$。所有结点的多尺度邻居拓扑嵌入被垂直堆叠起来，形成嵌入矩阵
+R∈RNv×Nv
+R∈R
+N
+v
+	​
+
+×N
+v
+	​
+
+。
+
+2025-01-09 15:24:47
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\begin{document}
+
+After performing random walks starting from each node, we can obtain the multi-scale neighbor embedding $\theta _i$ for each node $(0 \leqslant i < N_v)$. The multi-scale neighbor topological embeddings of all nodes are vertically stacked to form the embedding matrix $R \in \mathbb{R}^{N_v \times N_v}$.
+
+\end{document}
+
+
+This is the translated text in LaTeX format, maintaining the details as requested. Please feel free to adjust any specific formatting or content as needed.
+
+语音通话

@@ -1,0 +1,280 @@
+Nucleic Acids Research, 2024, 52, D1193–D1200 https://doi.org/10.1093/nar/gkad949 Advance access publication date: 28 October 2023 Database issue
+circRNADisease v2.0: an updated resource for high-quality
+experimentally supported circRNA-disease associations
+Zhi-Yan Sun1,2,†, Chang-Lin Yang1,†, Li-Jie Huang1,†, Zong-Chao Mo3,4,†, Ke-Nan Zhang1, Wen-Hua Fan1,2, Kuan-Yu Wang1,2, Fan Wu1, Ji-Guang Wang 3,4, Fan-Lin Meng5,6,*, Zheng Zhao 1,3,4,* and Tao Jiang 1,2,*
+1Beijing Neurosurgical Institute, Capital Medical University, Beijing 100070, China 2Beijing Tiantan Hospital, Capital Medical University, Beijing 100070, China 3SIAT-HKUST Joint Laboratory of Cell Evolution and Digital Health, HKUST Shenzhen-Hong Kong Collaborative Innovation Research Institute, Shenzhen 518045, China 4Division of Life Science, Department of Chemical and Biological Engineering, and State Key Laboratory of Molecular Neuroscience, The Hong Kong University of Science and Technology, Hong Kong SAR, China 5Marketing and Management Department, CapitalBio Technology, Beijing 101111, China 6National Engineering Research Center for Beijing Biochip Technology, Beijing 102206, China
+*To whom correspondence should be addressed. Tel: +86 10 59975624; Email: taojiang1964@163.com Correspondence may also be addressed to Zheng Zhao. Email: zhaozheng0503@ccmu.edu.cn Correspondence may also be addressed to Fan-Lin Meng. Email: mengfl@capitalbiotech.com †The authors wish it to be known that, in their opinion, the first four authors should be regarded as Joint First Authors.
+Abstract
+circRNADisease v2.0 is an enhanced and reliable database that offers experimentally verified relationships between circular RNAs (circRNAs) and various diseases. It is accessible at http://cgga.org.cn/circRNADisease/ or http://cgga.org.cn:9091/circRNADisease/. The database currently includes 6998 circRNA-disease entries across multiple species, representing a remarkable 19.77-fold increase compared to the previous version. This expansion consists of a substantial rise in the number of circRNAs (from 330 to 4246), types of diseases (from 48 to 330) and covered species (from human only to 12 species). Furthermore, a new section has been introduced in the database, which collects information on circRNA-associated factors (genes, proteins and microRNAs), molecular mechanisms (molecular pathways), biological functions (proliferation, migration, invasion, etc.), tumor and/or cell line and/or patient-derived xenograft (PDX) details, and prognostic evidence in diseases. In addition, we identified 7 159 865 relationships between mutations and circRNAs among 30 TCGA cancer types. Due to notable enhancements and extensive data expansions, the circRNADisease 2.0 database has become an invaluable asset for both clinical practice and fundamental research. It enables researchers to develop a more comprehensive understanding of how circRNAs impact complex diseases.
+Received: September 9, 2023. Revised: October 9, 2023. Editorial Decision: October 9, 2023. Accepted: October 12, 2023 © The Author(s) 2023. Published by Oxford University Press on behalf of Nucleic Acids Research. This is an Open Access article distributed under the terms of the Creative Commons Attribution-NonCommercial License (http://creativecommons.org/licenses/by-nc/4.0/), which permits non-commercial re-use, distribution, and reproduction in any medium, provided the original work is properly cited. For commercial re-use, please contact journals.permissions@oup.com
+Downloaded from https://academic.oup.com/nar/article/52/D1/D1193/7332069 by guest on 19 January 2025
+
+
+D1194 Nucleic Acids Research, 2024, Vol. 52, Database issue
+Graphical abstract
+LITERATURE
+LITERATURE PROCESSING
+MUTATION DATA
+circular RNA circRNA
+disease
+disease species sample type
+detailed cell lines
+expression pattern
+detected method
+associated molecules function & mechanism
+title journal published time PubMed ID
+survival description
+tumor cancer carcinoma
+circRNA ID circRNA synonym
+30 cancer types
+10,212 samples
+NAMING EXTERNAL LINK
+circRNADisease version 2.0
+Disease MiRNA
+Literature Visualize
+CircRNA ID
+Gene CircRNA name
+SEARCH & BROWSE
+Circ2Mut
+searchways
+resultpage
+result
+page
+Visualize
+7,159,865 relationships between mutations and circRNAs circRNADisease
+version 2.0
+syndrome inflammation
+supported NO.
+IGV
+Disease Ontology
+circBase PubMed
+PubMed
+miRBase
+GeneCards
+TCGA pan-cancer
+Background
+Currently, a novel type of RNA has excited scientists and triggered a lot of published studies. Known as circular RNAs (circRNAs), unlike linear RNA, these RNAs are produced by normal transcription from genomic DNA and form a covalently closed continuous loop. CircRNAs show abundant stable expression in the cytoplasm across species ranging from viruses to mammals, suggesting they may play a critical role in both normal physiological processes and various disease states (1–3). Recent studies have revealed that circRNAs can participate in multiple functions: (a) acting as microRNA ‘sponge’ (46); (b) interacting with RNA-binding proteins (RBPs) to establish RNA-protein complexes (7–10); (c) regulating RNAs besides microRNAs through limited base-pairing (11–13); (d) generating protein production (14–16). As with most topics in the circRNA community, it is important to consider how circRNAs act in regulatory roles in complex diseases. It is worthwhile to look into how circRNAs can be used to explore pathogenesis and devise therapeutic interventions. Numerous studies have elucidated the involvement of circRNAs in disease progression, highlighting their functional roles in various disease processes. As a circular RNA sponge for miR7, ciRS-7 (CDR1as) has been found predominantly in human and mouse brains and associated with colorectal cancer (17), Alzheimer’s disease (18), esophageal squamous cell carcinoma (19) and oral squamous cell carcinomas (20), etc. In addition, circRNA expression and molecular structures appear to be conserved across many species. Therefore, circRNAs offer new opportunities for biological biomarkers and therapy targets in diseases. In this study, we have enhanced the previous version (21) and introduced circRNADisease v2.0, an updated and reliable resource that provides high-quality experimentally supported associations between circRNAs and diseases. Compared with the previous version, we added more circRNAdisease relationships, collected circRNA biological functions and molecular mechanisms participating in diseases associ
+ated with patient survival, extended more species and provided the naming convention and unified names of circRNAs. Additionally, we identified a number of mutations on circRNA loci among 30 cancer types from the Cancer Genome Atlas (TCGA). The circRNADisease v2.0 will be an important database to serve this community’s basic and clinical researchers. All the information about circRNADisease v2.0 is available free at http://cgga.org.cn/circRNADisease/ or http: //cgga.org.cn:9091/circRNADisease/.
+Data expansion and database construction
+Data resource
+The circRNADisease v2.0 expanded more high-quality experimentally supported circRNA-disease associations. First, we performed an extensive literature query of the PubMed database (https://pubmed.ncbi.nlm.nih.gov/) using a list of keywords combining ‘circular RNA’ or ‘circRNA’ with ‘disease’, ‘tumor’, ‘cancer’, ‘carcinoma’, ‘syndrome’ or ‘inflammation’ mainly from January 2018 to August 2023 (Figure 1A). After conducting the search, a total of 11419 abstracts were obtained. Subsequently, all retrieved literature underwent an initial review process, where irrelevant articles were eliminated by assessing their abstracts. We subsequently extracted circRNA-disease relationships from various species with different diseases. Entries that met the criteria for detected experiments, such as RT-qPCR, RNA-seq and/or microarray, were exclusively included in the study. To enhance the convenience of researchers’ usage, we implemented a standardized approach for defining the confidence level of detected methods. Specifically, we designated a detection method as ‘High’ confidence only if it has been detected or validated using RTqPCR. Otherwise, if an alternative method was employed, we categorized it as ‘Low’ confidence. Similar to circRNADisease v1.0, we gathered essential information for each entry, including circRNA ID/name/synonym, disease name, circRNA expression pattern (up-regulated or down-regulated), experimental detection
+Downloaded from https://academic.oup.com/nar/article/52/D1/D1193/7332069 by guest on 19 January 2025
+
+
+Nucleic Acids Research, 2024, Vol. 52, Database issue D1195
+A. DATA COLLECTION
+~ 15000 Published literature (Keyword: circRNA, disease)
+circRNA
+PubMed
+disease circRNA-disease entries species
+4,246 330 330 48 6,998 354 1
+mutation data
+12
+version: v1.0 v2.0
+tissue cell line PDX
+detected method RT-qPCR RNA-seq microarray
+expression pattern other information up-regulated down-regulated dysregulated
+associated genes, microRNAs
+biological functions (proliferation, migration, and invasion, et al.) molecular mechanisms (interaction, signaling pathways, et al.) patient surival (better, poor, et al.)
+sample type
+B. DATA PROCESSING C. DATABASE DEVELOPMENT
+standardized circRNA naming
+Home (quick search)
+Development tools
+circRNA-disease relationships
+mutations on circRNA loci
+<species>+‘_circ_’+<host gene>
+disease name (Disease Ontology)
+circRNA ID (circBase)
+standardized disease naming
+external link database
+gene symbol (GeneCards)
+microRNA ID (miRBase)
+literature (PubMed)
+Browse
+7,159,865 mut-circ 30 cancer types 10,141 samples
+ECLIPSE
+jQuery
+MySQL
+DataTables zTreeStyle.css
+Apache Tomcat IGV
+Figure 1. Data expansion and features of circRNADisease v2.0. (A) Data collection. (B) Data processing. (C) Database development.
+techniques (such as RT-qPCR, RNA-seq and/or microarray), circRNA-associated partners (such as microRNA or gene), a concise description of circRNA biological function and literature references (Figure 1A). In the circRNADisease v2.0, we have also collected more detailed information to characterize the circRNA-disease relationships in various species, including circRNA-associated factors (interacting genes, RNA binding proteins and microRNAs, etc.), circRNA involved biological function (proliferation, migration, invasion, etc.), circRNA involved molecular mechanism in diseases (molecular interaction, biological pathways, etc.), summarized the number of literature for each circRNAdisease entry, experiments’ information about tissue and/or cell line and/or patient-derived xenograft (PDX) and detailed cell lines’ names. Importantly, we have gathered significant patient prognostic evidence associating circRNA with various diseases, offering valuable insights into the advancement of these conditions and the outcomes experienced by patients. To facilitate information sharing with other authoritative reference databases, we standardized the information based on specific criteria, including the circRNA basic information from the circBase (22), disease information from the Disease Ontology (DO)(23), gene basic information from GeneCards (24) and microRNA basic information from miRbase (25) (Figure 1B). Since the naming of circRNA in different studies is often ambiguous and needs more consistency (26), we have introduced standardized naming conventions. We adopt the format of ‘<species short name>_circ_<host gene>’ to ensure uniformity in nomenclature. For instance, we employ names like hsa_circ_HIPK3, hsa_circ_CDR1 and hsa_circ_PVT1, etc.
+Somatic mutation within non-coding RNAs has also been proven to play critical roles in diseases (27,28). Therefore, we collected cancer mutation data from the TCGA projects across a broad spectrum of 30 cancer types, encompassing a total of 10212 samples (https://gdc.cancer.gov/about-data/ publications/pancanatlas). The genomic coordinates of the genetic alterations were from the GRCh37/hg19 genome assembly for consistency and compatibility. Additionally, we accessed circBase (http://www.circbase.org/cgi-bin/downloads. cgi) and obtained 92375 human circRNAs along with their corresponding genomic coordinates. Bedtools (v2.30.0) (29) was applied to intersect mutation bed file and circRNA bed file using code ‘bedtools intersect -a circRNA.bed -b somatic.bed -wb -wa -loj > merge.bed’. After filtering insertion-deletion mutations, only somatic point mutations on circRNA loci were kept. As a result, we identified 7 159 865 relationships between mutations and circRNAs among 30 cancer types. The three cancer types with the highest mutation numbers in circRNAs were identified as UCEC (uterine corpus endometrial carcinoma), SKCM (skin cutaneous melanoma) and COADREAD (colorectal adenocarcinoma).
+Database implementation
+In circRNADisease 2.0, the data is meticulously organized using MySQL 14.14, utilizing a relational schema. This organizational structure will continue to be supported in future updates, ensuring consistency with the previous description (30) (Figure 1C). The website’s code was crafted utilizing Java Server Pages (JSP) and employing the Java Servlet framework developed by Eclipse software (https://www.eclipse. org/). The website is hosted on the Tomcat 6.0.44 web server
+Downloaded from https://academic.oup.com/nar/article/52/D1/D1193/7332069 by guest on 19 January 2025
+
+
+D1196 Nucleic Acids Research, 2024, Vol. 52, Database issue
+Table 1. Improvements and data comparison of circRNADisease v2.0 and circRNADisease v1.0
+Feature
+circRNADisease 1.0
+circRNADisease 2.0 Fold increase
+species 1 12 12.00 circRNA 330 4246 12.87 disease 48 330 6.88 circRNA-disease entries 354 6998 19.77 mutation-circRNA relationships 0 7 159 865 − ‘browse by circRNA and disease’ module supported supported − ‘browse by host gene’ module not supported supported − ‘search by circRNA, host gene and disease’ module
+supported supported −
+‘search by miRNA’ module not supported supported − ‘Circ2Mut’ module not supported supported − unified disease name and circRNA name not supported supported biological functions not supported supported − molecular mechanisms not supported supported − patient survival not supported supported −
+and operates on a CentOS 6.5 Linux system. The data and result visualization were generated, rendered and manipulated using jQuery (https://jquery.com/) and dataTable (https: //datatables.net/). The zTreeStyle (https://documentation.help/ zTree/) was used to generate tree structure in the ‘Browse’ module. The ‘Circ2Mut’ module utilizes igv.js (https://github. com/igvteam/igv.js/), which is an interactive visualization tool designed to embed and explore mutations on circRNA loci. The website has been thoroughly tested in Google Chrome v115.0.5790.170 and Safari v15.4 browsers.
+Results
+Database content
+The circRNADisease v2.0 contains a total of 6998 circRNAdisease entries in multiple species (Figure 1A and Table 1). This represents a 19.77-fold increase in circRNA-disease entries (from 354 to 6998), as well as a significant expansion number of circRNAs (from 330 to 4246), types of diseases (from 48 to 330), covered species (from human only to 12 species), compared with our previous version. Based on circRNADisease v2.0, we found that a growing number of studies have explored the relationship between circRNA and disease in the past several years (Figure 2A). The current version of circRNADisease v2.0 documents 6998 experimentally validated circRNA and disease associations across 12 species, including human, mouse, boars, C. elegans, chicken, cow, goat, pig, rat, sheep, virus, apostichopus japonicus (Figure 2B). In addition, several circRNAs (circ_HIPK3, circ_CDR1 and circ_PVT1, etc.) and DO diseases (stomach cancer, hepatocellular carcinoma, colorectal cancer, etc.) were widely studied in circRNA community (Figure 2C, D). These ongoing studies on circRNAs play a crucial role in uncovering a deeper understanding of disease mechanisms and facilitating the development of novel therapeutic strategies.
+Improved user interface
+Compared with the previous version, we have reorganized several user-friendly web interfaces to enable users to efficiently browse and search circRNA-disease relationships under different diseases among various species. In addition, submit and download function was developed and presented on the web interface (Figure 3).
+Home
+We introduced this project’s motivation, information collection, database content and statistics. In addition, we have provided a convenient search tool that enables users to quickly search for widely studied circRNAs, host genes, diseases and microRNAs in the circRNAs’ community. All records are displayed on the search result pages.
+Search
+In circRNADisease v2.0, a comprehensive platform, four different search ways are available: circRNA, host gene, disease and microRNAs (Figure 3A). For instance, within the search interface, users can retrieve the associations between circRNA and diseases. Furthermore, this interface facilitates filtering based on detected methods and the specific tissue or cell line or PDX under investigation. In the result pages, users are empowered to employ fuzzy search input for filtering, sorting and downloading result tables.
+Browse
+We have redesigned a browser page to provide access to circRNA-disease relationships across various classifications, such as species, circRNA ID/name/synonym, circRNA host gene and unified disease names based on Disease Ontology (Figure 3B). To further enhance user efficiency, we have implemented fuzzy search tools. These tools enable swift and accurate retrieval of results by closely matching and approximating user input, even in the presence of minor variations or typos. This implementation significantly improves the overall user experience, providing a more flexible and forgiving search functionality. Similarly, on the search result page, users can browse additional details for each entry (Figure 3C). This feature allows users to delve deeper into the specific information they are interested in, enhancing their understanding and exploring the browse results.
+Circ2Mut
+‘Circ2Mut’, an innovative module, has been specifically designed to facilitate the retrieval of mutations occurring within circRNA loci. Its primary objective is to identify genetic variations that directly impact the functionality of circRNAs (Figure 3D). Additionally, we developed an IGV-based intuitive visualization tool that enable researchers to visually explore and analyze mutations within circRNA loci. With the ‘Circ2Mut’,
+Downloaded from https://academic.oup.com/nar/article/52/D1/D1193/7332069 by guest on 19 January 2025
+
+
+Nucleic Acids Research, 2024, Vol. 52, Database issue D1197
+A
+1 9 44
+146
+398
+723
+1000
+1134
+1524
+587
+0
+500
+1000
+1500
+2010
+2015
+2016
+2017
+2018
+2019
+2020
+2021
+2022
+2023
+Published time (year)
+Number of literature
+6588
+6000
+6200
+6400
+6600
+265
+102
+12 10
+0
+100
+200
+300
+human mouse rat
+21
+chicken cow others
+Number of entries
+Species
+B
+110
+55 46
+36 35 33 30 29 28 27
+0
+30
+60
+90
+hsa_circ_HIPK3
+hsa_circ_CDR1
+hsa_circ_PVT1
+hsa_circ_ZNF609
+hsa_circ_ITCH
+hsa_circ_PTK2
+hsa_circ_RPPH1
+hsa_circ_SMARCA5
+hsa_circ_UBAP2
+hsa_circ_PRKCI
+circRNA name (circRNADisease)
+Number of entries
+C 473 470
+414 384 351
+204 186 178 171 141
+0
+100
+200
+300
+400
+500
+stomachcancer
+hepatocellularcarcinoma
+colorectalcancer
+lungnon−smallcellcarcinoma
+breastcancer
+osteosarcoma
+brainglioma
+cervicalcancer
+urinarybladdercancer
+lungcancer
+Number of entries
+Disease (Disease Ontology)
+D
+Figure 2. The statistics of broad studies in the circRNA community. (A) The number of scientific literature published by year. (B) The number of circRNA-disease relationships for species. (C) The number of circRNA-disease relationships for the top 10 cutting-edge research circRNAs in the circRNA community. (D) The number of circRNA-disease relationships for the top 10 cutting-edge research diseases in the circRNA community.
+researchers can delve into the intricate details of mutations occurring within circRNA loci, leading to a comprehensive understanding of abnormal circRNA biogenesis and expression in the context of various diseases. By providing this advanced functionality, the ‘Circ2Mut’ module aims to empower researchers in uncovering new insights into the role of mutations in circRNA dynamics and their potential implications in disease mechanisms.
+Submit and Download
+We present the ‘Submit’ module, designed to facilitate the submission of experiment-supported associations between circRNAs and diseases (Figure 3E). This module allows researchers to contribute their findings, expanding the knowledge base of circRNADisease v2.0. Furthermore, all data collected in the circRNADisease v2.0 can be freely accessed (Figure 3F). Users can download the entire dataset or selectively choose specific sections of interest from the dedicated ‘Download’ page. Moreover, users can conveniently access result data through the result interface on the ‘Search’, ‘Browse’ and ‘Circ2Mut’ modules, which provides personalized querying and enables the download tables of results following a search.
+Use case: circRNAs in brain glioma
+The circRNADisease v2.0 database serves multiple purposes. Within the Search module’s ‘Search by Disease’ page, users can retrieve research on circRNAs related to human glioma by selecting the ‘human’ species and entering ‘brain glioma’ as the disease keyword. This search yields 186 documented
+relationships between brain glioma and circRNAs in humans. For instance, circNEIL3 has been identified as a regulator of ADAR1 expression by acting as a sponge for miR-4325p, leading to RNA editing of glioma-associated oncogene 1 (GLI1). This process ultimately impacts cell cycle progression and promotes the epithelial-to-mesenchymal transition (EMT) in pancreatic ductal adenocarcinoma (PDAC) cells (31). Pan et al. uncovered that in the context of brain glioma, the induction of EWSR1 leads to the promotion of glioma progression and the facilitation of exosome-mediated macrophage immunosuppressive polarization through the stabilization of IGF2BP3 by circNEIL3 (32). Thus, circRNADisease v2.0 provides essential summary information on the circRNA-disease relationships and facilitates further research.
+Conclusions and future extensions
+Compared with other databases, circRNADisease 2.0 includes five distinctive features: (i) we significantly expanded the previous version to new version by adding more circRNA-disease relationships; (ii) we collected the comprehensive circRNAdisease information, especially for circRNA biological functions in disease, molecular mechanism of circRNA participating in disease, etc.; (iii) we provide the patient outcome evidence based on circRNA expression; (iv) we collected the circRNA-disease relationships not only in human but also other ten species, such as mouse, rat, etc. (v) we developed the ‘Circ2Mut’ module to explore mutations on circRNA loci
+Downloaded from https://academic.oup.com/nar/article/52/D1/D1193/7332069 by guest on 19 January 2025
+
+
+D1198 Nucleic Acids Research, 2024, Vol. 52, Database issue
+‘Submit’ module
+‘Download’ module
+‘Search’ module
+A
+F
+E
+Detailed results of ‘Browse’ or ‘Search’ modules
+C
+Search by circRNA ('human', 'circ_HIPK3') Search by disease ('human', 'hepatocellular carcinoma') Search by circRNA result ('human', 'circ_HIPK3')
+Search by host gene ('human', 'gene') Search by miRNA ('human', 'miR-124')
+‘Browse’ module (showed by inputting the 'circ_HIPK3')
+B
+‘Circ2Mut’ module (showed by inputting the 'hsa_circ_0000284')
+D
+Figure 3. The user interfaces of each functional module in the circRNADisease v2.0 database. (A) An interface of the ‘Search’ module provides four search ways by circRNA, disease, host gene and microRNA, respectively. (B) An interface of the ‘Browse’ module. (C) An interface of the detailed results of the ‘Browse’ or ‘Search’ modules. (D) An interface of the ‘Circ2Mut’ module. (E) An interface of the ‘Submit’ module. (F) An interface of the ‘Download’ module.
+Downloaded from https://academic.oup.com/nar/article/52/D1/D1193/7332069 by guest on 19 January 2025
+
+
+Nucleic Acids Research, 2024, Vol. 52, Database issue D1199
+in 30 human cancers. Our future endeavors involve the ongoing collection of circRNA-disease associations and regular updates to the database every three months. We are committed to enhancing our database by incorporating additional analysis tools. Additionally, we plan to integrate a wealth of biological data and functional web-based tools into the circRNADisease 2.0 database. Our ultimate goal is to provide a dependable database platform that meets the needs of a diverse community of scientific researchers.
+Data availability
+For this article, you can access all the data online at http://cgga.org.cn/circRNADisease/ or http://cgga.org.cn: 9091/circRNADisease/.
+Acknowledgements
+Author contributions: Tao Jiang, Zheng Zhao and Fan-Lin Meng designed this study. Zhi-Yan Sun, Chang-Lin Yang and Li-Jie Huang extracted and summarized the scientific literature. Zong-Chao Mo collected and processed TCGA mutation data. Ke-Nan Zhang, Wen-Hua Fan, Kuan-Yu Wang and Fan Wu retrieved, downloaded, and preliminarily filtered scientific literature. Zheng Zhao participated in developing the website. Fan-Lin Meng and Zheng Zhao wrote the manuscript. Tao Jiang and Ji-Guang Wang mainly provided many comments and suggestions, and edited the manuscript. All authors read and approved the manuscript.
+Ethical approval
+Not applicable.
+Funding
+National Natural Science Foundation of China (NSFC) fund [82002647, 82003035]; mainland (MOST)-Hong Kong (ITC) Joint Funding Scheme [2019YFE0109400 to Tao Jiang lab, No. MHP/004/19 to Ji-Guang Wang lab]; Beijing Hospitals Authority Youth Programme [QML20230507]; Beijing Municipal Health Commission Fund [11000023T000002044300-5]; research in the JiGuang Wang lab is also supported by grants from the Hong Kong Research Grants Council [R4017-18, C4039-19G, C6034-21G, C6021-19EF, R6003-22, CRS_HKUST605/22]; Hong Kong Innovation and Technology Commission [ITCPD/17-9]; Padma Harilela Professorship and Project of Hetao Shenzhen-Hong Kong Science and Technology Innovation Cooperation Zone [HZQB-KCZYB-2020083]. Funding for open access charge: mainland (MOST)-Hong Kong (ITC) Joint Funding Scheme [2019YFE0109400 to Tao Jiang lab, MHP/004/19 to Ji-Guang Wang lab]; National Natural Science Foundation of China (NSFC) fund [82002647]; Beijing Hospitals Authority Youth Programme [QML20230507]; Beijing Municipal Health Commission Fund [11000023T000002044300-5].
+Conflict of interest statement
+None declared.
+References
+1. Ebbesen,K.K., Hansen,T.B. and Kjems,J. (2017) Insights into circular RNA biology. RNA Biol, 14, 1035–1045. 2. Han,B., Chao,J. and Yao,H. (2018) Circular RNA and its mechanisms in disease: from the bench to the clinic. Pharmacol. Ther., 187, 31–44. 3. Altesha,M.A., Ni,T., Khan,A., Liu,K. and Zheng,X. (2019) Circular RNA in cardiovascular disease. J. Cell. Physiol., 234, 5588–5600. 4. Hansen,T.B., Jensen,T.I., Clausen,B.H., Bramsen,J.B., Finsen,B., Damgaard,C.K. and Kjems,J. (2013) Natural RNA circles function as efficient microRNA sponges. Nature, 495, 384–388. 5. Kulcheski,F.R., Christoff,A.P. and Margis,R. (2016) Circular RNAs are miRNA sponges and can be used as a new class of biomarker. J. Biotechnol., 238, 42–51.
+6. Panda,A.C. (2018) Circular RNAs act as miRNA sponges. Adv. Exp. Med. Biol., 1087, 67–79.
+7. Zang,J., Lu,D. and Xu,A. (2020) The interaction of circRNAs and RNA binding proteins: an important part of circRNA maintenance and function. J. Neurosci. Res., 98, 87–97. 8. Okholm,T.L.H., Sathe,S., Park,S.S., Kamstrup,A.B., Rasmussen,A.M., Shankar,A., Chua,Z.M., Fristrup,N., Nielsen,M.M., Vang,S., et al. (2020) Transcriptome-wide profiles of circular RNA and RNA-binding protein interactions reveal effects on circular RNA biogenesis and cancer pathway expression. Genome Med, 12, 112. 9. Conn,S.J., Pillman,K.A., Toubia,J., Conn,V.M., Salmanidis,M., Phillips,C.A., Roslan,S., Schreiber,A.W., Gregory,P.A. and Goodall,G.J. (2015) The RNA binding protein quaking regulates formation of circRNAs. Cell, 160, 1125–1134. 10. Huang,A., Zheng,H., Wu,Z., Chen,M. and Huang,Y. (2020) Circular RNA-protein interactions: functions, mechanisms, and identification. Theranostics, 10, 3503–3517. 11. Conn,V.M., Hugouvieux,V., Nayak,A., Conos,S.A., Capovilla,G., Cildir,G., Jourdain,A., Tergaonkar,V., Schmid,M., Zubieta,C., et al. (2017) A circRNA from SEPALLATA3 regulates splicing of its cognate mRNA through R-loop formation. Nat. Plants, 3, 17053. 12. Chen,N., Zhao,G., Yan,X., Lv,Z., Yin,H., Zhang,S., Song,W., Li,X., Li,L., Du,Z., et al. (2018) A novel FLI1 exonic circular RNA promotes metastasis in breast cancer by coordinately regulating TET1 and DNMT1. Genome Biol., 19, 218. 13. Rossi,F., Beltran,M., Damizia,M., Grelloni,C., Colantoni,A., Setti,A., Di Timoteo,G., Dattilo,D., Centron-Broco,A., Nicoletti,C., et al. (2022) Circular RNA ZNF609/CKAP5 mRNA interaction regulates microtubule dynamics and tumorigenicity. Mol. Cell, 82, 75–89. 14. Gao,X., Xia,X., Li,F., Zhang,M., Zhou,H., Wu,X., Zhong,J., Zhao,Z., Zhao,K., Liu,D., et al. (2021) Circular RNA-encoded oncogenic E-cadherin variant promotes glioblastoma tumorigenicity through activation of EGFR-STAT3 signalling. Nat. Cell Biol., 23, 278–291.
+15. Patop,I.L., Wust,S. and Kadener,S. (2019) Past, present, and future of circRNAs. EMBO J., 38, e100836. 16. Pamudurti,N.R., Bartok,O., Jens,M., Ashwal-Fluss,R., Stottmeister,C., Ruhe,L., Hanan,M., Wyler,E., Perez-Hernandez,D., Ramberger,E., et al. (2017) Translation of CircRNAs. Mol. Cell, 66, 9–21. 17. Weng,W., Wei,Q., Toden,S., Yoshida,K., Nagasaka,T., Fujiwara,T., Cai,S., Qin,H., Ma,Y. and Goel,A. (2017) Circular RNA ciRS-7-A promising prognostic biomarker and a potential therapeutic target in colorectal cancer. Clin. Cancer Res., 23, 3918–3928. 18. Lukiw,W.J. (2013) Circular RNA (circRNA) in Alzheimer’s disease (AD). Front. Genet., 4, 307.
+19. Li,R.C., Ke,S., Meng,F.K., Lu,J., Zou,X.J., He,Z.G., Wang,W.F. and Fang,M.H. (2018) CiRS-7 promotes growth and metastasis of esophageal squamous cell carcinoma via regulation of miR-7/HOXB13. Cell Death. Dis., 9, 838. 20. Gao,L., Dou,Z.C., Ren,W.H., Li,S.M., Liang,X. and Zhi,K.Q. (2019) CircCDR1as upregulates autophagy under hypoxia to promote tumor cell survival via AKT/ERK((1/2))/mTOR
+Downloaded from https://academic.oup.com/nar/article/52/D1/D1193/7332069 by guest on 19 January 2025
+
+
+D1200 Nucleic Acids Research, 2024, Vol. 52, Database issue
+signaling pathways in oral squamous cell carcinomas. Cell Death. Dis., 10, 745. 21. Zhao,Z., Wang,K., Wu,F., Wang,W., Zhang,K., Hu,H., Liu,Y. and Jiang,T. (2018) circRNA disease: a manually curated database of experimentally supported circRNA-disease associations. Cell Death. Dis., 9, 475.
+22. Glazar,P., Papavasileiou,P. and Rajewsky,N. (2014) circBase: a database for circular RNAs. RNA, 20, 1666–1670. 23. Schriml,L.M., Munro,J.B., Schor,M., Olley,D., McCracken,C., Felix,V., Baron,J.A., Jackson,R., Bello,S.M., Bearer,C., et al. (2022) The Human Disease Ontology 2022 update. Nucleic Acids Res., 50, D1255–D1261. 24. Safran,M., Dalah,I., Alexander,J., Rosen,N., Iny Stein,T., Shmoish,M., Nativ,N., Bahir,I., Doniger,T., Krug,H., et al. (2010) GeneCards Version 3: the human gene integrator. Database (Oxford), 2010, baq020.
+25. Kozomara,A., Birgaoanu,M. and Griffiths-Jones,S. (2019) miRBase: from microRNA sequences to function. Nucleic Acids Res., 47, D155–D162. 26. Chen,L.L., Bindereif,A., Bozzoni,I., Chang,H.Y., Matera,A.G., Gorospe,M., Hansen,T.B., Kjems,J., Ma,X.K., Pek,J.W., et al. (2023) A guide to naming eukaryotic circular RNAs. Nat. Cell Biol., 25, 1–5.
+27. Wedge,E., Ahmadov,U., Hansen,T.B., Gao,Z., Tulstrup,M., Come,C., Nonavinkere Srivatsan,S., Ahmed,T., Jespersen,J.S.,
+Schlotmann,B.C., et al. (2023) Impact of U2AF1 mutations on circular RNA expression in myelodysplastic neoplasms. Leukemia, 37, 1113–1125. 28. Zhao,M. and Qu,H. (2020) circVAR database: genome-wide archive of genetic variants for human circular RNAs. Bmc Genomics [Electronic Resource], 21, 750.
+29. Quinlan,A.R. and Hall,I.M. (2010) BEDTools: a flexible suite of utilities for comparing genomic features. Bioinformatics, 26, 841–842. 30. Zhao,Z., Zhang,K.N., Wang,Q., Li,G., Zeng,F., Zhang,Y., Wu,F., Chai,R., Wang,Z., Zhang,C., et al. (2021) Chinese glioma genome Atlas (CGGA): a comprehensive resource with functional genomic data from Chinese glioma patients. Genomics Proteomics Bioinformatics, 19, 1–12.
+31. Shen,P., Yang,T., Chen,Q., Yuan,H., Wu,P., Cai,B., Meng,L., Huang,X., Liu,J., Zhang,Y., et al. (2021) CircNEIL3 regulatory loop promotes pancreatic ductal adenocarcinoma progression via miRNA sponging and A-to-I RNA-editing. Mol. Cancer, 20, 51. 32. Pan,Z., Zhao,R., Li,B., Qi,Y., Qiu,W., Guo,Q., Zhang,S., Zhao,S., Xu,H., Li,M., et al. (2022) EWSR1-induced circNEIL3 promotes glioma progression and exosome-mediated macrophage immunosuppressive polarization via stabilizing IGF2BP3. Mol. Cancer, 21, 16.
+Received: September 9, 2023. Revised: October 9, 2023. Editorial Decision: October 9, 2023. Accepted: October 12, 2023 © The Author(s) 2023. Published by Oxford University Press on behalf of Nucleic Acids Research. This is an Open Access article distributed under the terms of the Creative Commons Attribution-NonCommercial License (http://creativecommons.org/licenses/by-nc/4.0/), which permits non-commercial re-use, distribution, and reproduction in any medium, provided the original work is properly cited. For commercial re-use, please contact journals.permissions@oup.com
+Downloaded from https://academic.oup.com/nar/article/52/D1/D1193/7332069 by guest on 19 January 2025
