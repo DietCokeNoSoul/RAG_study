@@ -12,6 +12,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.pdf
 .Python
 
 # 虚拟环境
