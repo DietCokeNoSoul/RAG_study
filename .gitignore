@@ -1,6 +1,8 @@
 # 模型文件
 Models/
 models/
+Paper/
+paper/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
